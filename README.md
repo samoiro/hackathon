@@ -1,0 +1,2 @@
+# hackathon
+Samoiro AI Hackathon
