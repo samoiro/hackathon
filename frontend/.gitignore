@@ -1,0 +1,30 @@
+# Dependencies and build outputs
+node_modules/
+dist/
+dist-ssr/
+*.tsbuildinfo
+
+# Local environment files; keep the documented example
+.env
+.env.*
+!.env.example
+*.local
+
+# Logs
+logs/
+*.log
+
+# Vercel local project metadata
+.vercel/
+
+# Editor and OS files
+.vscode/*
+!.vscode/extensions.json
+.idea/
+.DS_Store
+Thumbs.db
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
