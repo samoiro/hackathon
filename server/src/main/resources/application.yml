@@ -1,0 +1,63 @@
+spring:
+  application:
+    name: server
+  config:
+    # 로컬 비밀값은 server/.env 에 (Railway에선 Variables로 주입)
+    import: optional:file:.env[.properties]
+  datasource:
+    # Railway Postgres 서비스의 PG* 변수를 참조합니다. (로컬에선 compose.yaml이 자동 연결)
+    url: jdbc:postgresql://${PGHOST:localhost}:${PGPORT:5432}/${PGDATABASE:hackathon}
+    username: ${PGUSER:hackathon}
+    password: ${PGPASSWORD:hackathon}
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: ${JPA_DDL_AUTO:update}
+    properties:
+      hibernate:
+        format_sql: true
+  docker:
+    compose:
+      lifecycle-management: start-only
+  mvc:
+    # 에러 응답을 RFC 9457 ProblemDetail(JSON) 형식으로 통일
+    problemdetails:
+      enabled: true
+
+app:
+  cors:
+    # 쉼표로 구분, 와일드카드 가능 (예: https://*.up.railway.app)
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:*}
+
+seoul:
+  api:
+    base-url: ${SEOUL_API_BASE_URL:http://openapi.seoul.go.kr:8088}
+    key: ${SEOUL_API_KEY:}
+
+data-go-kr:
+  api:
+    base-url: ${DATA_GO_KR_API_BASE_URL:https://apis.data.go.kr}
+    # 공공데이터포털 "일반 인증키(Decoding)" 값
+    key: ${DATA_GO_KR_API_KEY:}
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+    operations-sorter: method
+    tags-sorter: alpha
+  default-produces-media-type: application/json
+
+server:
+  # Railway가 주입하는 PORT 사용
+  port: ${PORT:8080}
+  shutdown: graceful
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      probes:
+        enabled: true
