@@ -28,3 +28,6 @@ Thumbs.db
 *.njsproj
 *.sln
 *.sw?
+
+# hey-api 생성 코드 (npm run dev / build / api 시 자동 생성)
+src/lib/api/generated/

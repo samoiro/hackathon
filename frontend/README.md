@@ -13,7 +13,10 @@ npm ci
 npm run dev
 ```
 
-`npm run typecheck`로 타입 검사, `npm run lint`로 ESLint 검사,
+`npm run dev`는 API 코드 생성 → Prettier 정리(`format`) → ESLint → 타입 검사 → 빌드를
+순서대로 통과해야 개발 서버를 띄웁니다. 하나라도 실패하면 멈춥니다.
+
+`npm run typecheck`로 타입 검사, `npm run lint`로 ESLint 검사, `npm run format`으로 Prettier 정리,
 `npm run build`로 타입 검사와 프로덕션 빌드를 수행합니다.
 `npm run preview`로 빌드 결과를 로컬에서 확인합니다.
 
@@ -39,6 +42,22 @@ Tailwind Preflight와 Ant Design의 스타일 우선순위를 명시합니다.
 - 실제 요청, API 경로, 인증 및 인터셉터는 아직 구현하지 않았습니다.
 - `VITE_*` 값은 브라우저에 공개됩니다. 비밀 키를 넣지 마세요.
 
+## API 코드 생성 (hey-api)
+
+서버 OpenAPI 문서(`{VITE_API_BASE_URL}/v3/api-docs`)로 DTO 타입과 API 함수를
+`src/lib/api/generated/`에 자동 생성합니다. (git에는 올리지 않음)
+
+- `npm run dev`, `npm run build` 시작 시 자동 생성 → **서버가 켜져 있어야 합니다.**
+- 서버 API가 바뀌면 `npm run api`로 다시 생성
+- 생성된 함수는 `src/lib/api/client.ts`의 `apiClient`(axios)로 요청합니다. (`heyApiConfig.ts`에서 연결)
+
+```ts
+import { culturalEvents } from '../lib/api/generated'
+
+const { data } = await culturalEvents({ query: { category: '콘서트', size: 20 } })
+// data: { totalCount: number; items: unknown[] }
+```
+
 ## Vercel 배포 준비
 
 - Root Directory: `frontend`
@@ -47,6 +66,7 @@ Tailwind Preflight와 Ant Design의 스타일 우선순위를 명시합니다.
 - Output Directory: `dist`
 - Node.js 버전은 `package.json`의 최소 요구사항 이상으로 맞추세요.
 - 배포 환경의 `VITE_API_BASE_URL`은 빌드 전에 설정해야 합니다.
+  빌드 중 이 주소의 `/v3/api-docs`로 API 코드를 생성하므로 배포된 서버가 켜져 있어야 합니다.
 - `vercel.json`은 SPA 하위 경로를 `index.html`로 연결합니다.
   Vercel은 실제로 존재하는 정적 파일을 우선하며 `/assets/`는 rewrite에서 제외합니다.
 
