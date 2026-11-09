@@ -1,0 +1,6 @@
+sh .husky/check-branch-name.sh
+
+# 프론트: 커밋하는 파일만 Prettier + ESLint (frontend 의존성이 설치된 경우)
+if [ -d frontend/node_modules ]; then
+  (cd frontend && npx --no-install lint-staged)
+fi
