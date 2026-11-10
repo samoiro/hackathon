@@ -47,34 +47,35 @@ export TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE=/var/run/docker.sock
 - 목록 API는 `page`(1부터), `size`(최대 1000) 지원, 응답은 `{ totalCount, items }`
 - 외부 API 오류는 502, 인증키 미설정은 503, 잘못된 파라미터는 400
 
-## Railway 배포
+## 배포 (Render + Neon, 무료)
 
-1. 프로젝트에 **PostgreSQL** 서비스 추가
-2. GitHub 레포로 서비스 추가 → Settings
-   - Root Directory: `/server`
-   - Config-as-code 경로: `/server/railway.toml`
-3. 서버 서비스 Variables에 Postgres 변수 참조 추가
+1. [Neon](https://neon.tech)에서 프로젝트 생성 (Region: **AWS Asia Pacific (Singapore)**)
+   → Connection string에서 host, user, password 확인
+2. [Render](https://render.com) → New → **Blueprint** → 이 레포 선택 (루트의 `render.yaml` 사용)
+3. 입력 요청되는 변수 채우기
    ```
-   PGHOST=${{Postgres.PGHOST}}
-   PGPORT=${{Postgres.PGPORT}}
-   PGDATABASE=${{Postgres.PGDATABASE}}
-   PGUSER=${{Postgres.PGUSER}}
-   PGPASSWORD=${{Postgres.PGPASSWORD}}
+   SPRING_DATASOURCE_URL=jdbc:postgresql://<neon-host>/neondb?sslmode=require
+   SPRING_DATASOURCE_USERNAME=<neon user>
+   SPRING_DATASOURCE_PASSWORD=<neon password>
    SEOUL_API_KEY=<서울 열린데이터광장 인증키>
    DATA_GO_KR_API_KEY=<공공데이터포털 인증키(Decoding)>
-   CORS_ALLOWED_ORIGINS=<프론트 도메인>
+   CORS_ALLOWED_ORIGINS=https://<프로젝트>.pages.dev,https://*.<프로젝트>.pages.dev
    ```
-4. Networking에서 도메인 생성 → `https://<도메인>/swagger-ui.html`
+4. 배포 후 `https://<서비스>.onrender.com/swagger-ui.html` 확인
+
+무료 인스턴스는 15분간 요청이 없으면 잠들고, 깨어나는 데 1~2분 걸립니다.
+데모 전에는 [cron-job.org](https://cron-job.org) 등으로 `/actuator/health`를 10분마다 호출해 깨워 두세요.
 
 ## 환경 변수
 
 | 변수 | 기본값 | 설명 |
 | --- | --- | --- |
 | `PGHOST` / `PGPORT` / `PGDATABASE` / `PGUSER` / `PGPASSWORD` | localhost / 5432 / hackathon / hackathon / hackathon | DB 접속 정보 |
-| `PORT` | 8080 | Railway가 자동 주입 |
+| `SPRING_DATASOURCE_URL` / `_USERNAME` / `_PASSWORD` | (없음) | 지정하면 위 PG* 대신 사용 (배포 시 Neon) |
+| `PORT` | 8080 | Render가 자동 주입 |
 | `JPA_DDL_AUTO` | update | 스키마 자동 생성 전략 |
 | `SEOUL_API_KEY` | (없음) | 서울 열린데이터광장 인증키 |
 | `DATA_GO_KR_API_KEY` | (없음) | 공공데이터포털 인증키 (Decoding) |
-| `CORS_ALLOWED_ORIGINS` | `http://localhost:*` | 프론트 주소, 쉼표 구분·와일드카드 가능 (예: `https://*.up.railway.app`) |
+| `CORS_ALLOWED_ORIGINS` | `http://localhost:*` | 프론트 주소, 쉼표 구분·와일드카드 가능 (예: `https://*.pages.dev`) |
 
 에러 응답은 [ProblemDetail](https://www.rfc-editor.org/rfc/rfc9457) 형식(`application/problem+json`)으로 통일돼 있어요.

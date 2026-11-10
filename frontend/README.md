@@ -58,16 +58,19 @@ const { data } = await culturalEvents({ query: { category: '콘서트', size: 20
 // data: { totalCount: number; items: unknown[] }
 ```
 
-## Vercel 배포 준비
+## 배포 (Cloudflare Pages, 무료)
 
-- Root Directory: `frontend`
-- Framework Preset: Vite
-- Build Command: `npm run build`
-- Output Directory: `dist`
-- Node.js 버전은 `package.json`의 최소 요구사항 이상으로 맞추세요.
-- 배포 환경의 `VITE_API_BASE_URL`은 빌드 전에 설정해야 합니다.
-  빌드 중 이 주소의 `/v3/api-docs`로 API 코드를 생성하므로 배포된 서버가 켜져 있어야 합니다.
-- `vercel.json`은 SPA 하위 경로를 `index.html`로 연결합니다.
-  Vercel은 실제로 존재하는 정적 파일을 우선하며 `/assets/`는 rewrite에서 제외합니다.
+서버(Render)를 먼저 배포한 뒤 진행합니다. 빌드 중 `VITE_API_BASE_URL`의 `/v3/api-docs`로
+API 코드를 생성하므로 **배포된 서버가 켜져 있어야 빌드가 성공합니다.**
 
-Vercel 연결 및 실제 배포는 수행하지 않습니다. `server/`는 별도 프로젝트입니다.
+Cloudflare 대시보드 → Workers & Pages → Create → **Pages** → Connect to Git → 이 레포
+
+- Production branch: `main`
+- Framework preset: None (Vite)
+- Build command: `npm run build`
+- Build output directory: `dist`
+- Root directory: `frontend`
+- Environment variables: `VITE_API_BASE_URL=https://<서비스>.onrender.com`
+
+Node.js 버전은 `.nvmrc`로 지정됩니다. `dist`에 `404.html`이 없으면 Cloudflare Pages가
+SPA로 보고 하위 경로를 `index.html`로 연결합니다.

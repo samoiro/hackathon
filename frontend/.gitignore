@@ -14,8 +14,6 @@ dist-ssr/
 logs/
 *.log
 
-# Vercel local project metadata
-.vercel/
 
 # Editor and OS files
 .vscode/*

@@ -17,7 +17,7 @@ public class OpenApiConfig {
 						.title("Samoiro AI Hackathon API")
 						.description("해커톤 백엔드 API 명세서")
 						.version("v1"))
-				// 상대 경로로 두면 로컬/Railway 어디서든 Swagger UI의 "Try it out"이 현재 도메인으로 호출됩니다.
+				// 상대 경로로 두면 로컬/배포 어디서든 Swagger UI의 "Try it out"이 현재 도메인으로 호출됩니다.
 				.addServersItem(new Server().url("/"));
 	}
 }
