@@ -30,7 +30,24 @@ npm install
 
 규칙에 맞지 않으면 커밋·푸시가 막힙니다 (`main` 제외). 이름 바꾸기: `git branch -m <새-이름>`
 
+## 커밋 메시지 규칙
+
+```
+{종류}({범위}): {설명}
+```
+
+| 자리 | 값 |
+| --- | --- |
+| 종류 | `feat` 기능, `fix` 버그 수정, `refactor`, `style` 포맷, `docs`, `test`, `chore` 설정·잡무, `perf`, `build`, `ci`, `revert` |
+| 범위 | 생략 가능. `server`, `frontend`, `ai-server` 등 영문 소문자, 숫자, `-` |
+| 설명 | 첫 줄 100자 이하. 호환이 깨지는 변경은 `feat(server)!: ...`처럼 `!`를 붙임 |
+
+예: `feat(server): add aT price trend API`, `fix(frontend): keep login redirect`, `chore: add husky hooks`
+
+규칙에 맞지 않으면 커밋이 막힙니다. git이 만드는 `Merge ...`, `Revert ...` 메시지는 검사하지 않습니다. 메시지 고치기: `git commit --amend`
+
 ## 커밋할 때 자동 검사
 
 - 브랜치 이름 검사 (커밋, 푸시)
+- 커밋 메시지 검사 (`.husky/check-commit-msg.sh`)
 - 프론트 파일: 커밋하는 파일만 Prettier 정리 + ESLint (`frontend/.lintstagedrc.json`)
