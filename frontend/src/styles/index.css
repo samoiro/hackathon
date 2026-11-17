@@ -1,16 +1,95 @@
 @layer theme, base, antd, components, utilities;
 @import 'tailwindcss';
 
+/* 서울알림체(서울시 서울서체, 출처표시 조건). 화면·섹션 제목(700)에만 쓴다 */
+@font-face {
+  font-family: 'Seoul Alrim';
+  src: url('/fonts/SeoulAlrim-Bold.otf') format('opentype');
+  font-weight: 700;
+  font-display: swap;
+}
+
+/* Morning Yellow 디자인 시스템. antd 토큰(src/app/providers/theme.ts)과 같은 값.
+   간격(4·8·12·16·24·32·48·64)과 radius(8·16)는 Tailwind 기본 p-1~16, rounded-lg·2xl로 맞는다 */
+@theme {
+  --font-sans:
+    'Pretendard Variable', Pretendard, -apple-system, BlinkMacSystemFont,
+    system-ui, 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
+  --font-heading:
+    'Seoul Alrim', 'Pretendard Variable', Pretendard, -apple-system,
+    BlinkMacSystemFont, system-ui, 'Apple SD Gothic Neo', 'Malgun Gothic',
+    sans-serif;
+
+  /* 500 강조 면·주요 버튼, 600·700 호버·누름, 50·100 선택 배경, 300 그래픽 강조.
+     200·400·800·900은 antd generate('#fe9c00') 값으로 채움 */
+  --color-primary-50: #fff6e5;
+  --color-primary-100: #ffe8b8;
+  --color-primary-200: #ffd97a;
+  --color-primary-300: #ffc15c;
+  --color-primary-400: #ffb429;
+  --color-primary-500: #fe9c00;
+  --color-primary-600: #ed9000;
+  --color-primary-700: #d47d00;
+  --color-primary-800: #8c4800;
+  --color-primary-900: #663100;
+
+  /* 서브컬러: 2025 서울색 Green Aurora, 2024 서울색 Sky Coral. antd generate() 10단계.
+     UI 포인트색으로 쓰지 않고 데이터·분류에만 쓴다 */
+  --color-aurora-50: #dcf5ec;
+  --color-aurora-100: #95e8ce;
+  --color-aurora-200: #69dbbb;
+  --color-aurora-300: #42cfab;
+  --color-aurora-400: #1fc29f;
+  --color-aurora-500: #00b493;
+  --color-aurora-600: #008f79;
+  --color-aurora-700: #00695c;
+  --color-aurora-800: #00423d;
+  --color-aurora-900: #001c1b;
+
+  --color-coral-50: #fff0f0;
+  --color-coral-100: #ffedee;
+  --color-coral-200: #ffc4ca;
+  --color-coral-300: #ff9ca9;
+  --color-coral-400: #ff738a;
+  --color-coral-500: #f8496c;
+  --color-coral-600: #d13257;
+  --color-coral-700: #ab2045;
+  --color-coral-800: #851335;
+  --color-coral-900: #5e0c28;
+
+  /* 차트 계열 순서. 흰 카드 위 3:1 이상이 되도록 원색보다 진한 단계 */
+  --color-chart-1: #d47d00;
+  --color-chart-2: #008f79;
+  --color-chart-3: #f8496c;
+
+  /* 증감(한국 관례 상승 빨강·하락 파랑). 오류색과 비슷하니 ▲▼를 항상 같이 쓴다 */
+  --color-rise: #d13257;
+  --color-fall: #235789;
+
+  --color-canvas: #faf8f4;
+  --color-surface: #ffffff;
+  --color-fg: #241a0d;
+  --color-muted: #64594b;
+  --color-divider: #e5ded3;
+  --color-border: #897b6a;
+  /* 흰 배경 위 brand 글자(9.5:1). 포커스 테두리도 같은 값을 가리킨다 */
+  --color-brand-text: #693a00;
+  --color-focus: var(--color-brand-text);
+
+  --color-success: #00695c;
+  --color-success-bg: #dcf5ec;
+  --color-warning: #754700;
+  --color-warning-bg: #fff1cf;
+  --color-danger: #a42635;
+  --color-danger-bg: #fdecef;
+  --color-info: #235789;
+  --color-info-bg: #eaf3ff;
+}
+
 @layer base {
   :root {
-    font-family:
-      system-ui,
-      -apple-system,
-      BlinkMacSystemFont,
-      'Segoe UI',
-      sans-serif;
-    color: #0f172a;
-    background: #f8fafc;
+    color: var(--color-fg);
+    background: var(--color-canvas);
     font-synthesis: none;
     text-rendering: optimizeLegibility;
     -webkit-font-smoothing: antialiased;
@@ -19,5 +98,16 @@
 
   body {
     min-width: 320px;
+  }
+
+  /* antd Typography.Title도 font-family를 상속하므로 함께 적용된다 */
+  h1,
+  h2 {
+    font-family: var(--font-heading);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-focus);
+    outline-offset: 3px;
   }
 }
