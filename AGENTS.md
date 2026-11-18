@@ -29,3 +29,13 @@ Take the first option that fully works:
 - A shortcut with a known limit gets a code comment in this form: `shortcut: <the limit>, <when to upgrade>`.
 
 Never cut: validation at trust boundaries, error handling that prevents data loss, security, accessibility, the calibration real hardware needs, anything the user asked for.
+
+## Repository rules
+
+브랜치 이름과 커밋 메시지는 husky 훅이 검사합니다. 규칙의 원본은 [`README.md`](README.md)입니다.
+
+- 브랜치: `{fe|be|common}/{feature|bugfix|hotfix|chore}/{이니셜}/{YYMMDD}/{작업-설명}`. `main`에 직접 커밋하지 않습니다.
+- 커밋 메시지: `{종류}({범위}): {설명}`. 종류는 `feat`, `fix`, `refactor`, `style`, `docs`, `test`, `chore`, `perf`, `build`, `ci`, `revert`이고, 범위(`server`, `frontend`, `ai-server` 등)는 생략할 수 있습니다. 첫 줄은 100자 이하입니다.
+- 훅이 실패하면 `--no-verify`로 우회하지 않고 이름이나 메시지를 고칩니다.
+- 커밋과 push는 사용자가 요청했을 때만 합니다.
+- `server/` 테스트를 작성하거나 고칠 때는 [`server/.claude/skills/backend-testing`](server/.claude/skills/backend-testing/SKILL.md) skill을 따릅니다.
