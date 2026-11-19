@@ -7,4 +7,5 @@ services:
       - 'POSTGRES_USER=hackathon'
       - 'POSTGRES_PASSWORD=hackathon'
     ports:
-      - '5432'
+      # 호스트 포트 고정: IntelliJ Database 창에서 localhost:5432 로 붙기 위함
+      - '5432:5432'
