@@ -42,6 +42,7 @@ export TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE=/var/run/docker.sock
 | `GET /api/seoul/population/{장소}` | 서울시 실시간 인구 (OA-21778) |
 | `GET /api/seoul/commercial/{장소}` | 서울시 실시간 상권 현황 (OA-22385) |
 | `GET /api/agro/price-trends?date=YYYYMMDD` | aT 가격 추이 정보 (data.go.kr 15156069) |
+| `GET /api/bizinfo/support-programs` | 기업마당 지원사업 공고 (data.go.kr 15157820, 출처표시·변경금지) |
 
 - `{장소}`: 장소명 또는 코드 (예: `광화문·덕수궁`, `POI009`), 서울시 주요 120개 장소 중 하나
 - 목록 API는 `page`(1부터), `size`(최대 1000) 지원, 응답은 `{ totalCount, items }`
