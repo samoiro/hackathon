@@ -72,6 +72,13 @@
 | 원자재 ID | ingredient_id |
 | 가격 조사일 | observed_date |
 | 평균 가격 | price |
+| 직전 관측 가격 | previous_day_price |
+| 직전 관측 대비 변동률(%) | daily_change_rate |
+| 가격 흐름(UP/DOWN/FLAT) | price_trend |
+| 1주 전 평균 가격 | one_week_before_price |
+| 2주 전 평균 가격 | two_weeks_before_price |
+| 3주 전 평균 가격 | three_weeks_before_price |
+| 4주 전 평균 가격 | four_weeks_before_price |
 | 최초 생성 시각 | created_datetime |
 
 ### 도시데이터 지원 지역 — city_data_area
@@ -121,6 +128,26 @@
 | 규칙 ID | rule_id |
 | 원자재 ID | ingredient_id |
 | 고정 우선순위 | sort_order |
+
+### 업종별 추천 원자재 — industry_ingredient
+
+| 한글명 | 영문 필드명 |
+| --- | --- |
+| 업종 ID | industry_id |
+| 원자재 ID | ingredient_id |
+| 고정 추천 순서 (1~3, 업종별 최대 3개) | sort_order |
+| 업종명 | industry_name |
+| 원자재명 | ingredient_name |
+
+### 업종별 추천 부자재 — industry_supply
+
+| 한글명 | 영문 필드명 |
+| --- | --- |
+| 업종 ID | industry_id |
+| 부자재 ID | supply_id |
+| 고정 추천 순서 (1~2, 업종별 최대 2개) | sort_order |
+| 업종명 | industry_name |
+| 부자재명 | supply_name |
 
 ## 현재 관리 테이블
 
@@ -177,22 +204,6 @@
 
 ## 미생성 설계안
 
-### 업종별 원자재 — industry_ingredient
-
-| 한글명 | 영문 필드명 |
-| --- | --- |
-| 업종 ID | industry_id |
-| 원자재 ID | ingredient_id |
-
-### 업종별 부자재 — industry_supply
-
-| 한글명 | 영문 필드명 |
-| --- | --- |
-| 업종 ID | industry_id |
-| 부자재 ID | supply_id |
-| 일반 주문 주기 | order_cycle_note |
-| 근거 자료 ID | source_id |
-
 ### 근거 자료 — reference_source
 
 | 한글명 | 영문 필드명 |
@@ -247,12 +258,3 @@
 | 실패 요약 | error_summary |
 | 생성 시각 | created_at |
 | 만료 시각 | expires_at |
-
-## 기존 테이블에 추가할 필드 (미반영)
-
-### 원자재 가격 이력 추가 필드 — ingredient_price_history
-
-| 한글명 | 영문 필드명 |
-| --- | --- |
-| 1주 전 평균 가격 | one_week_before_price |
-| 4주 전 평균 가격 | four_weeks_before_price |

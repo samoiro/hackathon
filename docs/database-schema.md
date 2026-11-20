@@ -1,7 +1,7 @@
 # 데이터베이스 테이블 구조
 
 기준일: 2026-11-20. 연결된 PostgreSQL DB의 실제 컬럼·타입·제약조건을 조회해 반영했습니다.
-현재 생성된 테이블은 업무용 11개와 관리용 4개입니다. 아래 미생성 설계안은 전달받은 문서를 보존한 것으로, 실제 DB에는 아직 없습니다.
+현재 로컬 DB에 생성된 테이블은 업무용 14개와 관리용 4개입니다. 업종별 추천 연결 V21과 이름 컬럼 V23은 로컬에만 적용했으며 Neon에는 아직 적용하지 않았습니다. 아래 미생성 설계안은 실제 DB에는 아직 없습니다.
 
 표에서 별도 표시가 없는 현재 컬럼은 NOT NULL입니다. PK는 기본 키, FK는 외래 키, UNIQUE는 중복 불가를 뜻합니다.
 현재 업무용 컬럼명은 단어를 풀어 쓰며, 외부 API 원본 필드명과 확장·관리 도구의 필드명은 그대로 둡니다.
@@ -91,14 +91,26 @@
 | --- | --- | --- |
 | ingredient_id | bigint FK → ingredient.id, 복합 PK | 원자재 |
 | observed_date | date, 복합 PK | 가격 조사일 |
-| price | numeric(18,4), NULL 허용 | 대표 규격 기준 조사일 평균 가격. 0 이상 |
-| created_datetime | timestamptz(0), 기본값 CURRENT_TIMESTAMP(0) | 이력 최초 생성 시각, 초 단위 |
+| price | numeric(18,4), NULL 허용 | 대표 판매 규격의 조사일 평균 가격 |
+| previous_day_price | numeric(18,4), NULL 허용 | 동일 원자재·규격의 직전 관측일 가격 |
+| daily_change_rate | numeric, 자동 생성, NULL 허용 | (현재 − 직전 관측 가격) / 직전 관측 가격 × 100(%), 소수 4자리 |
+| price_trend | text, 자동 생성, NULL 허용 | 직전 관측일 대비 UP / DOWN / FLAT |
+| one_week_before_price | numeric(18,4), NULL 허용 | API ww1_bfr_avg_prc |
+| two_weeks_before_price | numeric(18,4), NULL 허용 | API ww2_bfr_avg_prc |
+| three_weeks_before_price | numeric(18,4), NULL 허용 | API ww3_bfr_avg_prc |
+| four_weeks_before_price | numeric(18,4), NULL 허용 | API ww4_bfr_avg_prc |
+| created_datetime | timestamptz(0), 기본값 CURRENT_TIMESTAMP(0) | 최초 생성 시각. 재적재 시 유지 |
 
-- 기본 키는 (ingredient_id, observed_date)이며 별도의 id는 없습니다. 같은 재료·조사일을 중복 저장하지 않습니다.
-- price는 ingredient.unit_size × ingredient.unit 기준입니다. 예: 500 × g 규격 가격입니다.
-- API 가격 미제공 값은 NULL입니다. 실제 적재 코드는 대표 규격이 달라지면 적재를 중단합니다.
-- 연결된 재료의 삭제와 ID 변경은 RESTRICT입니다.
-- 기존 설계안의 collected_at은 현재 created_datetime입니다. price_basis_version, week1_price~week4_price, raw_payload는 현재 없습니다. 주차별 가격은 향후 설계 항목이며 현재는 조사일별 가격을 저장합니다.
+- V20__ingredient_price_changes.sql을 로컬 DB에 Flyway로 적용했습니다. Neon에는 이번 변경을 적용하지 않았으며 main push 후 별도로 반영합니다.
+- 2026-11-20 실제 API 조회로 2026-10-19~11-19의 118개 원자재, 총 3,497개 이력을 로컬에 적재했습니다. 11-20 응답은 0건이므로 임의 행을 만들지 않았습니다. 적재 전 로컬 가격 이력은 비어 있었습니다.
+- 모든 가격은 ingredient.unit_size × ingredient.unit 규격입니다. 거래 구분·품종·등급·단위·단위 크기가 같은 API 행만 연결하며 대표 규격을 변경하거나 다른 규격으로 대체하지 않습니다.
+- V22에서 비교 기준을 같은 원자재의 직전 관측일로 변경했습니다. LAG(price) OVER (PARTITION BY ingredient_id ORDER BY observed_date)로 계산하며 날짜가 연속되지 않아도 직전 행을 비교합니다. 최초 관측·직전 관측 가격 미제공·0이면 변동률·흐름은 NULL이며 FLAT으로 채우지 않습니다. 미제공 가격을 건너뛰지는 않습니다. 비교 가능한 동일 가격만 FLAT입니다. 컬럼명 previous_day_price와 daily_change_rate는 호환성을 위해 유지하며, 날짜가 벌어진 경우 변동률은 그 관측 구간 전체의 변동률입니다.
+- 로컬 V22 적용으로 관측 간 공백 17건을 채웠습니다. 직전 관측 가격이 있는 이력은 3,379건이며 최초 관측 118건만 NULL입니다. 원래 가격·1~4주 가격·생성 시각은 보존했습니다.
+- 방향은 반올림 전 실제 가격을 비교합니다. 미세한 변동은 표시 변동률이 0.0000이어도 UP 또는 DOWN일 수 있습니다.
+- 1~4주 가격은 해당 조사일 API가 제공하는 평균 가격이며 7·14·21·28일 전 이력으로 대체하지 않습니다. kg 환산 필드도 사용하지 않습니다. API 미제공 값은 NULL이며 음수·비숫자·무한대는 거부합니다.
+- 기본 키는 (ingredient_id, observed_date)입니다. API 재적재는 같은 키를 갱신하고 최초 생성 시각을 보존합니다. 과거 가격 정정·추가 시 해당 원자재의 직전 관측 비교값을 다시 계산합니다.
+- 원자재 삭제·ID 변경은 RESTRICT입니다. raw_payload는 저장하지 않으며 실제 응답·수집 보고서는 server/build/ingredient-import 아래에 보관합니다.
+- 수집·적재 절차는 [server README](../server/README.md#재료와-가격-이력-적재)를 참고하세요. 주기 실행과 Neon 적재는 수행하지 않았습니다.
 
 ### city_data_area — 도시데이터 지원 지역
 
@@ -166,7 +178,7 @@
 - source_key 충돌 시 기존 ID로 갱신합니다. 전체 페이지의 건수·식별자를 검증한 수집만 적용합니다. 누락·제외 행사는 삭제하지 않고 is_active=false로 전환하며, 다시 유효해지면 활성화합니다. 수집 실패·빈 응답은 기존 데이터를 건드리지 않습니다.
 - API에 행사별 수정 시각이 없어 원본 내용 비교로 변경을 감지합니다. RGSTDATE는 원본 등록일이며 DB 생성·수정 시각으로 사용하지 않습니다.
 - V15__cultural_event.sql을 연결된 DB에 수동 적용했습니다. 자동 마이그레이션·주기 실행은 구성하지 않았습니다. 원본 API 중계 응답과 프론트 호출은 변경하지 않았습니다.
-- 수집/적재 절차: [server README](../server/README.md#문화행사-수집과-갱신). 거리 조회 예시: [query-cultural-events.sql](../server/scripts/query-cultural-events.sql).
+- 수집·갱신 기준: [server README](../server/README.md#문화행사-수집과-갱신). 별도 수집·검증·조회용 SQL/MJS 파일은 제공하지 않습니다.
 
 ### ingredient_rule_item — 규칙별 원자재
 
@@ -194,6 +206,36 @@
 가격 수집 배치는 ingredient_price_history의 같은 원자재·조사일을 upsert하고, 수집 성공 후 최신 가격과 비교 가격으로 조건을 판정하는 방식으로 구성합니다. ingredient_rule_item의 연결·sort_order와 ingredient_rule의 demand는 매번 바꾸지 않습니다. 가격 하락은 UP, 10% 이상 하락은 STRONG_UP, 가격 상승은 DOWN입니다.
 
 판정 결과는 요청 시 조회하거나 향후 결과 저장이 필요할 때 별도로 저장합니다. 현재 ingredient_rule_item에 활성 여부·조사일·판정값 컬럼은 추가하지 않았고, 자동 실행·조건 판정·결과 저장 배치는 등록하지 않았습니다. API의 1주·4주 전 평균 가격을 사용할 때는 문서 마지막의 비교 가격 필드 적재가 먼저 필요합니다. 날짜별 이력의 7일·28일 전 가격을 API 평균 가격과 혼용하지 않습니다. 결측·0 기준 가격은 판정을 건너뛰고, 수집 실패 시 오래된 결과를 현재 결과로 표시하지 않습니다.
+
+### industry_ingredient — 업종별 추천 원자재
+
+| 컬럼 | 타입·제약 | 설명 |
+| --- | --- | --- |
+| industry_id | bigint FK → industry.id, 복합 PK | 추천 대상 업종 ID |
+| ingredient_id | bigint FK → ingredient.id, 복합 PK | 추천 원자재 ID |
+| sort_order | smallint, 1~3 | 업종 내 고정 추천 순서 |
+| industry_name | text | 업종명. industry_id와 일치하는 원본 이름 |
+| ingredient_name | text | 원자재명. ingredient_id와 일치하는 원본 item_name |
+
+- (industry_id, ingredient_id)는 기본 키이고 (industry_id, sort_order)는 UNIQUE입니다. NULL이 아닌 순번을 1~3으로 제한하므로 업종별 최대 3개를 DB에서 보장합니다.
+- 컨펌한 14개 업종에 총 42개를 연결했습니다. 배달 전문과 비식품 업종은 연결하지 않았습니다.
+
+### industry_supply — 업종별 추천 부자재
+
+| 컬럼 | 타입·제약 | 설명 |
+| --- | --- | --- |
+| industry_id | bigint FK → industry.id, 복합 PK | 추천 대상 업종 ID |
+| supply_id | bigint FK → supply.id, 복합 PK | 추천 부자재 ID |
+| sort_order | smallint, 1~2 | 업종 내 고정 추천 순서 |
+| industry_name | text | 업종명. industry_id와 일치하는 원본 이름 |
+| supply_name | text | 부자재명. supply_id와 일치하는 원본 이름 |
+
+- (industry_id, supply_id)는 기본 키이고 (industry_id, sort_order)는 UNIQUE입니다. NULL이 아닌 순번을 1~2로 제한하므로 업종별 최대 2개를 DB에서 보장합니다.
+- 컨펌한 28개 업종에 총 56개를 연결했습니다.
+
+두 테이블 모두 업종 삭제 시 연결만 CASCADE로 삭제하며 원자재·부자재 삭제와 참조 ID 변경은 RESTRICT입니다. 순서는 컨펌 표의 나열 순서를 유지하며 가격 조건이나 LLM 판단으로 바꾸지 않습니다. V21__industry_recommendations.sql에 구조와 초기 데이터를 함께 저장했습니다. 품목 이름으로 기존 ID를 찾아 연결하므로 다른 DB의 ID가 달라도 동일 품목을 연결합니다. 조건별 규칙의 대상 목록인 ingredient_rule_item·supply_rule_item과는 별개의 업종별 기본 추천입니다.
+
+V23__industry_recommendation_names.sql에서 기존 연결의 이름을 채웠습니다. 이름은 NOT NULL이며 ID·이름 쌍의 복합 외래 키로 원본과의 일치를 보장합니다. 원본 업종명·원자재명·부자재명을 변경하면 ON UPDATE CASCADE로 연결 테이블의 이름도 갱신됩니다. 이를 위해 industry(id, name), ingredient(id, item_name), supply(id, name)에 복합 UNIQUE 제약을 추가했습니다. 새 연결을 입력할 때도 ID와 일치하는 이름을 함께 넣습니다.
 
 ## 현재 생성된 관리 테이블
 
@@ -227,7 +269,7 @@
 - 변경 시 DB 트리거가 updated_datetime을 갱신하고 created_datetime은 유지합니다.
 - application.yml의 batch.max-retry-times=3은 재시도 최대 3회, 최초 포함 총 4회입니다. DB에는 최대 횟수를 저장하지 않습니다.
 - 부모 횟수 증가·이력 생성의 트랜잭션 처리, 상태 전이·재시도 실행 및 중단된 작업 복구는 아직 애플리케이션에 연결하지 않았습니다. running_time은 생존 확인 용도가 아닙니다.
-- V18__batch_job_history.sql을 연결된 DB에 수동 적용했습니다. 검증은 server/scripts/check-batch-job-history.sql로 수행하고 테스트 데이터를 롤백합니다.
+- V18__batch_job_history.sql을 연결된 DB에 적용했습니다. 별도 검증 SQL 파일은 보관하지 않습니다.
 
 ### flyway_schema_history — DB 구조 변경 적용 이력
 
@@ -264,22 +306,6 @@ PostGIS가 생성·관리하는 테이블이며 업무 테이블이 아닙니다
 
 다음은 전달받은 설계안입니다. 타입·관계·상태값은 향후 구현 시 검토해야 하며 현재 DB 구조로 해석하지 않습니다.
 원자재는 ingredient_rule에 제철·가격 조건을 저장하고, ingredient_rule_item에서 원자재를 다대다로 연결합니다. 규칙 내 우선순위는 서버가 연결 행의 sort_order로 확정하며, 적용 규칙과 가격 데이터를 LLM에 전달해 추천 이유와 설명을 작성합니다.
-
-### industry_ingredient — 업종별 원자재 (미생성)
-
-| 컬럼 | 타입 | 설명 |
-| --- | --- | --- |
-| industry_id | bigint FK, 복합 PK | 업종 |
-| ingredient_id | bigint FK, 복합 PK | 추천 원자재 |
-
-### industry_supply — 업종별 부자재 (미생성)
-
-| 컬럼 | 타입 | 설명 |
-| --- | --- | --- |
-| industry_id | bigint FK, 복합 PK | 업종 |
-| supply_id | bigint FK, 복합 PK | 추천 부자재 |
-| order_cycle_note | varchar, NULL | 일반 주문 주기 |
-| source_id | bigint FK | 추천 품목·주기의 근거 자료 |
 
 ### 원자재 규칙 예시 데이터
 
@@ -453,15 +479,3 @@ rule_id,trigger_code,ingredient_id,item_name,sort_order
 - 적용 신호가 없거나 필요한 가격이 없으면 중립 점수로 단정하지 않고 근거 부족으로 표시합니다. 일부 근거만 있으면 적용한 신호와 누락된 근거를 함께 전달합니다.
 - 점수는 구매 권장 강도를 표현합니다. 저장된 sort_order를 수정하거나 품목 우선순위를 재정렬하는 값으로 사용하지 않습니다.
 - 강도 점수는 서버 정책의 초기안입니다. ingredient_rule과 규칙 29개는 실제 DB에 반영했으며 합산 점수 컬럼·테이블과 서버 계산 로직은 추가하지 않았습니다.
-
-### 가격 이력에 추가할 필드 (미반영)
-
-기존 ingredient_price_history 컬럼에 아래 두 필드를 추가하는 설계입니다. 현재 DB와 적재 코드는 아직 조사일 가격만 저장합니다.
-
-| 컬럼 | 타입 | 설명 | 원본 API 필드 |
-| --- | --- | --- | --- |
-| one_week_before_price | numeric(18,4), NULL 허용 | 같은 대표 규격의 1주 전 평균 가격 | ww1_bfr_avg_prc |
-| four_weeks_before_price | numeric(18,4), NULL 허용 | 같은 대표 규격의 4주 전 평균 가격 | ww4_bfr_avg_prc |
-
-각 값은 해당 observed_date의 API 응답이 제공한 비교 가격입니다. 이를 단순히 7일·28일 전 날짜의 실측 가격 행으로 새로 만들지 않습니다.
-향후 반영 시 DB 마이그레이션, API 파싱·검증, 적재 SQL, 테스트를 함께 수정합니다. 기존 이력은 같은 조사일 API 응답으로 확인 가능한 경우에만 역채움하며 미확인 값은 NULL로 둡니다.
