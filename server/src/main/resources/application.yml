@@ -12,7 +12,7 @@ spring:
   jpa:
     open-in-view: false
     hibernate:
-      ddl-auto: ${JPA_DDL_AUTO:update}
+      ddl-auto: none
     properties:
       hibernate:
         format_sql: true
@@ -23,6 +23,10 @@ spring:
     # 에러 응답을 RFC 9457 ProblemDetail(JSON) 형식으로 통일
     problemdetails:
       enabled: true
+
+batch:
+  # 최초 실행을 제외한 최대 재시도 횟수 (총 실행 최대 4회)
+  max-retry-times: 3
 
 app:
   cors:
