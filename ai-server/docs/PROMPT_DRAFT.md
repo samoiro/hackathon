@@ -31,7 +31,7 @@
 
 [만들 것]
 세 묶음의 추천 할 일을 만든다.
-1. EVENT: 조회된 행사 전체를 종합해, 행사 전에 미리 해 둘 운영 준비(재고, 근무 배치, 영업시간, 피크타임, 포장 동선 등).
+1. EVENT: 조회된 행사 전체를 종합해, 행사 전에 미리 해 둘 운영 준비. 근거 행사의 task_types 안에서만 만들고 task_type을 단다(STAFFING 근무 배치, HOURS 영업시간, PICKUP 주문·픽업 안내, PACKING 포장 동선, STOCK 재고, RESERVATION 예약 안내). 붐비는 시간은 peak_time을 그대로 쓴다.
 2. RAW_MATERIAL: 원자재 품목별로, 가격 흐름에 맞춘 할 일(거래처 단가 확인, 발주량 점검, 대체 재료 검토 등).
 3. SUPPLY: 부자재 품목별로, 준비 시점에 맞춘 할 일(재고 확인, 추가 주문 시점 확인 등).
 
@@ -39,7 +39,7 @@
 - 각 묶음은 최대 3개. 입력이 비어 있는 묶음은 만들지 않는다.
 - 가격 변동이 거의 없는(trend가 FLAT) 원자재는 할 일을 만들지 않아도 된다. 변동이 큰 품목을 먼저 다룬다.
 - 가격이 null인 원자재는 가격을 말하지 말고, 필요하면 "거래처에 현재 단가 묻기" 같은 확인 행동만 제안한다.
-- 추천이 있는 묶음마다 가장 먼저 해야 할 1개만 recommended를 true로 한다.
+- 각 묶음 안에서는 먼저 해야 할 일부터 순서대로 쓴다.
 - 운영 형태가 STORE면 배달·포장 준비를, DELIVERY면 홀 응대 준비를 제안하지 않는다.
 - excluded_titles와 같거나 거의 같은 할 일은 만들지 않는다.
 - 업종에 맞지 않는 할 일은 만들지 않는다(예: 미용실에 식재료 발주).
@@ -57,8 +57,8 @@
 
 [출력]
 아래 JSON만 출력한다. 설명이나 마크다운을 붙이지 않는다.
-{"suggestions": [{"category": "EVENT|RAW_MATERIAL|SUPPLY", "item_id": number|null, "title": string, "expected_effect": string, "recommended": boolean, "evidence_ids": [string]}]}
-EVENT의 item_id는 null, 나머지는 입력의 item_id 중 하나다.
+{"suggestions": [{"category": "EVENT|RAW_MATERIAL|SUPPLY", "task_type": string|null, "item_id": number|null, "title": string, "expected_effect": string, "evidence_ids": [string]}]}
+EVENT의 item_id는 null이고 task_type은 필수다. 나머지는 item_id가 입력의 item_id 중 하나이고 task_type은 null이다.
 ```
 
 ## 출력 JSON Schema
@@ -75,13 +75,13 @@ EVENT의 item_id는 null, 나머지는 입력의 item_id 중 하나다.
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["category", "item_id", "title", "expected_effect", "recommended", "evidence_ids"],
+        "required": ["category", "task_type", "item_id", "title", "expected_effect", "evidence_ids"],
         "properties": {
           "category": { "enum": ["EVENT", "RAW_MATERIAL", "SUPPLY"] },
+          "task_type": { "enum": ["STAFFING", "HOURS", "PICKUP", "PACKING", "STOCK", "RESERVATION", null] },
           "item_id": { "type": ["integer", "null"] },
           "title": { "type": "string", "maxLength": 24 },
           "expected_effect": { "type": "string", "maxLength": 60 },
-          "recommended": { "type": "boolean" },
           "evidence_ids": { "type": "array", "minItems": 1, "items": { "type": "string" } }
         }
       }
@@ -90,7 +90,7 @@ EVENT의 item_id는 null, 나머지는 입력의 item_id 중 하나다.
 }
 ```
 
-묶음별 개수(최대 3)와 강추 1개, id가 입력에 있는지는 스키마로 표현할 수 없어서 Pydantic 검증에서 확인합니다.
+묶음별 개수(최대 3), id가 입력에 있는지, EVENT의 task_type이 근거 행사의 task_types에 있는지는 스키마로 표현할 수 없어서 Pydantic 검증에서 확인합니다.
 
 ## 예시 (UI 시안의 성수동 한식당)
 
@@ -99,13 +99,13 @@ few-shot으로 넣거나 테스트 기대값으로 씁니다. 입력은 계약 �
 ```json
 {
   "suggestions": [
-    { "category": "EVENT", "item_id": null, "title": "공연 시간대 근무자 역할 나누기", "expected_effect": "주문·수령 안내 혼선을 줄이는 데 도움이 될 수 있어요.", "recommended": true, "evidence_ids": ["E1"] },
-    { "category": "EVENT", "item_id": null, "title": "식재료 재고 확인", "expected_effect": "품절 위험에 미리 대비할 수 있어요.", "recommended": false, "evidence_ids": ["E1"] },
-    { "category": "EVENT", "item_id": null, "title": "토요일 16–19시 포장 동선 정하기", "expected_effect": "붐비는 시간대 대기 줄을 줄이는 데 도움이 될 수 있어요.", "recommended": false, "evidence_ids": ["E1"] },
-    { "category": "RAW_MATERIAL", "item_id": 12, "title": "배추 거래처 단가 확인", "expected_effect": "다음 발주 전에 단가 변동을 미리 확인할 수 있어요.", "recommended": true, "evidence_ids": ["R1"] },
-    { "category": "RAW_MATERIAL", "item_id": 15, "title": "돼지고기 발주량 점검", "expected_effect": "가격이 내린 시점의 발주 계획을 살펴볼 수 있어요.", "recommended": false, "evidence_ids": ["R2"] },
-    { "category": "SUPPLY", "item_id": 3, "title": "포장 용기 재고 확인", "expected_effect": "행사 전 포장 주문 증가에 대비할 수 있어요.", "recommended": true, "evidence_ids": ["S1", "E1"] },
-    { "category": "SUPPLY", "item_id": 3, "title": "포장 용기 추가 주문 시점 확인", "expected_effect": "행사 3일 전까지 받을 수 있는지 미리 확인할 수 있어요.", "recommended": false, "evidence_ids": ["S1"] }
+    { "category": "EVENT", "task_type": "STAFFING", "item_id": null, "title": "공연 시간대 근무자 역할 나누기", "expected_effect": "주문·수령 안내 혼선을 줄이는 데 도움이 될 수 있어요.", "evidence_ids": ["E1"] },
+    { "category": "EVENT", "task_type": "STOCK", "item_id": null, "title": "식재료 재고 확인", "expected_effect": "품절 위험에 미리 대비할 수 있어요.", "evidence_ids": ["E1"] },
+    { "category": "EVENT", "task_type": "PACKING", "item_id": null, "title": "토요일 15–20시 포장 동선 정하기", "expected_effect": "붐비는 시간대 대기 줄을 줄이는 데 도움이 될 수 있어요.", "evidence_ids": ["E1"] },
+    { "category": "RAW_MATERIAL", "task_type": null, "item_id": 12, "title": "배추 거래처 단가 확인", "expected_effect": "다음 발주 전에 단가 변동을 미리 확인할 수 있어요.", "evidence_ids": ["R1"] },
+    { "category": "RAW_MATERIAL", "task_type": null, "item_id": 15, "title": "돼지고기 발주량 점검", "expected_effect": "가격이 내린 시점의 발주 계획을 살펴볼 수 있어요.", "evidence_ids": ["R2"] },
+    { "category": "SUPPLY", "task_type": null, "item_id": 3, "title": "포장 용기 재고 확인", "expected_effect": "행사 전 포장 주문 증가에 대비할 수 있어요.", "evidence_ids": ["S1", "E1"] },
+    { "category": "SUPPLY", "task_type": null, "item_id": 3, "title": "포장 용기 추가 주문 시점 확인", "expected_effect": "행사 3일 전까지 받을 수 있는지 미리 확인할 수 있어요.", "evidence_ids": ["S1"] }
   ]
 }
 ```
