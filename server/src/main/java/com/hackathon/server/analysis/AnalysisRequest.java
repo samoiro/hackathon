@@ -5,6 +5,7 @@ import java.util.List;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
 /**
@@ -21,5 +22,5 @@ public record AnalysisRequest(
 		@Schema(description = "운영 형태 (선택). null = 선택 안 함") OperationType operationType,
 		@Schema(description = "원자재 id (선택, 최대 3개, 중복 불가)") @Size(max = 3) List<@NotNull Long> ingredientIds,
 		@Schema(description = "부자재 id (선택, 최대 2개, 중복 불가)") @Size(max = 2) List<@NotNull Long> supplyIds,
-		@Schema(description = "제외 목록: 사장님이 '해당 없어요'로 표시한 할 일 제목. 같거나 비슷한 후보를 뺀다 (순서도 11). 로그인이 없어 브라우저가 보관해 보낸다") @Size(max = 50) List<@NotBlank @Size(max = 40) String> excludedTitles) {
+		@Schema(description = "제외 목록: 사장님이 '해당 없어요'로 표시한 카드 키 {category}:{taskType}:{itemId 또는 -}. 서버가 카드 칸을 고르기 전에 뺀다 (순서도 11). 로그인이 없어 브라우저가 보관해 보낸다", example = "[\"EVENT:STAFFING:-\"]") @Size(max = 50) List<@NotNull @Pattern(regexp = SuggestionFeedbackRequest.CARD_KEY) String> excludedKeys) {
 }

@@ -8,6 +8,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 @Schema(description = "추천 카드")
 public record SuggestionResponse(
 		@Schema(description = "추천 id", requiredMode = Schema.RequiredMode.REQUIRED) long id,
+		@Schema(description = "카드 키 {category}:{taskType}:{itemId 또는 -}. 피드백·해당 없어요 제외에 씀", example = "INGREDIENT:PRICE_CHECK:12", requiredMode = Schema.RequiredMode.REQUIRED) String cardKey,
 		@Schema(description = "유형 라벨", requiredMode = Schema.RequiredMode.REQUIRED) SuggestionCategory category,
 		@Schema(description = "행사 할 일 유형. EVENT만 있고 나머지는 null") EventTaskType taskType,
 		@Schema(description = "원자재·부자재 id. EVENT는 null") Long itemId,

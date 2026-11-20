@@ -165,6 +165,21 @@
 | 생성 시각 | created_datetime |
 | 변경 시각 | updated_datetime |
 
+### 추천 카드 피드백 — suggestion_feedback
+
+| 한글명 | 영문 필드명 |
+| --- | --- |
+| 피드백 ID | id |
+| 분석 번호 | analysis_id |
+| 업종 ID | industry_id |
+| 카드 키 | card_key |
+| 묶음 | category |
+| 할 일 유형 | task_type |
+| 품목 ID | item_id |
+| 피드백 | vote |
+| 생성 시각 | created_datetime |
+| 변경 시각 | updated_datetime |
+
 ## 현재 관리 테이블
 
 ### 작업·재시도 관리 — batch_job
