@@ -1,0 +1,258 @@
+# ERD 요약
+
+## 현재 업무 테이블
+
+### 업종 — industry
+
+| 한글명 | 영문 필드명 |
+| --- | --- |
+| 업종 ID | id |
+| 상위 분류 | category |
+| 업종명 | name |
+
+### 부자재·소모품 및 판매 상품 — supply
+
+| 한글명 | 영문 필드명 |
+| --- | --- |
+| 물품 ID | id |
+| 물품명 | name |
+
+### 준비 유발 상황 — supply_trigger
+
+| 한글명 | 영문 필드명 |
+| --- | --- |
+| 상황 코드 | code |
+| 상황명 | label |
+| 상황 유형 | type |
+
+### 부자재 준비 규칙 — supply_rule
+
+| 한글명 | 영문 필드명 |
+| --- | --- |
+| 규칙 ID | id |
+| 업종 ID | industry_id |
+| 상황 코드 | trigger_code |
+| 상황 설명 | trigger_text |
+| 날씨 예보 기준 여부 | forecast |
+| 최소 준비 일수 | lead_days_min |
+| 최대 준비 일수 | lead_days_max |
+| 수요 방향 | demand |
+
+### 규칙별 물품 — supply_rule_item
+
+| 한글명 | 영문 필드명 |
+| --- | --- |
+| 규칙 ID | rule_id |
+| 물품 ID | supply_id |
+| 물품 구분 | kind |
+| 고정 우선순위 | sort_order |
+
+### 대표 원자재 — ingredient
+
+| 한글명 | 영문 필드명 |
+| --- | --- |
+| 원자재 ID | id |
+| 품목 코드 | item_code |
+| 품목명 | item_name |
+| 부류 코드 | category_code |
+| 부류명 | category_name |
+| 거래 구분 코드 | trade_type_code |
+| 거래 구분명 | trade_type_name |
+| 품종 코드 | variety_code |
+| 품종명 | variety_name |
+| 등급 코드 | grade_code |
+| 등급명 | grade_name |
+| 판매 단위 | unit |
+| 판매 단위 크기 | unit_size |
+
+### 원자재 가격 이력 — ingredient_price_history
+
+| 한글명 | 영문 필드명 |
+| --- | --- |
+| 원자재 ID | ingredient_id |
+| 가격 조사일 | observed_date |
+| 평균 가격 | price |
+| 최초 생성 시각 | created_datetime |
+
+### 도시데이터 지원 지역 — city_data_area
+
+| 한글명 | 영문 필드명 |
+| --- | --- |
+| 지역 코드 | code |
+| 지역명 | name |
+| 지역 분류 | category |
+| 지역 경계 | boundary |
+| 지도 표시 좌표 | coord |
+| 생성 시각 | created_datetime |
+
+### 원자재 추천 규칙 — ingredient_rule
+
+| 한글명 | 영문 필드명 |
+| --- | --- |
+| 규칙 ID | id |
+| 조건 코드 | trigger_code |
+| 조건 설명 | trigger_text |
+| 구매 권장 방향 | demand |
+
+### 오프라인 문화행사 — cultural_event
+
+| 한글명 | 영문 필드명 |
+| --- | --- |
+| 행사 ID | id |
+| 문화포털 고유번호 | source_key |
+| 행사명 | title |
+| 분류 / 자치구 | category / district_name |
+| 장소 | place |
+| 시작일 / 종료일 | start_date / end_date |
+| 운영시간 | time_text |
+| 필수 공간 좌표(WGS84 Point, 경도·위도) | coord |
+| 이용 대상 | target_audience |
+| 프로그램 / 안내 | program / notes |
+| 요금 / 무료 여부 | fee_text / is_free |
+| 원문 URL / 이미지 | source_url / image_url |
+| 활성 여부 | is_active |
+| 원본 응답 | raw_payload |
+| 최초 생성 / 내용 수정 시각 | created_datetime / updated_datetime |
+
+### 규칙별 원자재 — ingredient_rule_item
+
+| 한글명 | 영문 필드명 |
+| --- | --- |
+| 규칙 ID | rule_id |
+| 원자재 ID | ingredient_id |
+| 고정 우선순위 | sort_order |
+
+## 현재 관리 테이블
+
+### 작업·재시도 관리 — batch_job
+
+| 한글명 | 영문 필드명 |
+| --- | --- |
+| 작업 ID | id |
+| 수집 작업명 | job_name |
+| 실행 조건. 비밀값 저장 금지 | job_parameters |
+| PENDING / RUNNING / SUCCEEDED / FAILED | status |
+| 현재 재시도 횟수. 최초 실행 0 | retry_times |
+| 생성 / 변경 시각 | created_datetime / updated_datetime |
+
+### 실행별 이력 — batch_job_history
+
+| 한글명 | 영문 필드명 |
+| --- | --- |
+| 실행 이력 ID | id |
+| 작업과 1:N. 삭제·ID 변경 RESTRICT | batch_job_id |
+| 해당 실행의 재시도 차수. 최초 실행 0 | retry_times |
+| RUNNING / SUCCEEDED / FAILED | status |
+| 시작 시각. 소요시간의 밀리초 정밀도 유지 | started_datetime |
+| 종료 시각. 종료 상태에서는 필수 | finished_datetime |
+| 종료 − 시작의 밀리초. 실행 중 NULL | running_time |
+| 오류 분류 / 비밀값을 제거한 원인 | error_code / error_message |
+| 읽기 / 반영 완료 / 제외 건수 | read_count / write_count / skip_count |
+| 생성 / 변경 시각 | created_datetime / updated_datetime |
+
+### DB 구조 변경 이력 — flyway_schema_history
+
+| 한글명 | 영문 필드명 |
+| --- | --- |
+| 적용 순서 | installed_rank |
+| 버전 | version |
+| 변경 설명 | description |
+| 변경 유형 | type |
+| 실행 파일명 | script |
+| 체크섬 | checksum |
+| 실행 사용자 | installed_by |
+| 적용 시각 | installed_on |
+| 실행 시간 | execution_time |
+| 성공 여부 | success |
+
+### 좌표계 정의 — spatial_ref_sys
+
+| 한글명 | 영문 필드명 |
+| --- | --- |
+| 좌표계 식별자 | srid |
+| 정의 기관명 | auth_name |
+| 기관 좌표계 코드 | auth_srid |
+| WKT 좌표계 정의 | srtext |
+| PROJ 좌표계 정의 | proj4text |
+
+## 미생성 설계안
+
+### 업종별 원자재 — industry_ingredient
+
+| 한글명 | 영문 필드명 |
+| --- | --- |
+| 업종 ID | industry_id |
+| 원자재 ID | ingredient_id |
+
+### 업종별 부자재 — industry_supply
+
+| 한글명 | 영문 필드명 |
+| --- | --- |
+| 업종 ID | industry_id |
+| 부자재 ID | supply_id |
+| 일반 주문 주기 | order_cycle_note |
+| 근거 자료 ID | source_id |
+
+### 근거 자료 — reference_source
+
+| 한글명 | 영문 필드명 |
+| --- | --- |
+| 출처 ID | id |
+| 출처 코드 | code |
+| 자료 버전 | version |
+| 자료 유형 | kind |
+| 자료명 | title |
+| 발행 기관·팀 | publisher |
+| 자료 URL | url |
+| 자료 원문 | content |
+| 검토 상태 | review_status |
+
+### 우선순위 평가 정책 — task_priority_policy
+
+| 한글명 | 영문 필드명 |
+| --- | --- |
+| 정책 ID | id |
+| 정책 버전 | version |
+| 평가 가중치 | weights |
+| 최소 점수 | score_min |
+| 최대 점수 | score_max |
+| 동점 정렬 기준 | tie_breakers |
+| 적용 여부 | active |
+
+### 우선순위 점수 규칙 — task_priority_score_rule
+
+| 한글명 | 영문 필드명 |
+| --- | --- |
+| 점수 규칙 ID | id |
+| 정책 ID | policy_id |
+| 평가 항목 | criterion |
+| 조건 유형 | condition_type |
+| 조건 설정 | condition_params |
+| 부여 점수 | score |
+| 평가 이유 문구 | reason_template |
+
+### 분석 작업 및 결과 — briefing_analysis_job
+
+| 한글명 | 영문 필드명 |
+| --- | --- |
+| 분석 작업 ID | id |
+| 조회 토큰 해시 | access_token_hash |
+| 가게 설정·선택 품목 | input_snapshot |
+| 분석 근거 | evidence_snapshot |
+| 정책 ID | policy_id |
+| 진행 상태 | status |
+| 단계별 상태 | stages |
+| 중간 결과 | intermediate_result |
+| 최종 결과 | final_result |
+| 실패 요약 | error_summary |
+| 생성 시각 | created_at |
+| 만료 시각 | expires_at |
+
+## 기존 테이블에 추가할 필드 (미반영)
+
+### 원자재 가격 이력 추가 필드 — ingredient_price_history
+
+| 한글명 | 영문 필드명 |
+| --- | --- |
+| 1주 전 평균 가격 | one_week_before_price |
+| 4주 전 평균 가격 | four_weeks_before_price |
