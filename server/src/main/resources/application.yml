@@ -45,6 +45,12 @@ data-go-kr:
     # 공공데이터포털 "일반 인증키(Decoding)" 값
     key: ${DATA_GO_KR_API_KEY:}
 
+kweather:
+  api:
+    base-url: ${KWEATHER_API_BASE_URL:https://apigw.kweather.co.kr}
+    # api.kweather.co.kr → 내 계정 에서 발급
+    key: ${KWEATHER_API_KEY:}
+
 springdoc:
   swagger-ui:
     path: /swagger-ui.html
