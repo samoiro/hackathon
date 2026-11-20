@@ -130,6 +130,7 @@ application.yml의 batch.max-retry-times는 3(최초 포함 최대 4회)입니�
    SPRING_DATASOURCE_PASSWORD=<neon password>
    SEOUL_API_KEY=<서울 열린데이터광장 인증키>
    DATA_GO_KR_API_KEY=<공공데이터포털 인증키(Decoding)>
+   KAKAO_REST_API_KEY=<카카오 REST API 키>
    CORS_ALLOWED_ORIGINS=https://<프로젝트>.pages.dev,https://*.<프로젝트>.pages.dev
    ```
 4. 배포 후 `https://<서비스>.onrender.com/swagger-ui.html` 확인
@@ -147,6 +148,7 @@ application.yml의 batch.max-retry-times는 3(최초 포함 최대 4회)입니�
 | `JPA_DDL_AUTO` | validate | 스키마는 Flyway가 만들고 Hibernate는 검증만 |
 | `SEOUL_API_KEY` | (없음) | 서울 열린데이터광장 인증키 |
 | `DATA_GO_KR_API_KEY` | (없음) | 공공데이터포털 인증키 (Decoding) |
+| `KAKAO_REST_API_KEY` | (없음) | 카카오 REST API 키 (좌표 → 행정동). 서버에만 둡니다 |
 | `CORS_ALLOWED_ORIGINS` | `http://localhost:*` | 프론트 주소, 쉼표 구분·와일드카드 가능 (예: `https://*.pages.dev`) |
 
 에러 응답은 [ProblemDetail](https://www.rfc-editor.org/rfc/rfc9457) 형식(`application/problem+json`)으로 통일돼 있어요.

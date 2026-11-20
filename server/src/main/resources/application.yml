@@ -51,6 +51,12 @@ kweather:
     # api.kweather.co.kr → 내 계정 에서 발급
     key: ${KWEATHER_API_KEY:}
 
+kakao:
+  api:
+    base-url: ${KAKAO_API_BASE_URL:https://dapi.kakao.com}
+    # 카카오 디벨로퍼스 → 내 애플리케이션 → 앱 키의 "REST API 키" (JavaScript 키는 frontend/.env.local)
+    key: ${KAKAO_REST_API_KEY:}
+
 springdoc:
   swagger-ui:
     path: /swagger-ui.html
