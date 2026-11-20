@@ -16,7 +16,7 @@ public record IngredientPriceResponse(
 		@Schema(description = "조사 기준일") LocalDate baseDate,
 		@Schema(description = "기준일 가격 (원)", example = "4380") Long price,
 		@Schema(description = "4주 전 → 기준일 순서 5개. 빈 주는 null") List<Long> weeklyPrices,
-		@Schema(description = "1주 전 대비. 가격 흐름과 원자재 강추 선정 기준") PriceChange change1w,
+		@Schema(description = "1주 전 대비. 가격 흐름과 강추 점수의 원자재 신호 기준") PriceChange change1w,
 		@Schema(description = "4주 전 대비. 화면 설명용 ('4주 전보다 430원 올랐어요')") PriceChange change4w,
 		@Schema(description = "가격 흐름") Trend trend,
 		@Schema(description = "같은 방향으로 이어진 주 수 (4주 연속 상승). FLAT이면 0") Integer consecutiveWeeks) {

@@ -10,6 +10,7 @@ public record EventResponse(
 		@Schema(description = "근거 id (추천 할 일과 연결)", example = "E1", requiredMode = Schema.RequiredMode.REQUIRED) String evidenceId,
 		@Schema(description = "행사 이름", example = "서울숲 음악회", requiredMode = Schema.RequiredMode.REQUIRED) String title,
 		@Schema(description = "분류 (필터 칩)", example = "공연", requiredMode = Schema.RequiredMode.REQUIRED) String category,
+		@Schema(description = "분류가 켜는 트리거 (부자재 준비표 연결)", requiredMode = Schema.RequiredMode.REQUIRED) EventTrigger trigger,
 		@Schema(description = "장소", example = "서울숲 야외무대", requiredMode = Schema.RequiredMode.REQUIRED) String place,
 		@Schema(description = "시작일", requiredMode = Schema.RequiredMode.REQUIRED) LocalDate startDate,
 		@Schema(description = "종료일", requiredMode = Schema.RequiredMode.REQUIRED) LocalDate endDate,
