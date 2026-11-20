@@ -1,7 +1,7 @@
 # 데이터베이스 테이블 구조
 
-기준일: 2026-11-20. 연결된 PostgreSQL DB의 실제 컬럼·타입·제약조건을 조회해 반영했습니다.
-현재 로컬 DB에 생성된 테이블은 업무용 14개와 관리용 4개입니다. 업종별 추천 연결 V21과 이름 컬럼 V23은 로컬에만 적용했으며 Neon에는 아직 적용하지 않았습니다. 아래 미생성 설계안은 실제 DB에는 아직 없습니다.
+기준일: 2026-11-21. 연결된 PostgreSQL DB의 실제 컬럼·타입·제약조건을 조회해 반영했습니다.
+V24(강추 순위용 규칙 정리, 분석 작업 테이블)는 Testcontainers로 V1부터 적용해 검증했고 로컬·Neon DB에는 아직 적용하지 않았습니다. V24까지 적용하면 업무용 테이블은 15개, 관리용은 4개입니다. 업종별 추천 연결 V21과 이름 컬럼 V23은 로컬에만 적용했으며 Neon에는 아직 적용하지 않았습니다. 아래 미생성 설계안은 실제 DB에는 아직 없습니다.
 
 표에서 별도 표시가 없는 현재 컬럼은 NOT NULL입니다. PK는 기본 키, FK는 외래 키, UNIQUE는 중복 불가를 뜻합니다.
 현재 업무용 컬럼명은 단어를 풀어 쓰며, 외부 API 원본 필드명과 확장·관리 도구의 필드명은 그대로 둡니다.
@@ -33,6 +33,8 @@
 | label | text | 표시 이름 |
 | type | text | WEATHER / EVENT / HOLIDAY / SCHOOL / SEASON |
 
+V24에서 CROWD_SURGE · SPORTS · TRAFFIC_CONTROL을 지워 35개에서 32개가 됩니다. EVENT는 FESTIVAL · PERFORMANCE만 남고, 행사 분류에서 정합니다(ai-server/docs/API_CONTRACT_DRAFT.md "행사 후보와 할 일 유형").
+
 ### supply_rule — 부자재 준비 규칙
 
 | 컬럼 | 타입·제약 | 설명 |
@@ -57,9 +59,12 @@
 | rule_id | bigint FK → supply_rule.id, 복합 PK | 준비 규칙 |
 | supply_id | bigint FK → supply.id, 복합 PK | 해당 물품 |
 | kind | text | SUPPLY: 부자재·소모품, STOCK: 손님에게 판매하는 상품 |
-| sort_order | smallint | 서버가 관리하는 고정 우선순위. 작은 값부터 우선 |
 
-기본 키는 (rule_id, supply_id)입니다. 규칙 삭제 시 연결 행도 삭제됩니다. 이전 설명의 position은 실제 컬럼명 sort_order로 반영했습니다. 규칙 내 물품 우선순위는 서버가 이 값으로 정하며 LLM이 변경하지 않습니다.
+기본 키는 (rule_id, supply_id)입니다. 규칙 삭제 시 연결 행도 삭제됩니다.
+
+- V24에서 sort_order를 지웠습니다. 노션 표 순서일 뿐 읽는 곳이 없었고, 0부터 시작해 7개 행에서 번호가 겹쳤습니다. 순위는 서버가 근거 점수로 정합니다.
+- V24에서 켤 데이터가 없는 규칙 7개를 지웠습니다. 혼잡도 급증(CROWD_SURGE) 2개는 혼잡도를 강추 계산에 쓰지 않기로 해서이고 같은 노션 행의 축제·공연 규칙에 물품이 똑같이 있습니다. 스포츠 중계(SPORTS) 3개와 교통통제·마라톤(TRAFFIC_CONTROL) 2개는 일정을 주는 API가 없고 날짜를 직접 관리하지 않기로 했습니다.
+- V24에서 규칙이 2개뿐이던 업종에 3개를 더했습니다: 분식·김밥 개학, 해물·조개구이 연말 송년회, 수선집 졸업. 부자재 규칙은 130개에서 126개가 됩니다.
 
 ### ingredient — 품목별 대표 원자재
 
@@ -135,18 +140,20 @@
 | id | bigint PK, 자동 생성 | 규칙 ID |
 | trigger_code | text UNIQUE, 공백 불가 | 제철·가격 조건 코드. 예: IN_SEASON_MONTH_07, PRICE_DROP_ONE_WEEK_UNDER_5_PERCENT |
 | trigger_text | text, 공백 불가 | LLM에 전달할 조건 설명. 예: 7월 제철 |
-| demand | text | 구매 권장 방향: UP / STRONG_UP / DOWN |
+| demand | text | 구매 권장 방향: UP / STRONG_UP / DOWN / STRONG_DOWN |
+| lead_days_min / lead_days_max | integer, NULL 허용 | 명절·김장 규칙의 준비 일수(14~21일 전). 둘 다 NULL이거나 0 ≤ min ≤ max |
 
-- 규칙에는 ingredient_id, industry_id, sort_order를 두지 않습니다. 같은 규칙을 여러 원자재가 공유하고, 같은 원자재도 여러 규칙에 연결될 수 있습니다.
+- 규칙에는 ingredient_id, industry_id를 두지 않습니다. 같은 규칙을 여러 원자재가 공유하고, 같은 원자재도 여러 규칙에 연결될 수 있습니다.
 - 제철 월은 IN_SEASON_MONTH_01~IN_SEASON_MONTH_12, 제철 시작 한 달 전은 BEFORE_SEASON_START_MONTH_01~12로 구분합니다. 제철의 첫 달과 나머지 달은 구분하지 않습니다. 가격 조건은 서버가 trigger_code별로 판정하며 trigger_text를 파싱하거나 LLM에 조건 충족 여부를 맡기지 않습니다.
 - 별도 제철 달력·트리거 마스터 테이블은 만들지 않습니다. 서버가 현재 한국 시간의 월에 대응하는 규칙과 원자재별 가격 조건을 조회합니다.
-- demand는 판매 수요나 소비 속도 예측이 아닌 서비스의 구매 권장 방향입니다. UP은 구매 권장, STRONG_UP은 강력 구매 권장, DOWN은 구매 미권장입니다. 같은 컬럼명을 쓰는 supply_rule의 수요 방향과 의미를 구분합니다.
-- 제철 시작 한 달 전은 UP, 제철인 모든 달은 STRONG_UP입니다. 7~8월 제철이라면 6월은 UP, 7월·8월은 모두 STRONG_UP입니다. 가격 하락은 UP이며 1주 대비 10% 이상 하락은 STRONG_UP입니다. 가격 상승은 DOWN입니다.
+- demand는 판매 수요나 소비 속도 예측이 아닌 서비스의 구매 권장 방향입니다. UP은 구매 권장, STRONG_UP은 강력 구매 권장, DOWN은 구매 미권장, STRONG_DOWN은 강한 구매 미권장입니다. 같은 컬럼명을 쓰는 supply_rule의 수요 방향과 의미를 구분합니다.
+- 제철 시작 한 달 전은 UP, 제철인 모든 달은 STRONG_UP입니다. 7~8월 제철이라면 6월은 UP, 7월·8월은 모두 STRONG_UP입니다. 가격 하락은 UP이며 1주 대비 10% 이상 하락은 STRONG_UP입니다. 가격 상승은 DOWN이고 10% 이상 상승은 STRONG_DOWN입니다.
 - 제철과 가격을 묶은 복합 규칙은 만들지 않습니다. 서버가 개별 규칙의 구매 신호를 모아 최종 권장 강도를 계산하며 LLM에는 결과와 개별 근거를 함께 전달합니다.
 - 가격 하락은 비용 절감에 따른 구매 권장, 가격 상승은 원가 부담에 따른 구매 미권장입니다. 미래 가격이나 판매 수요를 예측한 값이 아니며 미권장은 필수 구매 금지가 아닙니다.
-- forecast, lead_days는 넣지 않습니다. 규칙만으로 사전 준비 일수가 정해지지 않기 때문입니다.
+- 제철·가격 규칙은 준비 일수가 없어 lead_days가 NULL입니다. 명절·김장 규칙(BEFORE_KIMJANG·BEFORE_SEOLLAL·BEFORE_CHUSEOK)만 준비 일수를 두고, 날짜는 supply_trigger_date의 KIMJANG·SEOLLAL·CHUSEOK 기간을 씁니다.
+- V24에서 PRICE_BELOW_FOUR_WEEKS(4주 전보다 낮은 가격)를 지웠습니다. 1주 비교와 같은 가격 변화를 두 번 세기 때문이며, 4주 변화는 LLM이 change_4w_pct로 받습니다. 1주 비교 규칙 37~40은 같은 가격 변화에 하나만 걸려서 남깁니다.
 
-실제 DB에는 제철 24개(제철 월·시작 한 달 전 각 12개)와 가격 5개, 총 29개 규칙이 있습니다. 별도로 나눴던 제철 진입 월 규칙은 삭제했습니다. 규칙 초기 데이터는 V13__ingredient_rule_seed.sql과 V14__simplify_ingredient_season_rules.sql로 재현합니다. ingredient_rule_item은 실제 생성·적재했으며 조건 판정·추천 로직은 아직 미구현입니다.
+V24 전에는 제철 24개(제철 월·시작 한 달 전 각 12개)와 가격 5개, 총 29개 규칙이었습니다. V24에서 1개를 지우고 4개(10% 이상 상승, 김장·설·추석 전)를 더해 32개가 됩니다. 별도로 나눴던 제철 진입 월 규칙은 삭제했습니다. 규칙 초기 데이터는 V13__ingredient_rule_seed.sql과 V14__simplify_ingredient_season_rules.sql로 재현합니다. ingredient_rule_item은 실제 생성·적재했으며 조건 판정·추천 로직은 아직 미구현입니다.
 
 ### cultural_event — 오프라인 문화행사
 
@@ -186,24 +193,21 @@
 | --- | --- | --- |
 | rule_id | bigint FK → ingredient_rule.id, 복합 PK | 추천 규칙 |
 | ingredient_id | bigint FK → ingredient.id, 복합 PK | 규칙이 적용되는 원자재 |
-| sort_order | smallint, 0보다 큼 | 해당 규칙 내 고정 우선순위. 작은 값부터 우선 |
 
 - 기본 키는 (rule_id, ingredient_id)입니다. 규칙 삭제 시 연결 행도 삭제하며 원자재는 유지합니다.
 - 업종은 규칙에 저장하지 않습니다. 가게가 선택한 원자재 또는 industry_ingredient로 추천 대상을 제한합니다.
-- 서버는 연결된 원자재 중 조건을 충족하는 품목만 선택하고 sort_order로 정렬합니다. LLM은 우선순위를 변경하지 않습니다.
-- sort_order는 같은 규칙 안에서 적용합니다. 규칙 간 숫자를 같은 우선순위로 간주하지 않습니다. 통합 목록이 필요하면 서버의 별도 규칙 간 정렬 기준을 정해야 합니다.
+- 서버는 연결된 원자재 중 조건을 충족하는 품목만 고르고, 순위는 근거 점수로 정합니다. LLM은 순위를 바꾸지 않습니다. V24에서 품목 코드순이던 sort_order를 지웠습니다.
 - 제철이 여러 달이면 해당 월의 규칙마다 같은 원자재를 연결합니다. 대표 품종·원산지·신선/냉동 상태에 적용되는 제철만 연결하고, 규칙이 없으면 제철 여부 미확인으로 전달합니다.
 
-실제 연결은 총 740개입니다. 제철 원자재 31개에 제철 월 119개·시작 전 31개를 연결하고, 전체 원자재 118개에 가격 규칙 5개씩 590개를 연결했습니다. 대표 원자재는 V10__ingredient_seed.sql, 제철 근거 URL과 연결은 V17__ingredient_rule_item_seed.sql에 보존했습니다. CSV·JSON 사본은 제거했습니다.
+V24 전 연결은 총 740개였습니다. 제철 원자재 31개에 제철 월 119개·시작 전 31개를 연결하고, 전체 원자재 118개에 가격 규칙 5개씩 590개를 연결했습니다. V24에서 4주 규칙 연결 118개를 지우고 10% 이상 상승 규칙 118개, 김장 11개, 설·추석 각 6개를 더해 763개가 됩니다. 대표 원자재는 V10__ingredient_seed.sql, 제철 근거 URL과 연결은 V17__ingredient_rule_item_seed.sql에 보존했습니다. CSV·JSON 사본은 제거했습니다.
 
-- 초기 sort_order는 규칙별 품목 코드순으로 고정했습니다. 구매 효과나 가격 하락폭을 뜻하지 않으며, 데이터 재적재 시 기존 순서를 덮어쓰지 않습니다.
 - 제철 없음·확인 필요·참고 범위·저장품 여부 확인 필요·정확한 월 경계 미확정인 87개는 제철 연결에서 제외했습니다. 가격 규칙 대상에는 포함됩니다.
 - 원자재 삭제·ID 변경은 RESTRICT입니다. ingredient_id 역조회 인덱스가 있습니다.
 - 연결은 적용 가능한 대상이며 조건 충족 결과가 아닙니다. 가격 상승·하락 규칙 모두에 연결되어 있어도 실제 신호는 서버의 조건 판정 후에만 사용합니다.
 
 ### 가격 배치 처리 방향 (미구현)
 
-가격 수집 배치는 ingredient_price_history의 같은 원자재·조사일을 upsert하고, 수집 성공 후 최신 가격과 비교 가격으로 조건을 판정하는 방식으로 구성합니다. ingredient_rule_item의 연결·sort_order와 ingredient_rule의 demand는 매번 바꾸지 않습니다. 가격 하락은 UP, 10% 이상 하락은 STRONG_UP, 가격 상승은 DOWN입니다.
+가격 수집 배치는 ingredient_price_history의 같은 원자재·조사일을 upsert하고, 수집 성공 후 최신 가격과 비교 가격으로 조건을 판정하는 방식으로 구성합니다. ingredient_rule_item의 연결과 ingredient_rule의 demand는 매번 바꾸지 않습니다. 가격 하락은 UP, 10% 이상 하락은 STRONG_UP, 가격 상승은 DOWN, 10% 이상 상승은 STRONG_DOWN입니다.
 
 판정 결과는 요청 시 조회하거나 향후 결과 저장이 필요할 때 별도로 저장합니다. 현재 ingredient_rule_item에 활성 여부·조사일·판정값 컬럼은 추가하지 않았고, 자동 실행·조건 판정·결과 저장 배치는 등록하지 않았습니다. API의 1주·4주 전 평균 가격을 사용할 때는 문서 마지막의 비교 가격 필드 적재가 먼저 필요합니다. 날짜별 이력의 7일·28일 전 가격을 API 평균 가격과 혼용하지 않습니다. 결측·0 기준 가격은 판정을 건너뛰고, 수집 실패 시 오래된 결과를 현재 결과로 표시하지 않습니다.
 
@@ -302,14 +306,34 @@ V23__industry_recommendation_names.sql에서 기존 연결의 이름을 채웠�
 
 PostGIS가 생성·관리하는 테이블이며 업무 테이블이 아닙니다. city_data_area는 좌표계 4326을 사용합니다. 확장 표준 컬럼명은 변경하지 않습니다.
 
+### briefing_analysis_job — 분석 작업과 결과
+
+| 컬럼 | 타입·제약 | 설명 |
+| --- | --- | --- |
+| id | uuid PK | 분석 번호. 서버가 만들어 POST 응답으로 돌려줍니다 |
+| status | text, 기본값 PENDING | PENDING / RUNNING / SUCCEEDED / FAILED |
+| steps | jsonb 배열, 기본값 [] | 4단계 진행 상태 (AnalysisStep) |
+| base_time | timestamptz(0) | 리포트 만들기를 누른 시각 |
+| input_snapshot | jsonb 객체 | 가게 정보·고른 품목·제외 목록 (AnalysisRequest) |
+| evidence_snapshot | jsonb 배열, NULL 허용 | 근거(E·H·W·R·S)와 근거별 급한 정도·영향 크기·확실성 점수 |
+| final_result | jsonb 객체, NULL 허용 | 브리핑 결과 (BriefingResponse). SUCCEEDED면 필수 |
+| failure | jsonb 객체, NULL 허용 | 실패 정보 (AnalysisFailure). FAILED면 필수 |
+| score_version | text, NULL 허용, 공백 불가 | 강추 점수표 버전. 점수표는 서버 코드 상수 |
+| created_datetime / updated_datetime | timestamptz(0), 기본값 CURRENT_TIMESTAMP(0) | 생성 / 변경 시각. 변경 시각은 batch_job과 같은 트리거로 갱신 |
+
+- V24에서 만들었습니다. 분석이 1분쯤 걸려 POST로 시작하고 GET으로 상태를 다시 묻기 때문에, Render 무료 인스턴스가 재시작돼도 남도록 DB에 둡니다.
+- 로그인이 없어 조회 토큰(access_token_hash)과 만료 시각은 두지 않습니다. 분석 번호가 UUID라 추측하기 어렵습니다.
+- 점수 기준은 테이블(task_priority_policy)이 아니라 코드 상수이고 score_version으로 구분합니다. 기준: ai-server/docs/API_CONTRACT_DRAFT.md "강추 고르기 (Java)".
+- 할 일(todo)은 서버에 저장하지 않고 브라우저 localStorage(`todos:{analysisId}`)에 둡니다.
+
 ## 아직 생성하지 않은 테이블 설계안
 
 다음은 전달받은 설계안입니다. 타입·관계·상태값은 향후 구현 시 검토해야 하며 현재 DB 구조로 해석하지 않습니다.
-원자재는 ingredient_rule에 제철·가격 조건을 저장하고, ingredient_rule_item에서 원자재를 다대다로 연결합니다. 규칙 내 우선순위는 서버가 연결 행의 sort_order로 확정하며, 적용 규칙과 가격 데이터를 LLM에 전달해 추천 이유와 설명을 작성합니다.
+원자재는 ingredient_rule에 제철·가격 조건을 저장하고, ingredient_rule_item에서 원자재를 다대다로 연결합니다. 순위는 서버가 근거 점수로 정하며, 적용 규칙과 가격 데이터를 LLM에 전달해 추천 이유와 설명을 작성합니다.
 
 ### 원자재 규칙 예시 데이터
 
-아래 ingredient_rule은 실제 적재한 29개 규칙이며, ingredient_rule_item은 실제 DB에서 추출한 딸기(설향) 연결 일부입니다.
+아래는 V24 전 데이터입니다. ingredient_rule은 실제 적재한 29개 규칙이며, ingredient_rule_item은 실제 DB에서 추출한 딸기(설향) 연결 일부입니다(sort_order 열은 V24에서 삭제). V24 변경은 아래 조건 표에 반영했습니다.
 
 ingredient_rule（실제 적재 데이터）:
 
@@ -370,15 +394,16 @@ rule_id,trigger_code,ingredient_id,item_name,sort_order
 | IN_SEASON_MONTH_07 | 현재 한국 시간 기준 7월 | STRONG_UP: 제철 품목 강력 구매 권장 |
 | IN_SEASON_MONTH_08 | 현재 한국 시간 기준 8월 | STRONG_UP: 제철 품목 강력 구매 권장 |
 | PRICE_DROP_ONE_WEEK_UNDER_5_PERCENT | 0% < 1주 대비 하락률 < 5% | UP: 구매 권장 |
-| PRICE_RISE_ONE_WEEK | 조사일 가격 > 1주 전 평균 가격 | DOWN: 구매 미권장 |
-| PRICE_BELOW_FOUR_WEEKS | 조사일 가격 < 4주 전 평균 가격 | UP: 구매 권장 |
+| PRICE_RISE_ONE_WEEK | 0% < 1주 대비 상승률 < 10% (V24에서 좁힘) | DOWN: 구매 미권장 |
+| PRICE_RISE_ONE_WEEK_AT_LEAST_10_PERCENT | 1주 대비 상승률 ≥ 10% (V24 추가) | STRONG_DOWN: 강한 구매 미권장 |
+| BEFORE_KIMJANG | 김장철 시작 21~14일 전 (V24 추가, 설·추석도 같은 방식) | UP: 값 오르기 전 구매 |
 | BEFORE_SEASON_START_MONTH_07 | 현재 한국 시간 기준 6월 | UP: 제철 시작 한 달 전 |
 | PRICE_DROP_ONE_WEEK_5_TO_10_PERCENT | 5% ≤ 1주 대비 하락률 < 10% | UP: 구매 권장 |
 | PRICE_DROP_ONE_WEEK_AT_LEAST_10_PERCENT | 1주 대비 하락률 ≥ 10% | STRONG_UP: 강력 구매 권장 |
 
 가격 조건은 각 원자재의 동일 대표 규격끼리 비교하며, 비교 가격은 0보다 크고 두 가격 모두 유효해야 합니다. 가격이 같으면 상승·하락 규칙은 적용하지 않습니다.
 하락률은 (1주 전 평균 가격 − 조사일 가격) ÷ 1주 전 평균 가격 × 100입니다. 구간의 5%·10%는 초기 운영 기준으로 규칙 데이터에 적재했습니다. 같은 비교 기간의 하락 구간은 정확히 하나만 적용해야 하며 실제 조건 판정 코드는 아직 미구현입니다.
-예를 들어 규칙 37에서 일부 원자재만 해당 하락 구간에 속한다면 서버는 그 원자재만 선택하고 저장된 sort_order순으로 전달합니다. 상승·하락 규칙에 같은 원자재가 연결되어 있어도 같은 비교 가격에서는 동시에 충족되지 않습니다.
+예를 들어 규칙 37에서 일부 원자재만 해당 하락 구간에 속한다면 서버는 그 원자재만 선택하고 근거 점수로 순위를 정합니다. 상승·하락 규칙에 같은 원자재가 연결되어 있어도 같은 비교 가격에서는 동시에 충족되지 않습니다.
 
 ### reference_source — 근거 자료 (미생성)
 
@@ -393,53 +418,12 @@ rule_id,trigger_code,ingredient_id,item_name,sort_order
 | content | text, NULL | 자료 원문·참고 원칙 |
 | review_status | varchar | 검토 상태: DRAFT / REVIEWED |
 
-### task_priority_policy — 우선순위 평가 정책 (미생성)
-
-| 컬럼 | 타입 | 설명 |
-| --- | --- | --- |
-| id | bigint PK | 정책 ID |
-| version | varchar UNIQUE | 정책 버전 |
-| weights | jsonb | 평가 항목별 가중치 |
-| score_min / score_max | numeric | 평가 항목의 최소·최대 점수 |
-| tie_breakers | jsonb | 동점일 때 정렬 기준 |
-| active | boolean | 적용 중 여부 |
-
-### task_priority_score_rule — 우선순위 점수 규칙 (미생성)
-
-| 컬럼 | 타입 | 설명 |
-| --- | --- | --- |
-| id | bigint PK | 점수 규칙 ID |
-| policy_id | bigint FK | 적용 정책 |
-| criterion | varchar | 평가 항목 |
-| condition_type | varchar | 평가 조건 유형 |
-| condition_params | jsonb | 조건별 수치·설정 |
-| score | numeric | 조건 충족 시 부여할 점수 |
-| reason_template | varchar | 평가 이유 설명 문구 |
-
-원자재의 가격·제철 규칙은 LLM 설명의 입력 근거입니다. 이 공통 점수 정책 테이블은 별도의 전체 작업 평가 설계이며 제철 규칙 저장에 필수는 아닙니다. 적용하더라도 계산 주체는 서버이며 규칙 내 sort_order를 LLM이 덮어쓰지 않습니다. 입력 방식은 문서 마지막의 원자재 우선순위 설계를 따릅니다.
-
-### briefing_analysis_job — 분석 작업 및 결과 (미생성)
-
-| 컬럼 | 타입 | 설명 |
-| --- | --- | --- |
-| id | uuid PK | 분석 작업 ID |
-| access_token_hash | varchar | 작업 조회·재시도용 토큰 해시 |
-| input_snapshot | jsonb | 분석에 사용한 가게 설정·선택 품목 |
-| evidence_snapshot | jsonb | 분석에 사용한 행사·가격·준비 규칙 |
-| policy_id | bigint FK | 적용한 우선순위 정책 |
-| status | varchar | 전체 진행 상태 |
-| stages | jsonb | 단계별 진행 상태 |
-| intermediate_result | jsonb, NULL | 중간 분석 결과 |
-| final_result | jsonb, NULL | 최종 추천 결과 |
-| error_summary | text, NULL | 실패 요약 |
-| created_at / expires_at | timestamptz | 생성·만료 시각 |
-
 ## 원자재 우선순위 설계 (미구현)
 
 가게가 선택한 원자재 또는 industry_ingredient로 연결된 원자재를 대상으로, 제철·가격 조건을 충족한 ingredient_rule과 가격 데이터를 LLM에 함께 전달합니다.
 예를 들어 7월이면 IN_SEASON_MONTH_07 규칙을 조회하고 ingredient_rule_item의 ingredient_id로 대표 품목 및 가격을 연결합니다. 가격 규칙은 연결된 원자재마다 서버가 가격을 비교해 충족 여부를 판정합니다.
 입력에는 분석 기준일, 원자재 ID·이름·대표 규격, 조사일, 조사일 가격, 1주·4주 전 가격과 변화율, 규칙의 코드·설명·구매 권장 방향(demand)과 서버가 정한 우선순위를 포함합니다.
-서버는 날짜·대상 품목 조회, 변화율 계산, 개별 구매 신호 합산 및 ingredient_rule_item.sort_order 기준 규칙 내 정렬을 맡습니다. LLM은 서버가 확정한 순위·개별 신호·최종 권장 강도를 바꾸지 않고 가격·제철 근거를 설명합니다.
+서버는 날짜·대상 품목 조회, 변화율 계산, 개별 구매 신호 합산과 근거 점수 계산을 맡습니다. LLM은 서버가 확정한 순위·개별 신호·최종 권장 강도를 바꾸지 않고 가격·제철 근거를 설명합니다.
 최종 응답의 품목 목록과 순서는 서버가 유지합니다. LLM 응답은 원자재·규칙 ID로 설명을 연결하고, LLM이 반환한 배열 순서나 점수로 재정렬하지 않습니다.
 제철 여부를 LLM이 기억으로 생성하게 하지 않고 저장된 규칙을 근거로 제공합니다. 서버가 정한 순서·입력 근거와 생성된 설명은 briefing_analysis_job의 결과·근거 스냅샷 설계에 담습니다.
 
@@ -453,7 +437,7 @@ rule_id,trigger_code,ingredient_id,item_name,sort_order
 
 - 서로 다른 원자재의 가격 금액을 직접 비교하지 않고, 동일 대표 규격의 변화율을 비교합니다.
 - 최종 결과에는 규칙별 구매 권장 방향과 서버가 합산한 최종 권장 강도 및 계산 근거를 함께 남깁니다. 제철과 가격 조건의 신호는 서로 더하거나 상쇄할 수 있으며 LLM이 합산 기준을 바꾸지 않습니다.
-- 가격 변화와 제철 규칙은 추천 이유를 설명하는 근거로 사용하며 저장된 sort_order를 변경하지 않습니다. 초기에는 제철 전용 점수표·가중치 테이블을 추가하지 않습니다.
+- 가격 변화와 제철 규칙은 추천 이유를 설명하는 근거와 강추 점수의 원자재 신호로 사용합니다. 초기에는 제철 전용 점수표·가중치 테이블을 추가하지 않습니다.
 - 기준 가격이 NULL 또는 0이면 해당 변화율을 계산하지 않습니다. 결측을 0% 변화로 처리하지 않습니다.
 - 수집일이 아니라 observed_date를 기준으로 최신성을 확인하고 오래된 자료는 현재 구매 신호로 사용하지 않습니다. 최신성 허용 범위는 구현 시 정해야 합니다.
 - 일별 가격 이력을 수집하고 있지만 품목·조사일별 결측이 있습니다. API의 1주·4주 전 평균 가격을 기준으로 판정하려면 아래 비교 가격 필드 적재가 필요합니다.
@@ -467,7 +451,9 @@ rule_id,trigger_code,ingredient_id,item_name,sort_order
 | --- | --- | --- |
 | 제철 시작 한 달 전 | UP | +1 |
 | 제철인 모든 달 | STRONG_UP | +2 |
-| 1주 전 대비 가격 상승 | DOWN | -1 |
+| 1주 전 대비 0% 초과 10% 미만 상승 | DOWN | -1 |
+| 1주 전 대비 10% 이상 상승 | STRONG_DOWN | -2 |
+| 김장·설·추석 21~14일 전 | UP | +1 |
 | 1주 전 대비 0% 초과 5% 미만 하락 | UP | +1 |
 | 1주 전 대비 5% 이상 10% 미만 하락 | UP | +1 |
 | 1주 전 대비 10% 이상 하락 | STRONG_UP | +2 |
@@ -477,5 +463,5 @@ rule_id,trigger_code,ingredient_id,item_name,sort_order
 - 서로 다른 계열은 합산합니다. 예: 제철(+2) + 7% 가격 하락(+1) = +3, 제철(+2) + 12% 하락(+2) = +4입니다.
 - 최종 점수가 2 이상이면 강력 구매 권장, 1이면 구매 권장, 0이면 판단 보류, 음수이면 구매 미권장으로 표시하는 초기안입니다. 판단 보류는 합산 결과 표시이며 ingredient_rule.demand에 새로운 값을 추가하지 않습니다.
 - 적용 신호가 없거나 필요한 가격이 없으면 중립 점수로 단정하지 않고 근거 부족으로 표시합니다. 일부 근거만 있으면 적용한 신호와 누락된 근거를 함께 전달합니다.
-- 점수는 구매 권장 강도를 표현합니다. 저장된 sort_order를 수정하거나 품목 우선순위를 재정렬하는 값으로 사용하지 않습니다.
-- 강도 점수는 서버 정책의 초기안입니다. ingredient_rule과 규칙 29개는 실제 DB에 반영했으며 합산 점수 컬럼·테이블과 서버 계산 로직은 추가하지 않았습니다.
+- 점수는 구매 권장 강도를 표현하며, 강추 점수표의 원자재 영향 크기(신호 크기의 절댓값)로 쓰입니다.
+- 강도 점수는 서버 정책의 초기안입니다. ingredient_rule 규칙은 V24 기준 32개이며 합산 점수 컬럼·테이블과 서버 계산 로직은 추가하지 않았습니다.

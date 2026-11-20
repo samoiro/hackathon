@@ -45,7 +45,6 @@
 | 규칙 ID | rule_id |
 | 물품 ID | supply_id |
 | 물품 구분 | kind |
-| 고정 우선순위 | sort_order |
 
 ### 대표 원자재 — ingredient
 
@@ -100,6 +99,8 @@
 | 조건 코드 | trigger_code |
 | 조건 설명 | trigger_text |
 | 구매 권장 방향 | demand |
+| 최소 준비 일수 | lead_days_min |
+| 최대 준비 일수 | lead_days_max |
 
 ### 오프라인 문화행사 — cultural_event
 
@@ -127,7 +128,6 @@
 | --- | --- |
 | 규칙 ID | rule_id |
 | 원자재 ID | ingredient_id |
-| 고정 우선순위 | sort_order |
 
 ### 업종별 추천 원자재 — industry_ingredient
 
@@ -148,6 +148,22 @@
 | 고정 추천 순서 (1~2, 업종별 최대 2개) | sort_order |
 | 업종명 | industry_name |
 | 부자재명 | supply_name |
+
+### 분석 작업과 결과 — briefing_analysis_job
+
+| 한글명 | 영문 필드명 |
+| --- | --- |
+| 분석 번호 | id |
+| 진행 상태 | status |
+| 단계별 상태 | steps |
+| 기준 시각 | base_time |
+| 가게 설정·선택 품목 | input_snapshot |
+| 근거와 점수 | evidence_snapshot |
+| 브리핑 결과 | final_result |
+| 실패 정보 | failure |
+| 점수표 버전 | score_version |
+| 생성 시각 | created_datetime |
+| 변경 시각 | updated_datetime |
 
 ## 현재 관리 테이블
 
@@ -218,43 +234,3 @@
 | 자료 원문 | content |
 | 검토 상태 | review_status |
 
-### 우선순위 평가 정책 — task_priority_policy
-
-| 한글명 | 영문 필드명 |
-| --- | --- |
-| 정책 ID | id |
-| 정책 버전 | version |
-| 평가 가중치 | weights |
-| 최소 점수 | score_min |
-| 최대 점수 | score_max |
-| 동점 정렬 기준 | tie_breakers |
-| 적용 여부 | active |
-
-### 우선순위 점수 규칙 — task_priority_score_rule
-
-| 한글명 | 영문 필드명 |
-| --- | --- |
-| 점수 규칙 ID | id |
-| 정책 ID | policy_id |
-| 평가 항목 | criterion |
-| 조건 유형 | condition_type |
-| 조건 설정 | condition_params |
-| 부여 점수 | score |
-| 평가 이유 문구 | reason_template |
-
-### 분석 작업 및 결과 — briefing_analysis_job
-
-| 한글명 | 영문 필드명 |
-| --- | --- |
-| 분석 작업 ID | id |
-| 조회 토큰 해시 | access_token_hash |
-| 가게 설정·선택 품목 | input_snapshot |
-| 분석 근거 | evidence_snapshot |
-| 정책 ID | policy_id |
-| 진행 상태 | status |
-| 단계별 상태 | stages |
-| 중간 결과 | intermediate_result |
-| 최종 결과 | final_result |
-| 실패 요약 | error_summary |
-| 생성 시각 | created_at |
-| 만료 시각 | expires_at |
