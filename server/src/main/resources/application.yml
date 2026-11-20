@@ -41,6 +41,15 @@ data-go-kr:
     # 공공데이터포털 "일반 인증키(Decoding)" 값
     key: ${DATA_GO_KR_API_KEY:}
 
+# Python ai-server (LLM 추천 생성). 계약: ai-server/docs/API_CONTRACT_DRAFT.md
+ai:
+  server:
+    base-url: ${AI_SERVER_URL:http://localhost:8000}
+    # ai-server가 공개 URL이라 두 서버가 같은 값을 X-Internal-Token 헤더로 주고받는다
+    token: ${AI_SERVER_TOKEN:}
+    # LLM 40초 + Render 무료 인스턴스가 깨어나는 시간
+    read-timeout: 60s
+
 springdoc:
   swagger-ui:
     path: /swagger-ui.html

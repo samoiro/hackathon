@@ -66,11 +66,15 @@ export TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE=/var/run/docker.sock
    SEOUL_API_KEY=<서울 열린데이터광장 인증키>
    DATA_GO_KR_API_KEY=<공공데이터포털 인증키(Decoding)>
    CORS_ALLOWED_ORIGINS=https://<프로젝트>.pages.dev,https://*.<프로젝트>.pages.dev
+   AI_SERVER_URL=https://<ai-server 서비스>.onrender.com
+   LLM_API_KEY=<LLM 공급자 키>   # ai-server
+   LLM_MODEL=<모델 이름>         # ai-server
    ```
+   `AI_SERVER_TOKEN`은 Render가 ai-server에 만들어 서버에도 똑같이 넣어 줍니다.
 4. 배포 후 `https://<서비스>.onrender.com/swagger-ui.html` 확인
 
 무료 인스턴스는 15분간 요청이 없으면 잠들고, 깨어나는 데 1~2분 걸립니다.
-데모 전에는 [cron-job.org](https://cron-job.org) 등으로 `/actuator/health`를 10분마다 호출해 깨워 두세요.
+데모 전에는 [cron-job.org](https://cron-job.org) 등으로 `/actuator/health`와 ai-server의 `/health`를 10분마다 호출해 깨워 두세요.
 
 ## 환경 변수
 
@@ -82,6 +86,8 @@ export TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE=/var/run/docker.sock
 | `JPA_DDL_AUTO` | validate | 스키마는 Flyway가 만들고 Hibernate는 검증만 |
 | `SEOUL_API_KEY` | (없음) | 서울 열린데이터광장 인증키 |
 | `DATA_GO_KR_API_KEY` | (없음) | 공공데이터포털 인증키 (Decoding) |
+| `AI_SERVER_URL` | `http://localhost:8000` | Python ai-server 주소 |
+| `AI_SERVER_TOKEN` | (없음) | ai-server 내부 호출 토큰, `X-Internal-Token` 헤더로 보냄 |
 | `CORS_ALLOWED_ORIGINS` | `http://localhost:*` | 프론트 주소, 쉼표 구분·와일드카드 가능 (예: `https://*.pages.dev`) |
 
 에러 응답은 [ProblemDetail](https://www.rfc-editor.org/rfc/rfc9457) 형식(`application/problem+json`)으로 통일돼 있어요.
