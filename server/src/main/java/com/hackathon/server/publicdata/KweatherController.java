@@ -49,6 +49,15 @@ public class KweatherController {
 		return kweather.get("kw-warning" + level.number(), code);
 	}
 
+	@Operation(summary = "단기예보 (3일)", description = "오전/오후 단위 육상 단기예보 (kw-fct-dl1/2/3). 시각 배열이 없어 service.timestamp(발표시각 05·11·17시)로 시점을 읽습니다. 05시: 오늘 오전부터 6개, 11시: 오늘 오후부터 5개, 17시: 오늘 오후부터 글피 오후까지 7개. 주요 필드: ta(기온 ℃), rnSt(강수확률 %), wIcon, wText(날씨)",
+			responses = @ApiResponse(responseCode = "200", content = @Content(schema = @Schema(type = "object", description = "행정구역코드 → {service.timestamp, data}"))))
+	@GetMapping("/short-forecast")
+	public JsonNode shortForecast(
+			@Parameter(description = "조회 단위 (DONG: 읍면동, SIGUNGU: 시군구, SIDO: 광역시도)") @RequestParam(defaultValue = "DONG") Level level,
+			@Parameter(description = CODE_DESC, example = "1111051500") @RequestParam(required = false) @Pattern(regexp = "\\d{10}") String code) {
+		return kweather.get("kw-fct-dl" + level.number(), code);
+	}
+
 	@Operation(summary = "주간예보 (3~10일 후)", description = "육상 주간예보 (kw-fct-wl1/2/3). 배열의 같은 인덱스가 같은 시점이고 tm이 그 시각입니다. 3~7일 후는 오전/오후, 8~10일 후는 하루 단위. 주요 필드: tm, taMin, taMax(℃), rePer(강수확률 %), wIcon, wText(날씨)",
 			responses = @ApiResponse(responseCode = "200", content = @Content(schema = @Schema(type = "object", description = "행정구역코드 → {service.timestamp, data}"))))
 	@GetMapping("/weekly-forecast")
