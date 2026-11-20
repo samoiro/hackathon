@@ -3,3 +3,8 @@
 .DS_Store
 .env
 node_modules/
+
+# Claude Code 개인 설정 (impeccable 훅 포함, 각자 npx impeccable install 로 생성)
+.claude/settings.local.json
+# impeccable 엔진 바이너리: 없으면 런처가 검증 후 자동 다운로드
+.claude/skills/impeccable/scripts/bin/

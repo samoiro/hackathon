@@ -40,9 +40,11 @@ npm install
 | --- | --- |
 | 종류 | `feat` 기능, `fix` 버그 수정, `refactor`, `style` 포맷, `docs`, `test`, `chore` 설정·잡무, `perf`, `build`, `ci`, `revert` |
 | 범위 | 생략 가능. `server`, `frontend`, `ai-server` 등 영문 소문자, 숫자, `-` |
-| 설명 | 첫 줄 100자 이하. 호환이 깨지는 변경은 `feat(server)!: ...`처럼 `!`를 붙임 |
+| 설명 | **한글**로 씀. 첫 줄 100자 이하. 호환이 깨지는 변경은 `feat(server)!: ...`처럼 `!`를 붙임 |
 
-예: `feat(server): add aT price trend API`, `fix(frontend): keep login redirect`, `chore: add husky hooks`
+예: `feat(server): aT 가격 추이 API 추가`, `fix(frontend): 로그인 후 원래 페이지로 이동`, `chore: husky 훅 추가`
+
+커밋 본문과 PR 제목·본문도 한글로 씁니다. 종류·범위, 코드·파일 이름 같은 고유명사는 영문 그대로 둡니다.
 
 규칙에 맞지 않으면 커밋이 막힙니다. git이 만드는 `Merge ...`, `Revert ...` 메시지는 검사하지 않습니다. 메시지 고치기: `git commit --amend`
 
