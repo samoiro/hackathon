@@ -4,10 +4,10 @@ import { ConfigProvider } from 'antd'
 import koKR from 'antd/locale/ko_KR'
 import type { PropsWithChildren } from 'react'
 import { BrowserRouter } from 'react-router'
-import { queryClient } from '../../lib/query/queryClient'
-import { appTheme } from './theme'
+import { queryClient } from '@/lib/query/queryClient'
+import { appTheme } from '@/app/providers/theme'
 
-export function AppProviders({ children }: PropsWithChildren) {
+export default function AppProviders({ children }: PropsWithChildren) {
   return (
     <QueryClientProvider client={queryClient}>
       <StyleProvider layer>

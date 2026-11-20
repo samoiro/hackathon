@@ -32,34 +32,24 @@ npm install
 
 ## 커밋 메시지 규칙
 
-```text
-type(scope): 설명
+```
+{종류}({범위}): {설명}
 ```
 
-| type | 사용 기준 |
+| 자리 | 값 |
 | --- | --- |
-| `feat` | 새로운 기능 추가 |
-| `fix` | 오류 수정 |
-| `docs` | 문서 추가·수정 |
-| `style` | 동작 변경 없는 포맷·스타일 수정 |
-| `refactor` | 동작을 유지하는 코드 구조 개선 |
-| `test` | 테스트 추가·수정 |
-| `chore` | 빌드·의존성·환경 설정·유지보수 |
+| 종류 | `feat` 기능, `fix` 버그 수정, `refactor`, `style` 포맷, `docs`, `test`, `chore` 설정·잡무, `perf`, `build`, `ci`, `revert` |
+| 범위 | 생략 가능. `server`, `frontend`, `ai-server` 등 영문 소문자, 숫자, `-` |
+| 설명 | **한글**로 씀. 첫 줄 100자 이하. 호환이 깨지는 변경은 `feat(server)!: ...`처럼 `!`를 붙임 |
 
-- `scope`는 `server`, `frontend`, `common` 중 변경 영역을 적습니다. 저장소 전체에 걸친 변경은 생략할 수 있습니다.
-- 설명은 한국어로 변경 내용을 간결하게 적고, 끝에 마침표를 붙이지 않습니다.
-- 한 커밋에는 하나의 목적을 담습니다. 변경 이유와 검증 결과가 필요하면 제목 아래 빈 줄을 두고 본문에 적습니다.
+예: `feat(server): aT 가격 추이 API 추가`, `fix(frontend): 로그인 후 원래 페이지로 이동`, `chore: husky 훅 추가`
 
-예시:
+커밋 본문과 PR 제목·본문도 한글로 씁니다. 종류·범위, 코드·파일 이름 같은 고유명사는 영문 그대로 둡니다.
 
-```text
-feat(server): 원자재 가격 조회 기능 추가
-fix(frontend): 로그인 후 화면 이동 오류 수정
-chore(server): DB 마이그레이션 설정 정리
-docs: 로컬 실행 방법 수정
-```
+규칙에 맞지 않으면 커밋이 막힙니다. git이 만드는 `Merge ...`, `Revert ...` 메시지는 검사하지 않습니다. 메시지 고치기: `git commit --amend`
 
 ## 커밋할 때 자동 검사
 
 - 브랜치 이름 검사 (커밋, 푸시)
+- 커밋 메시지 검사 (`.husky/check-commit-msg.sh`)
 - 프론트 파일: 커밋하는 파일만 Prettier 정리 + ESLint (`frontend/.lintstagedrc.json`)

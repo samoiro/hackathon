@@ -47,6 +47,12 @@ export TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE=/var/run/docker.sock
 - 목록 API는 `page`(1부터), `size`(최대 1000) 지원, 응답은 `{ totalCount, items }`
 - 외부 API 오류는 502, 인증키 미설정은 503, 잘못된 파라미터는 400
 
+## DB 스키마 (Flyway)
+
+스키마는 `src/main/resources/db/migration`의 Flyway 파일로만 바꿉니다(Hibernate는 `ddl-auto: validate`로 검증만).
+변경이 필요하면 다음 번호의 `V{n}__설명.sql`을 새로 만들고, 이미 적용된 파일은 고치지 않습니다.
+부자재 준비표는 `V1__supply_schema.sql`(구조)과 `V2__supply_seed.sql`(노션 데이터)에 있습니다.
+
 ## 재료와 가격 이력 적재
 
 `ingredient`는 재료별 대표 규격 하나를 저장합니다. API 값을 저장하되 컬럼명은 풀어 씁니다.
@@ -160,7 +166,7 @@ application.yml의 batch.max-retry-times는 3(최초 포함 최대 4회)입니�
 | `PGHOST` / `PGPORT` / `PGDATABASE` / `PGUSER` / `PGPASSWORD` | localhost / 5432 / hackathon / hackathon / hackathon | DB 접속 정보 |
 | `SPRING_DATASOURCE_URL` / `_USERNAME` / `_PASSWORD` | (없음) | 지정하면 위 PG* 대신 사용 (배포 시 Neon) |
 | `PORT` | 8080 | Render가 자동 주입 |
-| `JPA_DDL_AUTO` | update | 스키마 자동 생성 전략 |
+| `JPA_DDL_AUTO` | validate | 스키마는 Flyway가 만들고 Hibernate는 검증만 |
 | `SEOUL_API_KEY` | (없음) | 서울 열린데이터광장 인증키 |
 | `DATA_GO_KR_API_KEY` | (없음) | 공공데이터포털 인증키 (Decoding) |
 | `CORS_ALLOWED_ORIGINS` | `http://localhost:*` | 프론트 주소, 쉼표 구분·와일드카드 가능 (예: `https://*.pages.dev`) |
