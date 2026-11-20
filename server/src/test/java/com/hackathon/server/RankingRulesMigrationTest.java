@@ -44,12 +44,9 @@ class RankingRulesMigrationTest {
 	@Test
 	void ingredientRulesSwapFourWeekRuleForBigRiseAndHolidays() {
 		assertThat(count("select count(*) from ingredient_rule where trigger_code = 'PRICE_BELOW_FOUR_WEEKS'")).isZero();
-		assertThat(count("select count(*) from ingredient_rule_item ri join ingredient_rule r on r.id = ri.rule_id"
-				+ " where r.trigger_code = 'PRICE_RISE_ONE_WEEK_AT_LEAST_10_PERCENT'"))
-				.isEqualTo(count("select count(*) from ingredient"));
+		// 10% 이상 상승 규칙은 V26에서 분위수 단계 규칙으로 바뀌었다 (PriceBandMigrationTest)
 		assertThat(count("select count(*) from ingredient_rule_item ri join ingredient_rule r on r.id = ri.rule_id"
 				+ " where r.trigger_code = 'BEFORE_KIMJANG'")).isEqualTo(11);
-		assertThat(count("select count(*) from ingredient_rule where demand = 'STRONG_DOWN'")).isEqualTo(1);
 	}
 
 	@Test
