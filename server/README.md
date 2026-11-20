@@ -11,7 +11,7 @@ Docker(Docker Desktop, colima 등)를 켠 뒤:
 
 `compose.yaml`의 Postgres가 자동으로 뜨고 연결됩니다. (JDK 25가 없으면 Gradle이 자동 설치)
 
-인증키는 `.env.example`을 복사해 `server/.env`에 넣으세요. (서울 열린데이터광장 키, 공공데이터포털 키)
+인증키는 `.env.example`을 복사해 `server/.env`에 넣으세요. (서울 열린데이터광장 키, 공공데이터포털 키, 카카오 REST API 키)
 
 <details><summary>colima를 쓰는 경우</summary>
 
@@ -65,6 +65,7 @@ export TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE=/var/run/docker.sock
    SPRING_DATASOURCE_PASSWORD=<neon password>
    SEOUL_API_KEY=<서울 열린데이터광장 인증키>
    DATA_GO_KR_API_KEY=<공공데이터포털 인증키(Decoding)>
+   KAKAO_REST_API_KEY=<카카오 REST API 키>
    CORS_ALLOWED_ORIGINS=https://<프로젝트>.pages.dev,https://*.<프로젝트>.pages.dev
    AI_SERVER_URL=https://<ai-server 서비스>.onrender.com
    LLM_API_KEY=<LLM 공급자 키>   # ai-server
@@ -86,6 +87,7 @@ export TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE=/var/run/docker.sock
 | `JPA_DDL_AUTO` | validate | 스키마는 Flyway가 만들고 Hibernate는 검증만 |
 | `SEOUL_API_KEY` | (없음) | 서울 열린데이터광장 인증키 |
 | `DATA_GO_KR_API_KEY` | (없음) | 공공데이터포털 인증키 (Decoding) |
+| `KAKAO_REST_API_KEY` | (없음) | 카카오 REST API 키 (주소 검색·좌표 변환). 서버에만 둡니다 |
 | `AI_SERVER_URL` | `http://localhost:8000` | Python ai-server 주소 |
 | `AI_SERVER_TOKEN` | (없음) | ai-server 내부 호출 토큰, `X-Internal-Token` 헤더로 보냄 |
 | `CORS_ALLOWED_ORIGINS` | `http://localhost:*` | 프론트 주소, 쉼표 구분·와일드카드 가능 (예: `https://*.pages.dev`) |
