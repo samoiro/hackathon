@@ -5,7 +5,7 @@ import {
   useKakaoLoader,
 } from 'react-kakao-maps-sdk'
 import { Tooltip } from 'antd'
-import { LuCalendar, LuStore } from 'react-icons/lu'
+import { LuPartyPopper, LuStore } from 'react-icons/lu'
 import { kakaoOptions } from '@/lib/kakao/maps'
 import type { Address } from '@/types/search'
 import type { AreaResponse } from '@/lib/api/generated'
@@ -119,7 +119,7 @@ function KakaoAreaMap({
           </CustomOverlayMap>
         </>
       )}
-      {/* 같은 좌표의 행사는 한 이름표로 묶는다(광화문·시청처럼 한 점에 여럿). 이름이 길어 이름표엔 건수만, 이름은 툴팁으로 */}
+      {/* 같은 좌표의 행사는 한 이름표로 묶는다(광화문·시청처럼 한 점에 여럿). 이름이 길어 지도엔 행사 아이콘만, 이름은 툴팁으로 */}
       {[...groupByPlace(events)].map(([key, group]) => (
         <CustomOverlayMap
           key={key}
@@ -140,10 +140,9 @@ function KakaoAreaMap({
             <button
               type="button"
               aria-label={`행사 ${group.length}건: ${group.map((event) => event.title).join(', ')}`}
-              className="flex items-center gap-1 rounded-full border-2 border-primary-700 bg-surface px-2 py-1 text-tag font-semibold whitespace-nowrap text-fg shadow-sm select-none"
+              className="flex size-8 items-center justify-center rounded-full border-2 border-primary-700 bg-surface text-fg shadow-sm"
             >
-              <LuCalendar aria-hidden />
-              행사 {group.length}
+              <LuPartyPopper aria-hidden className="size-4" />
             </button>
           </Tooltip>
         </CustomOverlayMap>
