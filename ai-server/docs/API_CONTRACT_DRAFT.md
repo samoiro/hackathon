@@ -10,7 +10,7 @@ UI/UX 확정안(`[261118]사모이로_UI-UX`)의 대시보드를 그릴 수 있�
 | 단계 | 화면 문구 | 담당 |
 | --- | --- | --- |
 | 1 | 가게 정보 확인 | Java (주소·업종·품목 검증) |
-| 2 | 주변 행사 조회 | Java (서울시 문화행사, 1km → 없으면 1.5km, 향후 7일 → 없으면 시즌 행사 → 날씨) |
+| 2 | 주변 행사 조회 | Java (서울시 문화행사, 1.5km 안, 향후 7일 → 없으면 시즌 행사 → 날씨) |
 | 3 | 품목 가격 조회 | Java (aT 가격 추이 4주, 부자재 준비표) |
 | 4 | 준비할 일 정리 | Java가 카드 칸을 정하고 **Python**이 문장을 씀 (`POST /v1/analyze`, LLM) |
 
@@ -46,7 +46,7 @@ UI/UX 확정안(`[261118]사모이로_UI-UX`)의 대시보드를 그릴 수 있�
     "industry_name": "한식",
     "operation_type": "BOTH"
   },
-  "event_search": { "radius_m": 1000, "days": 7 },
+  "event_search": { "radius_m": 1500, "days": 7 },
   "events": [
     {
       "evidence_id": "E1",
@@ -137,7 +137,7 @@ UI/UX 확정안(`[261118]사모이로_UI-UX`)의 대시보드를 그릴 수 있�
 | `request_id` | Java의 분석 id. 로그 추적에만 씁니다. |
 | `store` | 가게 이름과 상세 주소는 **보내지 않습니다**(LLM에 개인정보를 보내지 않기 위해). 자치구와 생활권 이름까지만 보냅니다. |
 | `store.operation_type` | `STORE`(매장만) · `DELIVERY`(배달만) · `BOTH` · `null`(선택 안 함) |
-| `event_search.radius_m` | 1000. 1km 안에 행사가 없어서 넓혀 찾았으면 1500 |
+| `event_search.radius_m` | 1500 (고정) |
 | `events` · `season_events` · `weather` | `EVENT` 칸의 근거입니다. 주변 행사(E)가 있으면 `events`, 없으면 시즌 행사(H) `season_events`, 그것도 없으면 날씨(W) `weather`를 채웁니다. 부자재 트리거가 H·W이면 그 근거도 넣습니다. 안 쓰는 것은 빈 배열·`null` |
 | `events[].date_label` · `peak_label` | 화면용 날짜 문구와 붐비는 시간(시작 1시간 전 ~ 끝 1시간 후). LLM이 그대로 옮깁니다. 시간을 못 읽으면 `peak_label`은 `null` |
 | `events[].status` | `UPCOMING` · `ONGOING` |
@@ -244,7 +244,7 @@ UI/UX 확정안(`[261118]사모이로_UI-UX`)의 대시보드를 그릴 수 있�
 
 1. 활성 오프라인 행사(`cultural_event.is_active`) 중 분류가 아래 13개인 것
 2. 진행 중이거나 7일 안에 시작. 15일 이상 이어지는 행사는 시작 후 첫 7일만
-3. 가게에서 1km 안, 없으면 1.5km 안
+3. 가게에서 1.5km 안
 4. 같은 제목·장소는 회차를 묶어 1건
 5. 강추 점수 순으로 최대 5건
 
