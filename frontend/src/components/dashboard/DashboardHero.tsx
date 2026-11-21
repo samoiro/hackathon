@@ -1,3 +1,4 @@
+import { Tag } from 'antd'
 import type { ReactNode } from 'react'
 import {
   LuCalendar,
@@ -6,6 +7,7 @@ import {
   LuTrendingUp,
 } from 'react-icons/lu'
 import { TbTriangleFilled } from 'react-icons/tb'
+import { PRICE_STAGE_STYLE } from '@/lib/price/priceStage'
 
 const SUMMARIES: {
   icon: ReactNode
@@ -32,10 +34,18 @@ const SUMMARIES: {
     value: (
       <>
         배추
-        <span className="flex items-center gap-3 text-rise">
-          <TbTriangleFilled role="img" aria-label="상승" className="size-5" />
+        {/* 1주 변동은 화살표로만 색을 쓰고, 가격 단계(4주 변동률 기준)는 배지로 */}
+        <span className="flex items-center gap-3">
+          <TbTriangleFilled
+            role="img"
+            aria-label="상승"
+            className="size-5 text-rise"
+          />
           4.1%
         </span>
+        <Tag className={PRICE_STAGE_STYLE.STABLE.chip}>
+          {PRICE_STAGE_STYLE.STABLE.label}
+        </Tag>
       </>
     ),
     detail: '돼지고기 1.2% 하락 · 쌀 변동 없음',

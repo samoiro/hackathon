@@ -115,6 +115,21 @@
   --text-tag--line-height: 1.125rem;
   --text-tag--font-weight: 500;
 
+  /* 원자재 가격 7단계(원자재 가격 단계 기준표). 1·flat은 옅은 배지 바탕, 2·3은 채운 배지(흰 글자).
+     경계(2) 두 색은 기준표의 #C95C50·#5C85C1에서 흰 글자 대비 4.5:1이 되도록 한 단계 진하게 */
+  --color-stage-rise-3: #a53224;
+  --color-stage-rise-2: #b3483c;
+  --color-stage-rise-1: #faedea;
+  --color-stage-flat: #e6f3eb;
+  --color-stage-fall-1: #e7eef8;
+  --color-stage-fall-2: #4a74b3;
+  --color-stage-fall-3: #325ea3;
+  --color-on-stage: #ffffff;
+  /* 단계별 차트 선·수치 글자색 (흰 바탕 5:1 이상) */
+  --color-stage-rise-ink: #a53224;
+  --color-stage-flat-ink: #3c7851;
+  --color-stage-fall-ink: #325ea3;
+
   --color-success: #007b45;
   /* 상태 원색: 글자 말고 아이콘·점에만 쓴다 (브랜드가이드 04) */
   --color-success-solid: #00d778;
@@ -182,6 +197,12 @@
     --color-rise: #ff7ab0;
     --color-fall: #7abdff;
     --color-hero: #3a3a3f;
+    --color-stage-rise-1: #3f1d18;
+    --color-stage-flat: #15301f;
+    --color-stage-fall-1: #16263f;
+    --color-stage-rise-ink: #f08a7c;
+    --color-stage-flat-ink: #6fbf8a;
+    --color-stage-fall-ink: #7fa6e0;
   }
 }
 
