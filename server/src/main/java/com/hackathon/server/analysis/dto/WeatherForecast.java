@@ -4,7 +4,7 @@ import java.time.LocalDate;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 
-/** 케이웨더 단기예보(kw-fct-dl)·주간예보(kw-fct-wl) 한 시점. */
+/** 기상청 단기예보를 오전·오후로 묶은 한 칸. */
 @Schema(description = "날씨 예보")
 public record WeatherForecast(
 		@Schema(description = "날짜", requiredMode = Schema.RequiredMode.REQUIRED) LocalDate date,

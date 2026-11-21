@@ -71,7 +71,8 @@ public class EventEvidenceService implements EventEvidenceCollector {
 			sources.add(new SourceResponse("기념일·학사·시즌 일정", "우주항공청 월력요항·학사일정 정리", "매년 갱신", null, store.baseTime(), null));
 		}
 		if (weather != null) {
-			sources.add(new SourceResponse("기상특보·단기예보·주간예보", "케이웨더", "하루 여러 번 갱신", null, weather.checkedAt(), null));
+			sources.add(new SourceResponse("단기예보", "기상청 (공공데이터포털)", "하루 8번 갱신", null, weather.checkedAt(),
+					"https://www.data.go.kr/data/15084084/openapi.do"));
 		}
 		return new EventEvidence(new EventSearch(EVENT_DAYS, store.baseDate(), events.size(), source), events, seasons, weather, sources);
 	}
