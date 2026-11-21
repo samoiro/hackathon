@@ -1,6 +1,6 @@
 # API · DTO 정리
 
-프론트가 부르는 서버 API와 요청·응답 DTO입니다. 코드: `server/src/main/java/com/hackathon/server/` 아래 `industry` · `ingredient` · `supply` · `location` · `analysis` · `area` · `publicdata` · `supportprogram` 패키지.
+프론트가 부르는 서버 API와 요청·응답 DTO입니다. 코드: `server/src/main/java/com/hackathon/server/{도메인}/dto/` (`industry` · `ingredient` · `supply` · `location` · `analysis` · `area` · `publicdata` · `supportprogram`). `PriceStage`는 `ingredient/entity/`에 있습니다.
 아래 DTO 표는 코드의 `@Schema` 설명에서 만들었습니다. DTO를 고치면 이 문서도 함께 고칩니다. 기준일: 2026-11-21.
 
 API 구현(컨트롤러·서비스)은 본선에서 합니다. Python ai-server와 주고받는 DTO는 [`ai-server/docs/API_CONTRACT_DRAFT.md`](../ai-server/docs/API_CONTRACT_DRAFT.md) 계약이 확정되면 따로 만듭니다.
