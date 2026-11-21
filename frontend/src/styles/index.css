@@ -1,10 +1,17 @@
 @layer theme, base, antd, components, utilities;
 @import 'tailwindcss';
 
-/* 서울알림체(서울시 서울서체, 출처표시 조건). 화면·섹션 제목(700)에만 쓴다 */
+/* 전기안전체(한국전기안전공사, 공공누리 1유형·출처표시). 브랜드가이드 05: 로고·워드마크·핵심 숫자에만 쓰고
+   화면 글자는 모두 Pretendard. Bold는 이름, Regular는 슬로건 */
 @font-face {
-  font-family: 'Seoul Alrim';
-  src: url('/fonts/SeoulAlrim-Bold.otf') format('opentype');
+  font-family: 'ElectricalSafety';
+  src: url('/fonts/ElectricalSafety-Regular.woff2') format('woff2');
+  font-weight: 400;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'ElectricalSafety';
+  src: url('/fonts/ElectricalSafety-Bold.woff2') format('woff2');
   font-weight: 700;
   font-display: swap;
 }
@@ -15,8 +22,8 @@
   --font-sans:
     'Pretendard Variable', Pretendard, -apple-system, BlinkMacSystemFont,
     system-ui, 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
-  --font-heading:
-    'Seoul Alrim', 'Pretendard Variable', Pretendard, -apple-system,
+  --font-brand:
+    'ElectricalSafety', 'Pretendard Variable', Pretendard, -apple-system,
     BlinkMacSystemFont, system-ui, 'Apple SD Gothic Neo', 'Malgun Gothic',
     sans-serif;
 
@@ -63,8 +70,8 @@
   --color-chart-3: #f8496c;
 
   /* 증감(한국 관례 상승 빨강·하락 파랑). 오류색과 비슷하니 ▲▼를 항상 같이 쓴다 */
-  --color-rise: #d13257;
-  --color-fall: #235789;
+  --color-rise: #c20053;
+  --color-fall: #0063c2;
 
   --color-canvas: #faf8f4;
   --color-surface: #ffffff;
@@ -72,18 +79,52 @@
   --color-muted: #64594b;
   --color-divider: #e5ded3;
   --color-border: #897b6a;
+  /* 선택 카드·칩의 미선택 테두리 (리뷰 F-02: #E5DED3보다 진하게) */
+  --color-line-strong: #cfc6b8;
+  /* 노란 면 위 글자. 어두운 모드에서도 바뀌지 않는다 */
+  --color-on-primary: #241a0d;
   /* 흰 배경 위 brand 글자(9.5:1). 포커스 테두리도 같은 값을 가리킨다 */
   --color-brand-text: #693a00;
-  --color-focus: var(--color-brand-text);
+  --color-focus: var(--color-fg);
+  /* 대시보드 상단 강조 블록. 어두운 모드에서도 어두운 띠로 남는다 */
+  --color-hero: #241a0d;
+  --color-on-hero: #ffffff;
 
-  --color-success: #00695c;
-  --color-success-bg: #dcf5ec;
-  --color-warning: #754700;
-  --color-warning-bg: #fff1cf;
-  --color-danger: #a42635;
-  --color-danger-bg: #fdecef;
-  --color-info: #235789;
-  --color-info-bg: #eaf3ff;
+  /* 글자 규칙 7단계(크기 / 줄 간격 / 굵기). text-display 처럼 쓴다 */
+  --text-display: 2rem;
+  --text-display--line-height: 2.75rem;
+  --text-display--font-weight: 700;
+  --text-card: 1.5rem;
+  --text-card--line-height: 2.125rem;
+  --text-card--font-weight: 700;
+  /* 팝업 제목·브리핑 제목·로고 */
+  --text-title: 1.5rem;
+  --text-title--line-height: 2.125rem;
+  --text-title--font-weight: 700;
+  --text-item: 1.125rem;
+  --text-item--line-height: 1.625rem;
+  --text-item--font-weight: 600;
+  --text-body: 1rem;
+  --text-body--line-height: 1.625rem;
+  --text-body-strong: 1rem;
+  --text-body-strong--line-height: 1.5rem;
+  --text-body-strong--font-weight: 600;
+  --text-caption: 0.875rem;
+  --text-caption--line-height: 1.375rem;
+  --text-tag: 0.75rem;
+  --text-tag--line-height: 1.125rem;
+  --text-tag--font-weight: 500;
+
+  --color-success: #007b45;
+  /* 상태 원색: 글자 말고 아이콘·점에만 쓴다 (브랜드가이드 04) */
+  --color-success-solid: #00d778;
+  --color-success-bg: #e0fff1;
+  --color-warning: #8a6100;
+  --color-warning-bg: #fff6e0;
+  --color-danger: #c20053;
+  --color-danger-bg: #ffe0ee;
+  --color-info: #0063c2;
+  --color-info-bg: #e0f0ff;
 }
 
 @layer base {
@@ -98,16 +139,78 @@
 
   body {
     min-width: 320px;
+    font-size: var(--text-body);
+    line-height: var(--text-body--line-height);
+    /* 한글은 어절 단위로 줄을 바꾼다 (글자를 키웠을 때 '확인/할 일'처럼 끊기지 않게) */
+    word-break: keep-all;
   }
 
-  /* antd Typography.Title도 font-family를 상속하므로 함께 적용된다 */
-  h1,
-  h2 {
-    font-family: var(--font-heading);
+  /* 화면 설정의 어두운 모드. 색 토큰만 바꾸면 Tailwind 클래스가 따라온다 (antd는 theme.ts에서 바꾼다) */
+  :root[data-theme='dark'] {
+    /* 피그마 BI-PC-03 어두운 화면: 무채색 회색 바탕, 상태색은 서울 네 색을 밝힌 값 */
+    color-scheme: dark;
+    --color-canvas: #0c0c0d;
+    --color-surface: #202022;
+    --color-fg: #e8e8ea;
+    --color-muted: #b4b4b9;
+    --color-divider: #3a3a3f;
+    --color-border: #8f8f96;
+    --color-line-strong: #55555b;
+    --color-brand-text: #ffc15c;
+    --color-primary-50: #332a0c;
+    --color-primary-100: #4a3d12;
+    --color-success: #4fe3a1;
+    --color-success-bg: #0f3324;
+    --color-warning: #ffcb57;
+    --color-warning-bg: #332a0c;
+    --color-danger: #ff7ab0;
+    --color-danger-bg: #3f0f24;
+    --color-info: #7abdff;
+    --color-info-bg: #0f2a44;
+    --color-rise: #ff7ab0;
+    --color-fall: #7abdff;
+    --color-hero: #3a3a3f;
+  }
+}
+
+/* 키보드 포커스 링은 레이어 밖에 둬서 antd 기본(연한 주황, 대비 부족)보다 우선한다. 2px 진한 갈색, 2px 띄움 */
+:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 2px;
+}
+
+/* WaveProgress: 차오르는 전환(1.2초)과 막대 위 잔물결. antd 레이어 뒤(components)라 antd 기본 전환보다 우선한다 */
+@layer components {
+  .progress-wave .ant-progress-track {
+    overflow: hidden;
+    transition-duration: 1.2s;
+    transition-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
   }
 
-  :focus-visible {
-    outline: 2px solid var(--color-focus);
-    outline-offset: 3px;
+  .progress-wave .ant-progress-track::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: rgb(255 255 255 / 0.3);
+    mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 8' preserveAspectRatio='none'%3E%3Cpath d='M0 5Q10 1 20 5T40 5V8H0Z'/%3E%3C/svg%3E")
+      0 0 / 40px 100% repeat-x;
+    animation: progress-wave 2.4s linear infinite;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .progress-wave .ant-progress-track {
+      transition: none;
+    }
+
+    .progress-wave .ant-progress-track::after {
+      animation: none;
+    }
+  }
+}
+
+@keyframes progress-wave {
+  to {
+    mask-position: 40px 0;
   }
 }
