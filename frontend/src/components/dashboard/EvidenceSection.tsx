@@ -1,11 +1,10 @@
 import { Alert, Card } from 'antd'
-import { LuClock, LuExternalLink } from 'react-icons/lu'
+import { LuClock } from 'react-icons/lu'
 
 const SOURCES = [
   {
     title: '서울시 문화행사 정보',
     detail: '서울 열린데이터광장 · 매일 갱신',
-    link: true,
   },
   {
     title: '농수축산물 가격',
@@ -38,14 +37,6 @@ export default function EvidenceSection() {
               <p className="mt-2 flex items-center gap-2 text-caption text-muted">
                 <LuClock aria-hidden /> 확인 11.17 07:00
               </p>
-              {source.link && (
-                <a
-                  href="/"
-                  className="mt-3 inline-flex items-center gap-1 text-caption font-semibold underline"
-                >
-                  원문 보기 <LuExternalLink aria-hidden />
-                </a>
-              )}
             </li>
           ))}
         </ul>
