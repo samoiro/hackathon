@@ -6,32 +6,30 @@ import java.time.OffsetDateTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
-import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.node.MissingNode;
 
 import com.hackathon.server.analysis.dto.DayPart;
 import com.hackathon.server.analysis.dto.WeatherForecast;
 import com.hackathon.server.analysis.dto.WeatherImpact;
 import com.hackathon.server.analysis.dto.WeatherImpactStart;
 import com.hackathon.server.analysis.dto.WeatherResponse;
-import com.hackathon.server.analysis.dto.WeatherWarning;
 import com.hackathon.server.analysis.evidence.StoreContext;
 import com.hackathon.server.publicdata.client.KweatherClient;
 
 /**
- * 가게 행정동의 기상특보(kw-warning1)·단기예보(kw-fct-dl1)·주간예보(kw-fct-wl1)로 향후 7일 날씨 근거 W1을 만든다.
- * 날씨는 보조 근거라 케이웨더 호출이 실패하면 null을 돌려주고 분석은 계속한다.
+ * 가게 행정동의 단기예보(kw-fct-dl1)·주간예보(kw-fct-wl1)로 향후 7일 날씨 근거 W1을 만든다.
+ * 기상특보(kw-warning1)는 월 20회 한도라 부르지 않는다. 날씨는 보조 근거라 실패한 예보는 빼고 분석은 계속한다.
  */
 @Service
 public class WeatherEvidenceService {
@@ -44,11 +42,6 @@ public class WeatherEvidenceService {
 	private static final double COLD_WAVE_MIN = -12;
 	private static final double HEATWAVE_MAX = 33;
 	private static final int RAIN_CHANCE = 60;
-	private static final Map<String, WeatherImpact> WARNING_IMPACTS = Map.of(
-			"한파", WeatherImpact.COLD_WAVE, "폭염", WeatherImpact.HEATWAVE, "강풍", WeatherImpact.STRONG_WIND,
-			"태풍", WeatherImpact.STRONG_WIND, "대설", WeatherImpact.HEAVY_SNOW, "호우", WeatherImpact.RAIN_SNOW);
-	// 건조·풍랑 특보는 가게 손님 수와 상관이 적어 특보 목록에만 두고 WARNING으로 보지 않는다
-	private static final Set<String> NO_IMPACT_WARNINGS = Set.of("건조", "풍랑");
 
 	private final KweatherClient kweather;
 
@@ -56,37 +49,28 @@ public class WeatherEvidenceService {
 		this.kweather = kweather;
 	}
 
-	/** 행정동 코드가 없거나 케이웨더가 실패하면 null. FINE_DUST는 미세먼지 자료가 없어 넣지 않는다. */
+	/** 행정동 코드가 없거나 예보 둘 다 실패하면 null. 하나만 실패하면 받은 예보로 만든다. FINE_DUST는 미세먼지 자료가 없어 넣지 않는다. */
 	public WeatherResponse collect(StoreContext store) {
 		String code = store.adminDongCode();
 		if (code == null) return null;
-		try {
-			List<WeatherWarning> warnings = warnings(kweather.get("kw-warning1", code).path(code).path("data"), store.baseTime());
-			List<WeatherForecast> forecasts = forecasts(kweather.get("kw-fct-dl1", code).path(code),
-					kweather.get("kw-fct-wl1", code).path(code), store.baseDate());
-			Map<WeatherImpact, LocalDate> starts = impactStarts(warnings, forecasts, store.baseDate());
-			return new WeatherResponse("W1", code, List.copyOf(starts.keySet()), warnings, forecasts, store.baseTime(),
-					starts.entrySet().stream().map(e -> new WeatherImpactStart(e.getKey(), e.getValue())).toList());
-		}
-		catch (RuntimeException e) {
-			log.warn("날씨 근거를 받지 못해 비워 둡니다 (행정동 {}): {}", code, e.getMessage());
-			return null;
-		}
+		JsonNode shortTerm = fetch("kw-fct-dl1", code);
+		JsonNode weekly = fetch("kw-fct-wl1", code);
+		if (shortTerm.isMissingNode() && weekly.isMissingNode()) return null;
+		List<WeatherForecast> forecasts = forecasts(shortTerm, weekly, store.baseDate());
+		Map<WeatherImpact, LocalDate> starts = impactStarts(forecasts);
+		return new WeatherResponse("W1", code, List.copyOf(starts.keySet()), List.of(), forecasts, store.baseTime(),
+				starts.entrySet().stream().map(e -> new WeatherImpactStart(e.getKey(), e.getValue())).toList());
 	}
 
-	/** 특보는 같은 인덱스가 한 건. warn "한파주의보" → kind "한파", level "주의보". 해제 시각이 지난 것은 뺀다. */
-	static List<WeatherWarning> warnings(JsonNode data, OffsetDateTime now) {
-		List<WeatherWarning> warnings = new ArrayList<>();
-		JsonNode warn = data.path("warn");
-		for (int i = 0; i < warn.size(); i++) {
-			String name = warn.get(i).asString("");
-			String level = name.endsWith("주의보") ? "주의보" : name.endsWith("경보") ? "경보" : "";
-			OffsetDateTime start = time(data.path("startTime").path(i));
-			OffsetDateTime end = time(data.path("endTime").path(i));
-			if (name.isBlank() || start == null || (end != null && !end.isAfter(now))) continue;
-			warnings.add(new WeatherWarning(name.substring(0, name.length() - level.length()), level.isEmpty() ? name : level, start, end));
+	/** 실패한 호출은 MissingNode로 돌려 빼고 진행한다 */
+	private JsonNode fetch(String api, String code) {
+		try {
+			return kweather.get(api, code).path(code);
 		}
-		return warnings;
+		catch (RuntimeException e) {
+			log.warn("케이웨더 {}를 받지 못해 빼고 진행합니다 (행정동 {}): {}", api, code, e.getMessage());
+			return MissingNode.getInstance();
+		}
 	}
 
 	/**
@@ -131,19 +115,10 @@ public class WeatherEvidenceService {
 	}
 
 	/**
-	 * 영향마다 처음 나타나는 날(부자재 준비 기한을 이 날부터 거꾸로 센다). 예보는 기준을 처음 넘는 날,
-	 * 특보는 발효 중이면 기준일, 앞으로 발효면 발효일. 영향 순서는 WeatherImpact 순.
+	 * 영향마다 예보가 기준을 처음 넘는 날(부자재 준비 기한을 이 날부터 거꾸로 센다). 영향 순서는 WeatherImpact 순.
 	 */
-	static Map<WeatherImpact, LocalDate> impactStarts(List<WeatherWarning> warnings, List<WeatherForecast> forecasts, LocalDate baseDate) {
+	static Map<WeatherImpact, LocalDate> impactStarts(List<WeatherForecast> forecasts) {
 		Map<WeatherImpact, LocalDate> starts = new EnumMap<>(WeatherImpact.class);
-		for (WeatherWarning warning : warnings) {
-			if (NO_IMPACT_WARNINGS.contains(warning.kind())) continue;
-			LocalDate start = warning.startTime().atZoneSameInstant(SEOUL).toLocalDate();
-			LocalDate date = start.isAfter(baseDate) ? start : baseDate;
-			starts.merge(WeatherImpact.WARNING, date, WeatherEvidenceService::earlier);
-			WeatherImpact impact = WARNING_IMPACTS.get(warning.kind());
-			if (impact != null) starts.merge(impact, date, WeatherEvidenceService::earlier);
-		}
 		for (WeatherForecast f : forecasts) {
 			if (f.sky().contains("비") || f.sky().contains("눈") || f.sky().contains("소나기")
 					|| (f.precipitationChance() != null && f.precipitationChance() >= RAIN_CHANCE)) {

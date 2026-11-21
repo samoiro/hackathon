@@ -156,7 +156,7 @@ class BriefingPlannerTest {
 	}
 
 	@Test
-	void briefingShowsWeatherThatSupplyCardUsesEvenWithSeasonEvents() {
+	void briefingAlwaysShowsWeatherEvenWithSeasonEvents() {
 		var christmas = new SeasonEventResponse("H1", "CHRISTMAS", "크리스마스", TriggerType.HOLIDAY, LocalDate.of(2026, 12, 25),
 				LocalDate.of(2026, 12, 25));
 		var rain = new WeatherResponse("W1", "1120065000", List.of(WeatherImpact.RAIN_SNOW), List.of(),
@@ -172,7 +172,7 @@ class BriefingPlannerTest {
 		var withoutTrigger = new BriefingPlanner(ContractExample.store(), events, empty(), List.of(), List.of()).briefing(List.of());
 
 		assertThat(withTrigger.weather().evidenceId()).isEqualTo("W1");
-		assertThat(withoutTrigger.weather()).isNull();
+		assertThat(withoutTrigger.weather().evidenceId()).isEqualTo("W1");
 		assertThat(withoutTrigger.seasonEvents()).extracting(SeasonEventResponse::evidenceId).containsExactly("H1");
 	}
 
