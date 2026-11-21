@@ -132,7 +132,7 @@ cd server && ./gradlew bootRun --args='--batch.cultural-event.run-on-startup=tru
 
 연결된 DB에 V18__batch_job_history.sql을 적용했습니다. batch_job과 batch_job_history는 1:N 관계이며, 최초 실행은 retry_times=0입니다.
 application.yml의 batch.max-retry-times는 3(최초 포함 최대 4회)입니다. running_time은 시작·종료 시각에서 자동 계산한 밀리초입니다.
-`batch/service/BatchJobService`가 회차와 시도 이력을 남기고 실패하면 바로 다시 시도합니다. 사용처는 원자재 가격 일배치(`ingredient/scheduler/IngredientPriceBatch`, 매일 10시 KST, `INGREDIENT_PRICE_CRON`), 지원사업 공고 일배치(`supportprogram/scheduler/SupportProgramBatch`, 매일 6시 KST, `SUPPORT_PROGRAM_CRON`), 문화행사 일배치(`event/scheduler/CulturalEventBatch`, 매일 6시 KST, `CULTURAL_EVENT_CRON`)입니다. 서버가 실행 중에 죽어 RUNNING으로 남은 작업을 복구하는 로직은 아직 없습니다.
+`batch/service/BatchJobService`가 회차와 시도 이력을 남깁니다. 스케줄은 한 번만 시도하고, 실패한 작업은 `batch/scheduler/BatchRetryScheduler`가 매일 12·15·18시(KST, `BATCH_RETRY_CRON`)에 한 번씩 다시 돌려 하루 최대 3번 재시도합니다. 같은 재시도를 `POST /api/batch/retry`로 바로 부를 수도 있습니다. 스케줄이 아예 돌지 않았으면 `POST /api/batch/jobs/{jobName}/run?targetDate=2026-11-21`처럼 그 기준일로 실행합니다(비우면 오늘). 기준일은 batch_job.target_date에 남고, 원자재 가격 배치는 기준일 전날 하루(위 예시는 11월 20일) 가격을 받습니다. 사용처는 원자재 가격 일배치(`ingredient/scheduler/IngredientPriceBatch`, 매일 10시 KST, `INGREDIENT_PRICE_CRON`), 지원사업 공고 일배치(`supportprogram/scheduler/SupportProgramBatch`, 매일 6시 KST, `SUPPORT_PROGRAM_CRON`), 문화행사 일배치(`event/scheduler/CulturalEventBatch`, 매일 6시 KST, `CULTURAL_EVENT_CRON`)입니다. 서버가 실행 중에 죽어 RUNNING으로 남은 작업을 복구하는 로직은 아직 없습니다.
 
 ## 배포 (Render + Neon, 무료)
 

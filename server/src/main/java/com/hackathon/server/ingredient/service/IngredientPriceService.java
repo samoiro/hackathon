@@ -39,8 +39,6 @@ public class IngredientPriceService {
 
 	private static final DateTimeFormatter API_DATE = DateTimeFormatter.BASIC_ISO_DATE;
 	private static final int PAGE_SIZE = 1000;
-	// shortcut: 마지막 조사일 다음 날부터 오늘까지 받되 최대 7일. 오래 멈췄다면 그 이전은 수동 적재
-	static final int MAX_BACKFILL_DAYS = 7;
 	private static final List<String> PRICE_RULE_CODES = Arrays.stream(PriceStage.values())
 			.map(stage -> stage.ruleCode).filter(Objects::nonNull).toList();
 
@@ -62,30 +60,26 @@ public class IngredientPriceService {
 		this.ruleItemRepository = ruleItemRepository;
 	}
 
-	/** 마지막 조사일 다음 날부터 today까지 API 가격 중 대표 규격이 같은 행만 돌려준다. API 호출이라 트랜잭션 밖에서 부른다. */
-	public List<IngredientPriceHistory> fetchPrices(LocalDate today) {
+	/** 기준일 전날 하루의 API 가격 중 대표 규격이 같은 행만 돌려준다. aT는 조사일 다음 날 공개한다. API 호출이라 트랜잭션 밖에서 부른다. */
+	public List<IngredientPriceHistory> fetchPrices(LocalDate targetDate) {
 		Map<String, Long> ingredientIds = ingredientRepository.findAll().stream().collect(Collectors.toMap(
 				i -> specKey(i.getItemCode(), i.getTradeTypeCode(), i.getVarietyCode(), i.getGradeCode(), i.getUnit(), i.getUnitSize()),
 				Ingredient::getId));
-		LocalDate earliest = today.minusDays(MAX_BACKFILL_DAYS);
-		LocalDate from = priceHistoryRepository.findLatestObservedDate()
-				.map(last -> last.plusDays(1)).filter(d -> d.isAfter(earliest)).orElse(earliest);
+		LocalDate date = targetDate.minusDays(1);
 
 		List<IngredientPriceHistory> prices = new ArrayList<>();
-		for (LocalDate date = from; !date.isAfter(today); date = date.plusDays(1)) {
-			for (int page = 1; ; page++) {
-				ListResponse response = agroPriceClient.priceTrends(date.format(API_DATE), Map.of(), page, PAGE_SIZE);
-				for (JsonNode row : response.items()) {
-					Long ingredientId = ingredientIds.get(specKey(text(row, "item_cd"), text(row, "se_cd"), text(row, "vrty_cd"),
-							text(row, "grd_cd"), text(row, "unit"), number(row, "unit_sz")));
-					if (ingredientId != null) {
-						prices.add(new IngredientPriceHistory(ingredientId, date, number(row, "exmn_dd_avg_prc"),
-								number(row, "ww1_bfr_avg_prc"), number(row, "ww2_bfr_avg_prc"), number(row, "ww3_bfr_avg_prc"),
-								number(row, "ww4_bfr_avg_prc")));
-					}
+		for (int page = 1; ; page++) {
+			ListResponse response = agroPriceClient.priceTrends(date.format(API_DATE), Map.of(), page, PAGE_SIZE);
+			for (JsonNode row : response.items()) {
+				Long ingredientId = ingredientIds.get(specKey(text(row, "item_cd"), text(row, "se_cd"), text(row, "vrty_cd"),
+						text(row, "grd_cd"), text(row, "unit"), number(row, "unit_sz")));
+				if (ingredientId != null) {
+					prices.add(new IngredientPriceHistory(ingredientId, date, number(row, "exmn_dd_avg_prc"),
+							number(row, "ww1_bfr_avg_prc"), number(row, "ww2_bfr_avg_prc"), number(row, "ww3_bfr_avg_prc"),
+							number(row, "ww4_bfr_avg_prc")));
 				}
-				if ((long) page * PAGE_SIZE >= response.totalCount()) break;
 			}
+			if ((long) page * PAGE_SIZE >= response.totalCount()) break;
 		}
 		return prices;
 	}

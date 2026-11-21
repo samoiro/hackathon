@@ -1,5 +1,6 @@
 package com.hackathon.server.batch.entity;
 
+import java.time.LocalDate;
 import java.util.Map;
 
 import jakarta.persistence.Entity;
@@ -28,19 +29,22 @@ public class BatchJob {
 	private String jobName;
 	@JdbcTypeCode(SqlTypes.JSON)
 	private Map<String, Object> jobParameters;
+	private LocalDate targetDate;
 	@Enumerated(EnumType.STRING)
 	private BatchStatus status;
 	private Integer retryTimes;
 
-	public BatchJob(String jobName, Map<String, Object> jobParameters) {
+	public BatchJob(String jobName, LocalDate targetDate) {
 		this.jobName = jobName;
-		this.jobParameters = jobParameters;
+		this.jobParameters = Map.of();
+		this.targetDate = targetDate;
 		this.status = BatchStatus.RUNNING;
 		this.retryTimes = 0;
 	}
 
 	public void retry(int retryTimes) {
 		this.retryTimes = retryTimes;
+		this.status = BatchStatus.RUNNING;
 	}
 
 	public void finish(BatchStatus status) {
