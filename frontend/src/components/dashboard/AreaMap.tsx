@@ -1,14 +1,18 @@
 import {
+  Circle,
+  CustomOverlayMap,
   Map as KakaoMap,
   MapMarker,
   useKakaoLoader,
 } from 'react-kakao-maps-sdk'
+import { LuStore } from 'react-icons/lu'
+import { nearbyEventRadiusKm } from '@/lib/api/analysis'
 import { kakaoOptions } from '@/lib/kakao/maps'
 import type { Address } from '@/types/search'
 import type { AreaResponse } from '@/lib/api/generated'
 
-const statusClassName =
-  'grid h-40 place-items-center bg-canvas px-4 text-center text-caption text-muted'
+const mapHeight = 'h-72'
+const statusClassName = `grid ${mapHeight} place-items-center bg-canvas px-4 text-center text-caption text-muted`
 
 type MapEvent = { title: string; latitude: number; longitude: number }
 type MapProps = {
@@ -38,19 +42,40 @@ function KakaoAreaMap({
 
   return (
     <KakaoMap
-      aria-label="지역 현황 카카오 지도"
+      aria-label={
+        address ? '우리 가게 주변 카카오 지도' : '지역 현황 카카오 지도'
+      }
       center={center}
-      className="h-40 w-full"
+      className={`${mapHeight} w-full`}
       keyboardShortcuts
-      level={5}
+      level={address ? 7 : 5}
       scrollwheel={false}
       tabIndex={0}
     >
       {address && (
-        <MapMarker
-          position={{ lat: address.latitude, lng: address.longitude }}
-          title="우리 가게"
-        />
+        <>
+          <Circle
+            center={center}
+            radius={nearbyEventRadiusKm * 1000}
+            strokeWeight={3}
+            strokeColor="#64594b"
+            strokeOpacity={1}
+            strokeStyle="dash"
+            fillColor="#ffe8b8"
+            fillOpacity={0.16}
+          />
+          <CustomOverlayMap
+            position={center}
+            xAnchor={0.5}
+            yAnchor={0.5}
+            zIndex={2}
+          >
+            <span className="pointer-events-none flex items-center gap-2 rounded-full bg-fg px-3 py-2 text-caption font-semibold whitespace-nowrap text-surface shadow-sm">
+              <LuStore aria-hidden className="size-4" />
+              우리 가게
+            </span>
+          </CustomOverlayMap>
+        </>
       )}
       {events.map((event) => (
         <MapMarker
@@ -64,7 +89,7 @@ function KakaoAreaMap({
 }
 
 export default function AreaMap({ address, area, events }: MapProps) {
-  const point = area ?? address
+  const point = address ?? area
   if (!point) return null
   const uniqueEvents = new Map(
     events.map((event) => [
@@ -91,7 +116,8 @@ export default function AreaMap({ address, area, events }: MapProps) {
         id="area-map-caption"
         className="bg-surface px-3 py-1 text-tag text-muted"
       >
-        카카오맵 · {area?.name ?? address?.road}
+        카카오맵 · {address?.road ?? area?.name}
+        {address && ` · 가게 기준 반경 ${nearbyEventRadiusKm}km`}
       </figcaption>
     </figure>
   )

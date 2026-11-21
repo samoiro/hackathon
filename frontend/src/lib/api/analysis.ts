@@ -9,6 +9,8 @@ import {
 
 type FeedbackVote = SuggestionFeedbackRequest['vote']
 
+export const nearbyEventRadiusKm = 1.5
+
 export function useAnalysis(id: string, poll = false) {
   return useQuery({
     queryKey: ['analysis', id],

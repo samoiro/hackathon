@@ -23,7 +23,6 @@ import com.hackathon.server.analysis.dto.WeatherForecast;
 import com.hackathon.server.analysis.dto.WeatherImpact;
 import com.hackathon.server.analysis.dto.WeatherImpactStart;
 import com.hackathon.server.analysis.dto.WeatherResponse;
-import com.hackathon.server.analysis.dto.WeatherWarning;
 import com.hackathon.server.analysis.evidence.StoreContext;
 import com.hackathon.server.common.exception.BusinessException;
 import com.hackathon.server.common.exception.ErrorCode;
@@ -51,7 +50,6 @@ class WeatherEvidenceServiceTest {
 
 	@Test
 	void readsDemoForecastsForSevenDays() throws IOException {
-		when(kweather.get("kw-warning1", DONG)).thenReturn(JSON.createObjectNode()); // 특보 없음(001)
 		when(kweather.get("kw-fct-dl1", DONG)).thenReturn(demo("kweather-short-forecast.json"));
 		when(kweather.get("kw-fct-wl1", DONG)).thenReturn(demo("kweather-weekly-forecast.json"));
 
@@ -77,36 +75,27 @@ class WeatherEvidenceServiceTest {
 	}
 
 	@Test
-	void mapsActiveWarningsAndIgnoresDryAdvisory() {
-		JsonNode warnings = JSON.readTree("""
-				{"1120065000": {"data": {"warn": ["건조주의보", "한파경보", "대설주의보"],
-				  "startTime": ["202611211000", "202611210600", "202611200600"],
-				  "endTime": [null, "", "202611210900"]}}}""");
-
-		var parsed = WeatherEvidenceService.warnings(warnings.path(DONG).path("data"), OffsetDateTime.parse("2026-11-21T10:00:00+09:00"));
-
-		assertThat(parsed).extracting(w -> w.kind() + w.level()).containsExactly("건조주의보", "한파경보"); // 대설은 이미 해제
-		assertThat(WeatherEvidenceService.impactStarts(parsed, List.of(), BASE).keySet())
-				.containsExactly(WeatherImpact.COLD_WAVE, WeatherImpact.WARNING);
-		assertThat(WeatherEvidenceService.impactStarts(parsed.subList(0, 1), List.of(), BASE)).isEmpty();
-	}
-
-	@Test
 	void recordsFirstDayOfEachImpact() {
-		OffsetDateTime now = OffsetDateTime.parse("2026-11-21T10:00:00+09:00");
-		List<WeatherWarning> warnings = List.of(
-				new WeatherWarning("한파", "주의보", now.minusHours(4), null),            // 발효 중 → 기준일
-				new WeatherWarning("강풍", "주의보", now.plusDays(2).withHour(21), null)); // 11-23 21시 발효 예정
 		List<WeatherForecast> forecasts = List.of(
 				new WeatherForecast(LocalDate.of(2026, 11, 22), DayPart.AM, "맑음", -13.0, null, 0),
 				new WeatherForecast(LocalDate.of(2026, 11, 24), DayPart.PM, "흐리고 눈", null, 1.0, 40),
 				new WeatherForecast(LocalDate.of(2026, 11, 26), DayPart.PM, "흐리고 비", null, 5.0, 70));
 
-		assertThat(WeatherEvidenceService.impactStarts(warnings, forecasts, BASE)).containsExactly(
+		assertThat(WeatherEvidenceService.impactStarts(forecasts)).containsExactly(
 				entry(WeatherImpact.RAIN_SNOW, LocalDate.of(2026, 11, 24)),
-				entry(WeatherImpact.COLD_WAVE, BASE), // 특보(기준일)가 예보(-13℃, 22일)보다 이르다
-				entry(WeatherImpact.STRONG_WIND, LocalDate.of(2026, 11, 23)),
-				entry(WeatherImpact.WARNING, BASE));
+				entry(WeatherImpact.COLD_WAVE, LocalDate.of(2026, 11, 22)));
+	}
+
+	@Test
+	void keepsShortForecastWhenWeeklyFails() throws IOException {
+		when(kweather.get("kw-fct-dl1", DONG)).thenReturn(demo("kweather-short-forecast.json"));
+		when(kweather.get("kw-fct-wl1", DONG)).thenThrow(new BusinessException(ErrorCode.PUBLIC_API_ERROR, "케이웨더 API 오류 (HTTP 429)"));
+
+		WeatherResponse weather = service.collect(store(DONG));
+
+		// 단기예보 6칸(11-21 오전 ~ 11-23 오후)만 남는다
+		assertThat(weather.forecasts()).hasSize(6);
+		assertThat(weather.warnings()).isEmpty();
 	}
 
 	@Test

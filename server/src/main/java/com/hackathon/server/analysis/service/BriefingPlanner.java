@@ -695,13 +695,11 @@ final class BriefingPlanner {
 
 	BriefingResponse briefing(List<SuggestionResponse> suggestions) {
 		List<EventResponse> nearby = events.events().stream().map(EventCandidate::event).toList();
-		// 카드·부자재가 근거로 쓰는 시즌 행사·날씨는 대체 분기가 아니어도 보여 준다 (카드의 evidenceIds가 화면에서 풀리도록)
+		// 카드·부자재가 근거로 쓰는 시즌 행사는 대체 분기가 아니어도 보여 준다 (카드의 evidenceIds가 화면에서 풀리도록). 날씨는 지역 현황에 늘 보여 준다
 		Set<String> triggers = referenced();
 		List<SeasonEventResponse> seasons = events.seasonEvents().stream()
 				.filter(h -> nearby.isEmpty() || triggers.contains(h.evidenceId())).toList();
-		WeatherResponse w = events.weather();
-		WeatherResponse weather = w != null && (nearby.isEmpty() && events.seasonEvents().isEmpty() || triggers.contains(w.evidenceId()))
-				? w : null;
+		WeatherResponse weather = events.weather();
 		List<SourceResponse> sources = Stream.concat(events.sources().stream(), ingredients.sources().stream()).toList();
 		return new BriefingResponse(nearby, seasons, weather, ingredients.items().stream().map(IngredientEvidence::price).toList(),
 				supplies.stream().map(SupplyEvidence::timing).toList(), suggestions, sources);
