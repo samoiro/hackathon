@@ -8,6 +8,8 @@ import {
   LuInfo,
   LuTrendingDown,
   LuTrendingUp,
+  LuCalendarX,
+  LuListX,
 } from 'react-icons/lu'
 import { TbTriangleFilled, TbTriangleInvertedFilled } from 'react-icons/tb'
 import EmptyState from '@/components/common/EmptyState'
@@ -319,8 +321,9 @@ export default function PriceSection({
                       </p>
                     </>
                   ) : (
-                    <p className="mt-3 text-caption text-muted">
-                      이 품목의 기준일 가격 자료가 없어요.
+                    <p className="mt-3 flex items-center gap-2 text-caption text-muted">
+                      <LuCalendarX aria-hidden className="shrink-0" />이 품목의
+                      기준일 가격 자료가 없어요.
                     </p>
                   )}
                 </div>
@@ -396,7 +399,10 @@ export default function PriceSection({
                     </Tag>
                   )}
                 </p>
-                <p className="text-caption text-muted">
+                <p className="mt-1 flex items-center gap-2 text-caption text-muted">
+                  {!item.prepareBy && (
+                    <LuCalendarX aria-hidden className="shrink-0" />
+                  )}
                   {item.prepareBy
                     ? [
                         item.triggerLabel &&
@@ -416,7 +422,7 @@ export default function PriceSection({
         )}
         {(raw.length > 0 || sub.length > 0) && (
           <div className="mt-4 grid grid-cols-[minmax(0,1fr)] gap-3 lg:grid-cols-2">
-            {raw.length > 0 && (
+            {raw.length > 0 ? (
               <RecommendationList
                 analysisId={analysis.analysisId}
                 title="원자재 추천 할 일"
@@ -424,14 +430,34 @@ export default function PriceSection({
                 tag="원자재"
                 items={raw}
               />
+            ) : (
+              <EmptyState
+                icon={LuListX}
+                title="원자재 추천 할 일이 없어요."
+                description={
+                  ingredients.length
+                    ? '가격 자료가 생기면 추천해 드려요.'
+                    : '품목 설정에서 원자재를 고르면 추천해 드려요.'
+                }
+              />
             )}
-            {sub.length > 0 && (
+            {sub.length > 0 ? (
               <RecommendationList
                 analysisId={analysis.analysisId}
                 title="부자재 추천 할 일"
                 description="준비 시점에 맞춰 골랐어요."
                 tag="부자재"
                 items={sub}
+              />
+            ) : (
+              <EmptyState
+                icon={LuListX}
+                title="부자재 추천 할 일이 없어요."
+                description={
+                  supplies.length
+                    ? '준비 시점 자료가 생기면 추천해 드려요.'
+                    : '품목 설정에서 부자재를 고르면 추천해 드려요.'
+                }
               />
             )}
           </div>
