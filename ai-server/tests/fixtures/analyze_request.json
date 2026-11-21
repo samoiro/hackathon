@@ -8,7 +8,7 @@
     "industry_name": "한식",
     "operation_type": "BOTH"
   },
-  "event_search": { "radius_m": 1000, "days": 7 },
+  "event_search": { "radius_m": 1500, "days": 7 },
   "events": [
     {
       "evidence_id": "E1",
@@ -76,9 +76,9 @@
   ],
   "supplies": [
     { "evidence_id": "S1", "item_id": 3, "name": "포장 용기", "kind": "SUPPLY", "demand": "UP",
-      "trigger_label": "공연", "trigger_evidence_id": "E1", "prepare_by_label": "11.18(화)" },
+      "trigger_label": "공연", "trigger_evidence_id": "E1", "prepare_by_label": "11.18(수)" },
     { "evidence_id": "S2", "item_id": 5, "name": "일회용 수저", "kind": "SUPPLY", "demand": "UP",
-      "trigger_label": "공연", "trigger_evidence_id": "E1", "prepare_by_label": "11.19(수)" }
+      "trigger_label": "공연", "trigger_evidence_id": "E1", "prepare_by_label": "11.19(목)" }
   ],
   "cards": [
     { "card_id": "C1", "category": "EVENT", "task_type": "STAFFING", "item_id": null, "evidence_ids": ["E1"] },

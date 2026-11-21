@@ -187,8 +187,8 @@ GET /api/analysis/{id}. 분석 중에는 steps만, 끝나면 briefing 또는 fai
 | 필드 | 타입 | 값 | 설명 |
 | --- | --- | --- | --- |
 | `events` | `List<EventResponse>` | 필수 | 주변 행사 (순서도 3·4). 0건이면 시즌 행사·날씨로 넘어감 |
-| `seasonEvents` | `List<SeasonEventResponse>` | 필수 | 시즌 행사 (순서도 5). 주변 행사가 없을 때만 채움 |
-| `weather` | `WeatherResponse` | null 가능 | 날씨 (순서도 3-1). 주변 행사·시즌 행사가 모두 없을 때만 채움 |
+| `seasonEvents` | `List<SeasonEventResponse>` | 필수 | 시즌 행사 (순서도 5). 주변 행사가 없을 때, 또는 부자재 카드의 근거일 때 채움 |
+| `weather` | `WeatherResponse` | null 가능 | 날씨 (순서도 3-1). 주변 행사·시즌 행사가 모두 없을 때, 또는 부자재 카드의 근거일 때 채움 |
 | `ingredients` | `List<IngredientPriceResponse>` | 필수 | 고른 원자재 전부의 가격 (가격 자료 없는 품목 포함, 순서도 7) |
 | `supplies` | `List<SupplyTimingResponse>` | 필수 | 고른 부자재 전부의 준비 시점 (부자재 정보 없음 포함, 순서도 9) |
 | `suggestions` | `List<SuggestionResponse>` | 필수 | 추천 카드 (순서도 17~19). 강추가 하나도 없으면 빈 상태 문구 |
@@ -305,7 +305,7 @@ GET /api/analysis/{id}. 분석 중에는 steps만, 끝나면 briefing 또는 fai
 | `itemId` | `long` | 필수 | 부자재 id |
 | `name` | `String` | 필수 | 품목 이름 (예: 포장 용기) |
 | `demand` | `Demand` | null 가능 | 수요 변화 (수요 높음 배지) |
-| `prepareBy` | `LocalDate` | null 가능 | 이날까지 준비 (11.18(화)) |
+| `prepareBy` | `LocalDate` | null 가능 | 이날까지 준비 (11.18(수)) |
 | `leadDays` | `Integer` | null 가능 | 며칠 전 준비 (supply_rule.lead_days_max) (예: 3) |
 | `triggerLabel` | `String` | null 가능 | 준비 이유 (예: 공연) |
 | `triggerEvidenceId` | `String` | null 가능 | 연결된 행사·시즌·날씨 근거 id. 없으면 null (예: E1) |

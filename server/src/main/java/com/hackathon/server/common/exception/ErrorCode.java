@@ -27,7 +27,10 @@ public enum ErrorCode {
 	PUBLIC_API_CONNECTION_FAILED(HttpStatus.BAD_GATEWAY, "공공데이터 API에 연결하지 못했습니다."),
 	PUBLIC_API_BAD_REQUEST(HttpStatus.BAD_REQUEST, "공공데이터 API가 요청 값을 거부했습니다."),
 	PUBLIC_API_ERROR(HttpStatus.BAD_GATEWAY, "공공데이터 API가 오류를 응답했습니다."),
-	PUBLIC_API_INVALID_RESPONSE(HttpStatus.BAD_GATEWAY, "공공데이터 API 응답이 비어 있거나 형식이 올바르지 않습니다.");
+	PUBLIC_API_INVALID_RESPONSE(HttpStatus.BAD_GATEWAY, "공공데이터 API 응답이 비어 있거나 형식이 올바르지 않습니다."),
+
+	// 분석
+	ANALYSIS_OUTSIDE_SEOUL(HttpStatus.UNPROCESSABLE_CONTENT, "서울 밖 주소는 아직 지원하지 않아요.");
 
 	private final HttpStatus status;
 	private final String message;

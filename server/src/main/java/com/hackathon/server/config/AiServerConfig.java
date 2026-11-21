@@ -17,7 +17,8 @@ public class AiServerConfig {
 	@Bean
 	public RestClient aiServerRestClient(@Value("${ai.server.base-url}") String baseUrl,
 			@Value("${ai.server.token}") String token, @Value("${ai.server.read-timeout}") Duration readTimeout) {
-		HttpClient httpClient = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5)).build();
+		// JDK 기본 HTTP/2는 평문 http에서 h2c 업그레이드를 보내고, uvicorn이 이를 400으로 거부한다
+		HttpClient httpClient = HttpClient.newBuilder().version(HttpClient.Version.HTTP_1_1).connectTimeout(Duration.ofSeconds(5)).build();
 		JdkClientHttpRequestFactory requestFactory = new JdkClientHttpRequestFactory(httpClient);
 		requestFactory.setReadTimeout(readTimeout);
 		RestClient.Builder builder = RestClient.builder().baseUrl(baseUrl).requestFactory(requestFactory);

@@ -191,8 +191,8 @@ V26에서 고정 % 가격 규칙 5개(1주 하락 5% 미만·5~10%·10% 이상, 
 - 좌표는 NULL·0·비숫자·위경도 범위 초과를 거부합니다. 공간 인덱스는 활성 행사의 coord에 있습니다. ST_DWithin 및 ST_Distance는 미터 단위를 사용합니다. 지도용 배열은 ST_AsGeoJSON(coord::geometry)의 coordinates로 얻습니다.
 - source_key 충돌 시 기존 ID로 갱신합니다. 전체 페이지의 건수·식별자를 검증한 수집만 적용합니다. 누락·제외 행사는 삭제하지 않고 is_active=false로 전환하며, 다시 유효해지면 활성화합니다. 수집 실패·빈 응답은 기존 데이터를 건드리지 않습니다.
 - API에 행사별 수정 시각이 없어 원본 내용 비교로 변경을 감지합니다. RGSTDATE는 원본 등록일이며 DB 생성·수정 시각으로 사용하지 않습니다.
-- V15__cultural_event.sql을 연결된 DB에 수동 적용했습니다. 자동 마이그레이션·주기 실행은 구성하지 않았습니다. 원본 API 중계 응답과 프론트 호출은 변경하지 않았습니다.
-- 수집·갱신 기준: [server README](../server/README.md#문화행사-수집과-갱신). 별도 수집·검증·조회용 SQL/MJS 파일은 제공하지 않습니다.
+- 매일 6시(KST) `CulturalEventBatch`가 위 규칙으로 전체를 다시 받아 반영합니다. 원본 API 중계 응답과 프론트 호출은 변경하지 않았습니다.
+- 수집·갱신 기준과 로컬 1회 적재 명령: [server README](../server/README.md#문화행사-수집과-갱신).
 
 ### ingredient_rule_item — 규칙별 원자재
 
@@ -388,8 +388,9 @@ PostGIS가 생성·관리하는 테이블이며 업무 테이블이 아닙니다
 | status | text, 기본값 PENDING | PENDING / RUNNING / SUCCEEDED / FAILED |
 | steps | jsonb 배열, 기본값 [] | 4단계 진행 상태 (AnalysisStep) |
 | base_time | timestamptz(0) | 리포트 만들기를 누른 시각 |
-| input_snapshot | jsonb 객체 | 가게 정보·고른 품목·제외 목록 (AnalysisRequest) |
-| evidence_snapshot | jsonb 배열, NULL 허용 | 근거(E·H·W·R·S)와 근거별 급한 정도·영향 크기·확실성 점수 |
+| input_snapshot | jsonb 객체 | 요청 원문(AnalysisRequest)과 확인한 가게 정보(StoreSummary)·카카오 행정동 코드 (AnalysisInput) |
+| event_search | jsonb 객체, NULL 허용 | 행사 조회 조건과 건수 (EventSearch). 2단계가 끝나면 채움 (V31) |
+| evidence_snapshot | jsonb 배열, NULL 허용 | 근거(E·H·W·R·S)별 행동 마감(deadline)·급한 정도·영향 크기·확실성·합계 점수. 4단계 실패여도 남김 |
 | final_result | jsonb 객체, NULL 허용 | 브리핑 결과 (BriefingResponse). SUCCEEDED면 필수 |
 | failure | jsonb 객체, NULL 허용 | 실패 정보 (AnalysisFailure). FAILED면 필수 |
 | score_version | text, NULL 허용, 공백 불가 | 강추 점수표 버전. 점수표는 서버 코드 상수 |

@@ -1,6 +1,7 @@
 package com.hackathon.server.ingredient.repository;
 
 import java.time.LocalDate;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -16,6 +17,15 @@ public interface IngredientPriceHistoryRepository extends JpaRepository<Ingredie
 	Optional<LocalDate> findLatestObservedDate();
 
 	List<IngredientPriceHistory> findByObservedDate(LocalDate observedDate);
+
+	/** 원자재마다 기준일까지 가격이 있는 가장 최근 조사일 한 줄. 그날 조사되지 않은 원자재도 이전 조사일로 보여 준다. */
+	@Query(nativeQuery = true, value = """
+			select distinct on (ingredient_id) ingredient_id, observed_date, price,
+			    one_week_before_price, two_weeks_before_price, three_weeks_before_price, four_weeks_before_price
+			from ingredient_price_history
+			where ingredient_id in :ingredientIds and observed_date <= :baseDate and price is not null
+			order by ingredient_id, observed_date desc""")
+	List<IngredientPriceHistory> findLatestByIngredientIds(Collection<Long> ingredientIds, LocalDate baseDate);
 
 	/** 같은 원자재의 직전 관측일 가격을 다시 채운다(V22와 같은 계산). 바뀐 행만 고친다. */
 	@Modifying
