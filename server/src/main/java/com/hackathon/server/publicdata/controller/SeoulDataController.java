@@ -19,6 +19,7 @@ import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.node.ObjectNode;
 
 import com.hackathon.server.publicdata.client.SeoulOpenApiClient;
+import com.hackathon.server.publicdata.dto.CityDataResponse;
 import com.hackathon.server.publicdata.dto.ListResponse;
 
 @Tag(name = "Seoul", description = "서울 열린데이터광장 공공데이터 (응답 필드명은 원본 API 그대로)")
@@ -58,11 +59,10 @@ public class SeoulDataController {
 		return seoul.list("aiViewCulture", page, size, category, title, date);
 	}
 
-	@Operation(summary = "실시간 도시데이터", description = "장소별 인구·도로·주차·지하철·버스·날씨·문화행사 등 종합 (5분 단위 갱신, 응답이 큼). 데이터셋 OA-21285 / 서비스 citydata. CITYDATA 객체를 그대로 돌려줍니다.",
-			responses = @ApiResponse(responseCode = "200", content = @Content(schema = @Schema(type = "object"))))
+	@Operation(summary = "지금 이 지역은", description = "실시간 도시데이터(5분 단위 갱신) 중 화면에 쓰는 혼잡도·인구 예측·연령별 소비 비율·주변 행사·날씨만 돌려줍니다. 데이터셋 OA-21285 / 서비스 citydata.")
 	@GetMapping("/city-data/{area}")
-	public JsonNode cityData(@Parameter(description = AREA_DESC, example = "광화문·덕수궁") @PathVariable String area) {
-		return seoul.realtime("citydata", area).path("CITYDATA");
+	public CityDataResponse cityData(@Parameter(description = AREA_DESC, example = "광화문·덕수궁") @PathVariable String area) {
+		return CityDataResponse.from(seoul.realtime("citydata", area).path("CITYDATA"));
 	}
 
 	@Operation(summary = "실시간 인구", description = "장소별 혼잡도, 실시간 인구 범위, 성별·연령 비율, 12시간 인구 예측(FCST_PPLTN). 데이터셋 OA-21778 / 서비스 citydata_ppltn.",
