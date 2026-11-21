@@ -212,6 +212,13 @@
   outline-offset: 2px;
 }
 
+/* recharts는 클릭한 차트 층(tabindex=-1)에 포커스를 줘서 테두리가 생긴다. 차트는 탭으로 닿지 않고
+   낭독기에서도 숨긴 꾸밈 영역(값은 figcaption 목록으로 읽는다)이라 여기서만 테두리를 지운다 */
+.recharts-wrapper :focus,
+.recharts-wrapper :focus-visible {
+  outline: none;
+}
+
 /* WaveProgress: 차오르는 전환(1.2초)과 막대 위 잔물결. antd 레이어 뒤(components)라 antd 기본 전환보다 우선한다 */
 @layer components {
   .progress-wave .ant-progress-track {

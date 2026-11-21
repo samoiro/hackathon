@@ -15,7 +15,7 @@ export default function AppHeader({
   return (
     <header className="border-b border-divider bg-surface">
       <div
-        className={`mx-auto grid h-14 ${width} grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 px-4 lg:h-18 lg:gap-10 lg:px-20`}
+        className={`mx-auto grid h-14 ${width} grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 px-4 lg:h-18 lg:gap-5 lg:px-20`}
       >
         <Link
           to="/dashboard"

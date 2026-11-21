@@ -81,7 +81,7 @@ export default function AreaStatus() {
           <h3 className="text-body-strong">현재 인구·혼잡도</h3>
           <span className="text-muted">11.17 07:00 기준</span>
         </div>
-        <p className="mt-2 flex items-center gap-3">
+        <p className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-2">
           <span className="rounded-xl bg-success-bg px-3 py-1 text-item text-success">
             ● 여유
           </span>

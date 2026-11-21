@@ -44,9 +44,6 @@ const SALES_TYPES: { value: SalesType; label: string }[] = [
   { value: 'both', label: '매장·배달 모두' },
 ]
 
-// 카드 테두리만 브랜드색으로 바꾼다. hover: 변형은 마우스가 있는 기기에서만 적용된다
-const CARD_HOVER = 'transition-colors duration-150 hover:border-primary-500'
-
 function RequiredTag() {
   return <Tag>필수</Tag>
 }
@@ -96,7 +93,7 @@ export default function OnboardingPage() {
 
       <div className="mt-6 grid grid-cols-[minmax(0,1fr)] items-start gap-4 lg:mt-8 lg:grid-cols-[minmax(0,736fr)_minmax(0,360fr)] lg:gap-6">
         <div className="flex flex-col gap-4 lg:gap-6">
-          <Card className={CARD_HOVER}>
+          <Card>
             <section aria-labelledby="store-heading">
               <div className="flex items-center gap-2">
                 <h2 id="store-heading" className="text-item font-bold">
@@ -147,7 +144,7 @@ export default function OnboardingPage() {
             </section>
           </Card>
 
-          <Card className={CARD_HOVER}>
+          <Card>
             <section aria-labelledby="more-heading">
               <div className="flex items-start gap-4">
                 <div className="flex-1">
@@ -237,7 +234,7 @@ export default function OnboardingPage() {
 
         {/* 모바일(BI-MO-01)은 요약·안내 카드 없이 아래 고정 버튼만 둔다 */}
         <div className="flex flex-col gap-6 max-lg:hidden">
-          <Card className={CARD_HOVER}>
+          <Card>
             <section aria-labelledby="summary-heading">
               <h2 id="summary-heading" className="text-item font-bold">
                 선택한 가게 요약
@@ -272,7 +269,7 @@ export default function OnboardingPage() {
             </section>
           </Card>
 
-          <Card className={CARD_HOVER}>
+          <Card>
             <ul className="flex flex-col gap-4">
               {BENEFITS.map(({ icon: Icon, title, body }) => (
                 <li key={title} className="flex items-start gap-4">

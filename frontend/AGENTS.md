@@ -8,7 +8,7 @@
 - 라우팅: `react-router` v8 — `src/app/router/AppRouter.tsx`
 - 서버 상태: TanStack Query v5 — `src/lib/query/queryClient.ts`
 - HTTP: axios 인스턴스 `src/lib/api/client.ts` (`VITE_API_BASE_URL`)
-- API 타입·함수: hey-api 생성 코드 `src/lib/api/generated` (`npm run api`)
+- API: DTO 타입 `src/types/api/{도메인}.ts`, 호출 함수·TanStack Query 훅 `src/service/{도메인}.ts` (기준 문서 `docs/api-dtos.md`)
 - UI: antd v6 (컴포넌트·테마 `src/app/providers/theme.ts`) + Tailwind v4 (레이아웃·간격)
 - 포맷: Prettier (`semi: false`, `singleQuote: true`), ESLint `--max-warnings 0`
 
@@ -18,7 +18,9 @@
 src/
 ├── app/        providers, router — 앱 조립
 ├── pages/      라우트 단위 화면
-├── lib/        api, query 등 인프라
+├── lib/        api(axios 인스턴스), query 등 인프라
+├── service/    도메인별 API 호출 함수 + useQuery·useMutation 훅
+├── types/api/  서버 DTO 타입 (docs/api-dtos.md 기준)
 └── styles/     전역 CSS (CSS layer 순서: theme, base, antd, components, utilities)
 ```
 
@@ -26,7 +28,7 @@ src/
 
 - **import**: 내부 모듈은 항상 `@/` 별칭(`@/` = `src/`)으로 가져온다. `./`, `../` 상대경로를 쓰지 않는다. (생성 코드 `generated` 제외)
 - **export**: 컴포넌트는 `export default function 이름()`으로 내보낸다. 컴포넌트가 아닌 모듈(`apiClient`, `queryClient`, `appTheme` 등)은 named export를 유지한다.
-- **API**: `src/lib/api/generated`는 생성 코드라 직접 수정하지 않는다. 서버 스펙이 바뀌면 `npm run api`로 다시 만든다. axios를 화면에서 직접 호출하지 않고 생성된 SDK 함수를 쓴다.
+- **API**: 화면은 `src/service`의 훅만 쓰고 axios(`apiClient`)를 직접 부르지 않는다. 호출 함수는 `getX`·`postX`(반환 타입 명시), 조회 훅은 `useGetX`, 변경 훅은 `usePostX({ onSuccess, onError })`가 `{ postXMutate, postXIsPending }`을 돌려준다. `onSuccess`·`onError`는 화면에서 넘긴다. 서버 DTO가 바뀌면 `docs/api-dtos.md`를 보고 `src/types/api`를 함께 고친다.
 - **서버 데이터**: 조회는 `useQuery`, 변경은 `useMutation`. 변경 성공 시 관련 `queryKey`를 `invalidateQueries`로 무효화한다. 서버 데이터를 `useState`에 복사해 두지 않는다.
 - **UI**: antd에 있는 컴포넌트는 직접 만들지 않는다. 색·radius·폰트는 `theme.ts` 토큰을 바꾼다. Tailwind는 레이아웃·간격에만 쓰고 antd 컴포넌트 내부 스타일을 덮어쓰지 않는다.
 - **환경변수**: `VITE_` 접두사만 클라이언트에 노출된다. 비밀 값은 넣지 않는다.

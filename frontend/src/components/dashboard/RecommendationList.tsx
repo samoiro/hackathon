@@ -88,7 +88,7 @@ function RecommendationItem({
   return (
     <li
       className={`rounded-xl border border-divider bg-surface p-4 ${
-        stacked ? '' : 'lg:flex lg:items-center lg:gap-4'
+        stacked ? '' : 'xl:flex xl:items-center xl:gap-4'
       }`}
     >
       <div className="flex-1">
@@ -105,12 +105,12 @@ function RecommendationItem({
         </p>
       </div>
       <div
-        className={`flex flex-wrap items-center gap-2 ${stacked ? 'mt-3' : 'max-lg:mt-3'}`}
+        className={`flex flex-wrap items-center gap-2 ${stacked ? 'mt-3' : 'max-xl:mt-3'}`}
       >
         <div
           role="group"
           aria-label="이 추천이 도움이 되었나요"
-          className="flex items-center gap-2"
+          className="flex flex-wrap items-center gap-2"
         >
           <Button
             size="small"
@@ -137,8 +137,8 @@ function RecommendationItem({
         <Button
           size="small"
           aria-pressed={added}
-          // 12개가 차면 더 담을 수 없다
-          disabled={full}
+          // 12개가 차면 더 담을 수 없다. 강추는 오늘 확인할 일에서 뺄 수 없어 담김으로 고정한다
+          disabled={full || (added && item.strong)}
           title={
             full ? `할 일은 ${TODO_LIMIT}개까지 담을 수 있어요` : undefined
           }

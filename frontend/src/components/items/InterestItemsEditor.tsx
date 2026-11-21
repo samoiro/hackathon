@@ -1,4 +1,5 @@
-import { LuSearch } from 'react-icons/lu'
+import { App } from 'antd'
+import { LuSearch, LuTriangleAlert } from 'react-icons/lu'
 import RemovableChip from '@/components/common/RemovableChip'
 import SearchSelect from '@/components/common/SearchSelect'
 import { searchRawItems, searchSubItems } from '@/mocks/search'
@@ -38,8 +39,31 @@ export default function InterestItemsEditor({
   value: InterestItems
   onChange: (value: InterestItems) => void
 }) {
+  const { notification } = App.useApp()
+
   const add = (key: InterestItemGroup, max: number, item: string) => {
-    if (value[key].includes(item) || value[key].length >= max) return
+    if (value[key].includes(item)) return
+    // 가득 찼는데 더 고르면 왜 안 담기는지 토스트로 알려준다
+    if (value[key].length >= max) {
+      const title = GROUPS.find((group) => group.key === key)?.title
+      notification.open({
+        role: 'status',
+        icon: <LuTriangleAlert aria-hidden className="text-primary-300" />,
+        title: (
+          <span className="text-body-strong">
+            {title}는 {max}개까지만 고를 수 있어요.
+          </span>
+        ),
+        description: (
+          <span className="text-caption">
+            하나를 빼면 다른 품목을 담을 수 있어요.
+          </span>
+        ),
+        duration: 5,
+        closable: false,
+      })
+      return
+    }
     onChange({ ...value, [key]: [...value[key], item] })
   }
   const remove = (key: InterestItemGroup, item: string) =>
@@ -58,8 +82,8 @@ export default function InterestItemsEditor({
               </span>
             </div>
             <SearchSelect
-              // 고른 뒤 입력칸을 비우려고 개수가 바뀔 때마다 새로 그린다
-              key={value[group.key].length}
+              // 고른 품목은 아래 칩으로 보여주므로 입력칸은 항상 비워 둔다 (담기지 않은 품목이 남아 보이지 않게)
+              value={null}
               queryKey={group.key}
               fetcher={group.fetcher}
               aria-label={group.placeholder}

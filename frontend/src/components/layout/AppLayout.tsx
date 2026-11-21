@@ -34,6 +34,13 @@ export default function AppLayout({
 
   return (
     <>
+      {/* 본문 바로가기(WCAG 2.4.1): 평소엔 숨어 있고 Tab으로 처음 들어올 때만 왼쪽 위에 보인다 */}
+      <a
+        href="#main"
+        className="sr-only z-50 rounded-xl bg-surface px-4 py-3 font-semibold focus:not-sr-only focus:fixed focus:top-3 focus:left-3"
+      >
+        본문 바로가기
+      </a>
       <AppHeader
         context={headerContext}
         showSettingsCoach={showSettingsCoach}

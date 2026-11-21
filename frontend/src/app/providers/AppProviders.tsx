@@ -61,11 +61,10 @@ export default function AppProviders({ children }: PropsWithChildren) {
       <StyleProvider layer>
         <ConfigProvider locale={koKR} theme={appTheme}>
           <DisplaySettingsContext value={displayContext}>
-            {/* App.useApp()의 notification이 테마를 따르게 한다. 토스트는 모두 화면 아래.
-                모바일은 화면 아래 고정 줄(브리핑 받기·오늘 확인할 일, 약 76px)을 가리지 않게 그 위로 올린다 */}
+            {/* App.useApp()의 notification이 테마를 따르게 한다. 토스트는 모두 화면 위, 헤더(PC 72·모바일 56) 바로 아래 */}
             <AntApp
               component={false}
-              notification={{ placement: 'bottom', bottom: mobile ? 92 : 24 }}
+              notification={{ placement: 'top', top: mobile ? 68 : 84 }}
             >
               <BrowserRouter>{children}</BrowserRouter>
             </AntApp>

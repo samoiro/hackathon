@@ -41,7 +41,7 @@ export default function EvidenceSection() {
               {source.link && (
                 <a
                   href="/"
-                  className="mt-3 inline-flex items-center gap-1 text-caption font-semibold underline"
+                  className="mt-3 inline-flex min-h-6 items-center gap-1 text-caption font-semibold underline"
                 >
                   원문 보기 <LuExternalLink aria-hidden />
                 </a>

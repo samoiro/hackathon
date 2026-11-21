@@ -119,7 +119,7 @@ export default function DashboardHero({ empty = false }: { empty?: boolean }) {
             <li key={summary.label}>
               <a
                 href={summary.href}
-                className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-3 text-fg max-lg:py-4 lg:gap-x-2 lg:rounded-xl lg:bg-surface lg:p-6"
+                className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-3 text-fg max-lg:py-4 lg:h-full lg:content-start lg:gap-x-2 lg:rounded-xl lg:bg-surface lg:p-6"
               >
                 <span className="flex size-10 items-center justify-center rounded-full bg-canvas max-lg:row-span-2 lg:size-8">
                   {summary.icon}
@@ -128,7 +128,7 @@ export default function DashboardHero({ empty = false }: { empty?: boolean }) {
                   {summary.label}
                 </span>
                 <LuChevronRight aria-hidden className="max-lg:row-span-2" />
-                <span className="flex items-center gap-3 text-item lg:col-span-3 lg:mt-3 lg:text-display">
+                <span className="flex flex-wrap items-center gap-x-3 text-item lg:col-span-3 lg:mt-3 lg:text-display">
                   {summary.value}
                 </span>
                 <span className="col-span-3 mt-2 text-body max-lg:hidden">

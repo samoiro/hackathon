@@ -161,12 +161,13 @@ export default function PriceSection({ empty = false }: { empty?: boolean }) {
                 하나를 고르면 4주 추이를 볼 수 있어요
               </span>
             </div>
-            <div className="mt-2 grid gap-3 lg:grid-cols-[160px_1fr]">
+            <div className="mt-2 grid grid-cols-[minmax(0,1fr)] gap-3 lg:grid-cols-[160px_1fr]">
               <Radio.Group
                 aria-label="가격을 볼 원자재"
                 value={selectedName}
                 onChange={(event) => setSelectedName(event.target.value)}
-                className="flex gap-2 lg:flex-col"
+                // 모바일은 타일 최소 너비를 rem으로 둬서 글자를 키우면 3칸 → 2칸으로 줄어든다
+                className="grid grid-cols-[repeat(auto-fit,minmax(6rem,1fr))] gap-2 lg:flex lg:flex-col"
               >
                 {PRICE_ITEMS.map((item) => {
                   const info = describe(item.prices, item.group)
@@ -175,7 +176,7 @@ export default function PriceSection({ empty = false }: { empty?: boolean }) {
                     <Radio
                       key={item.name}
                       value={item.name}
-                      className="relative m-0 flex min-w-0 cursor-pointer rounded-xl max-lg:flex-1 border border-line-strong bg-surface p-3 has-[:checked]:border-primary-700 has-[:checked]:bg-primary-50 has-[:checked]:ring-1 has-[:checked]:ring-primary-700 has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-focus [&_.ant-radio]:sr-only"
+                      className="relative m-0 flex min-w-0 cursor-pointer rounded-xl border border-line-strong bg-surface p-3 has-[:checked]:border-primary-700 has-[:checked]:bg-primary-50 has-[:checked]:ring-1 has-[:checked]:ring-primary-700 has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-focus [&_.ant-radio]:sr-only"
                     >
                       {checked && (
                         <LuCircleCheck
@@ -211,8 +212,10 @@ export default function PriceSection({ empty = false }: { empty?: boolean }) {
                   <span className="text-display tabular-nums">
                     {won(detail.last)}
                   </span>
-                  <span className="flex items-center gap-1 text-body font-semibold whitespace-nowrap">
-                    {detail.Mark && '1주 전 대비'}
+                  <span className="flex flex-wrap items-center gap-x-1 text-body font-semibold">
+                    {detail.Mark && (
+                      <span className="whitespace-nowrap">1주 전 대비</span>
+                    )}
                     {detail.Mark && (
                       <detail.Mark
                         role="img"
@@ -220,7 +223,9 @@ export default function PriceSection({ empty = false }: { empty?: boolean }) {
                         className={`size-3.5 ${detail.markTone}`}
                       />
                     )}
-                    {detail.weekChange}
+                    <span className="whitespace-nowrap">
+                      {detail.weekChange}
+                    </span>
                   </span>
                 </p>
                 <PriceTrendChart
@@ -257,7 +262,7 @@ export default function PriceSection({ empty = false }: { empty?: boolean }) {
               <Tag color="warning">수요 높음</Tag>
             </div>
 
-            <div className="mt-4 grid gap-3 lg:grid-cols-2">
+            <div className="mt-4 grid grid-cols-[minmax(0,1fr)] gap-3 lg:grid-cols-2">
               <RecommendationList
                 stacked
                 tag="원자재"
