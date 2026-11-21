@@ -7,6 +7,3 @@ export type PriceStage =
   | 'FALL_CAUTION'
   | 'FALL_ALERT'
   | 'FALL_SEVERE'
-
-export type IngredientGroup =
-  '채소류' | '수산물' | '식량작물' | '특용작물' | '과일류' | '식품' | '축산물'

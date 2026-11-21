@@ -1,6 +1,7 @@
 export type TodoTag = '행사' | '원자재' | '부자재'
 
 export type Todo = {
+  id: string
   title: string
   tag: TodoTag
   // AI가 처음에 담아 둔 할 일

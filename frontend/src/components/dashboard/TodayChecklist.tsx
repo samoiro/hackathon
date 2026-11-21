@@ -44,10 +44,10 @@ export default function TodayChecklist({ sheet = false }: { sheet?: boolean }) {
       />
       <ul className="mt-2 flex flex-col divide-y divide-divider">
         {todos.map((todo) => (
-          <li key={todo.title} className="flex items-start gap-3 py-3">
+          <li key={todo.id} className="flex items-start gap-3 py-3">
             <Checkbox
               checked={Boolean(todo.done)}
-              onChange={() => toggleDone(todo.title)}
+              onChange={() => toggleDone(todo.id)}
               className="flex-1"
             >
               <span
@@ -87,7 +87,7 @@ export default function TodayChecklist({ sheet = false }: { sheet?: boolean }) {
                 size: 'middle',
                 className: 'w-[calc(50%-4px)]',
               }}
-              onConfirm={() => remove(todo.title)}
+              onConfirm={() => remove(todo.id)}
             >
               <Button
                 type="text"

@@ -1,4 +1,6 @@
-import { Button, Card, Tag } from 'antd'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { Alert, Button, Card, Select, Tag } from 'antd'
+import { isAxiosError } from 'axios'
 import { useState } from 'react'
 import {
   LuArrowRight,
@@ -9,18 +11,17 @@ import {
   LuInfo,
   LuListChecks,
   LuMapPin,
-  LuPlus,
   LuSearch,
 } from 'react-icons/lu'
 import { useNavigate } from 'react-router'
 import ChoiceChips from '@/components/common/ChoiceChips'
-import SearchSelect from '@/components/common/SearchSelect'
 import AppLayout from '@/components/layout/AppLayout'
 import StepIndicator from '@/components/layout/StepIndicator'
 import InterestItemsEditor from '@/components/items/InterestItemsEditor'
 import LocationSearchModal from '@/components/onboarding/LocationSearchModal'
-import type { InterestItems } from '@/types/search'
-import { searchCategories } from '@/mocks/search'
+import type { InterestItems, StoreLocation } from '@/types/search'
+import { industries, recommendedItems } from '@/lib/api/generated'
+import { readExcludedCards, useStartAnalysis } from '@/lib/api/analysis'
 
 const BENEFITS = [
   {
@@ -36,12 +37,18 @@ const BENEFITS = [
   },
 ]
 
-type SalesType = 'hall' | 'delivery' | 'both'
+type SalesType = 'STORE' | 'DELIVERY' | 'BOTH'
+type Draft = {
+  location?: StoreLocation
+  industryId?: number
+  salesType?: SalesType
+  items: InterestItems
+}
 
 const SALES_TYPES: { value: SalesType; label: string }[] = [
-  { value: 'hall', label: '매장만' },
-  { value: 'delivery', label: '배달만' },
-  { value: 'both', label: '매장·배달 모두' },
+  { value: 'STORE', label: '매장만' },
+  { value: 'DELIVERY', label: '배달만' },
+  { value: 'BOTH', label: '매장·배달 모두' },
 ]
 
 // 카드 테두리만 브랜드색으로 바꾼다. hover: 변형은 마우스가 있는 기기에서만 적용된다
@@ -53,26 +60,101 @@ function RequiredTag() {
 
 export default function OnboardingPage() {
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
+  const draft = queryClient.getQueryData<Draft>(['onboarding-draft'])
   const [locationOpen, setLocationOpen] = useState(false)
+  const [location, setLocation] = useState(draft?.location)
+  const [industryId, setIndustryId] = useState(draft?.industryId)
   const [moreOpen, setMoreOpen] = useState(false)
-  const [salesType, setSalesType] = useState<SalesType>('both')
-  const [items, setItems] = useState<InterestItems>({
-    raw: ['쌀', '돼지고기', '배추'],
-    sub: ['포장 용기'],
+  const [salesType, setSalesType] = useState(draft?.salesType)
+  const [items, setItems] = useState<InterestItems>(
+    draft?.items ?? { raw: [], sub: [] },
+  )
+  const [submitted, setSubmitted] = useState(false)
+  const catalog = useQuery({
+    queryKey: ['industries'],
+    queryFn: async ({ signal }) =>
+      (await industries({ signal, throwOnError: true })).data,
   })
+  const recommendations = useQuery({
+    queryKey: ['industry-recommendations', industryId],
+    enabled: industryId !== undefined,
+    queryFn: async ({ signal }) => {
+      if (industryId === undefined) throw new Error('업종을 골라 주세요.')
+      return (
+        await recommendedItems({
+          path: { industryId },
+          signal,
+          throwOnError: true,
+        })
+      ).data
+    },
+  })
+  const start = useStartAnalysis()
+  const industry = catalog.data?.find(({ id }) => id === industryId)
+  const ready = Boolean(location && industryId !== undefined)
+  const suggested = recommendations.data
+
+  function submit() {
+    setSubmitted(true)
+    if (start.isPending || !location || industryId === undefined) return
+    queryClient.setQueryData<Draft>(['onboarding-draft'], {
+      location,
+      industryId,
+      salesType,
+      items,
+    })
+    start.mutate(
+      {
+        storeName: location.name,
+        roadAddress: location.address.road,
+        latitude: location.address.latitude,
+        longitude: location.address.longitude,
+        industryId,
+        operationType: salesType,
+        ingredientIds: items.raw.map(({ id }) => id),
+        supplyIds: items.sub.map(({ id }) => id),
+        excludedKeys: readExcludedCards(),
+      },
+      {
+        onSuccess: ({ analysisId }) =>
+          navigate(`/briefing?id=${encodeURIComponent(analysisId)}`),
+      },
+    )
+  }
+
+  function addRecommendations() {
+    if (!suggested) return
+    setItems((current) => ({
+      raw: [
+        ...current.raw,
+        ...suggested.ingredients.filter(
+          (item) => !current.raw.some(({ id }) => id === item.id),
+        ),
+      ].slice(0, 3),
+      sub: [
+        ...current.sub,
+        ...suggested.supplies.filter(
+          (item) => !current.sub.some(({ id }) => id === item.id),
+        ),
+      ].slice(0, 2),
+    }))
+    setMoreOpen(true)
+  }
 
   const summary = [
-    ['가게 이름', '성수동 한식당'],
-    ['위치', '성수동 · 서울숲 인근'],
-    ['업종', '일반 음식점'],
-    ...(moreOpen
+    ['가게 이름', location?.name ?? '아직 입력하지 않았어요'],
+    ['위치', location?.address.road ?? '아직 고르지 않았어요'],
+    ['업종', industry?.name ?? '아직 고르지 않았어요'],
+    ...(moreOpen || salesType || items.raw.length || items.sub.length
       ? [
           [
             '운영 형태',
-            SALES_TYPES.find((type) => type.value === salesType)?.label ?? '',
+            SALES_TYPES.find((type) => type.value === salesType)?.label ??
+              '없음',
           ],
-          ['원자재', items.raw.join(' · ') || '없음'],
-          ['부자재', items.sub.join(' · ') || '없음'],
+          ['원자재', items.raw.map(({ name }) => name).join(' · ') || '없음'],
+          ['부자재', items.sub.map(({ name }) => name).join(' · ') || '없음'],
         ]
       : [['선택 항목', '아직 고르지 않았어요']]),
   ]
@@ -107,14 +189,13 @@ export default function OnboardingPage() {
               <div className="mt-4 flex items-center gap-3 rounded-xl border border-border p-4 lg:gap-4 lg:px-6 lg:py-5">
                 <LuMapPin aria-hidden className="size-6 shrink-0" />
                 <div className="flex-1">
-                  <p className="text-body-strong">성수동 한식당</p>
-                  <p>서울 성동구 서울숲2길 32</p>
-                  <p className="text-caption text-muted">
-                    지번 · 성수동1가 ○○○-○
+                  <p className="text-body-strong">
+                    {location?.name ?? '가게 이름과 주소를 입력해 주세요'}
                   </p>
+                  {location && <p>{location.address.road}</p>}
                 </div>
                 <Button size="small" onClick={() => setLocationOpen(true)}>
-                  변경
+                  {location ? '변경' : '주소 검색'}
                 </Button>
               </div>
               <p className="mt-3 text-caption text-muted">
@@ -133,14 +214,31 @@ export default function OnboardingPage() {
                 </h2>
                 <RequiredTag />
               </div>
-              <SearchSelect
-                queryKey="category"
-                fetcher={searchCategories}
+              <Select<number>
                 aria-labelledby="category-heading"
                 className="mt-4 w-full"
-                defaultValue="일반 음식점 · 한식"
+                value={industryId}
+                onChange={setIndustryId}
+                options={catalog.data?.map(({ id, name, category }) => ({
+                  value: id,
+                  label: `${category} · ${name}`,
+                }))}
+                showSearch={{ optionFilterProp: 'label' }}
+                loading={catalog.isPending}
+                status={catalog.isError ? 'error' : undefined}
+                notFoundContent={
+                  catalog.isError
+                    ? '업종을 불러오지 못했어요.'
+                    : '검색 결과가 없어요.'
+                }
+                placeholder="업종을 골라 주세요"
                 prefix={<LuSearch aria-hidden />}
               />
+              {catalog.isError && (
+                <Button type="link" onClick={() => void catalog.refetch()}>
+                  업종 다시 불러오기
+                </Button>
+              )}
               <p className="mt-3 text-caption text-muted">
                 업종에 맞는 기능만 골라 보여드려요.
               </p>
@@ -163,7 +261,7 @@ export default function OnboardingPage() {
                 </div>
                 <Button
                   aria-expanded={moreOpen}
-                  aria-controls="more-panel"
+                  aria-controls={moreOpen ? 'more-panel' : undefined}
                   aria-label={moreOpen ? '선택 항목 접기' : '선택 항목 펼치기'}
                   icon={
                     moreOpen ? (
@@ -176,7 +274,36 @@ export default function OnboardingPage() {
                 />
               </div>
 
-              {moreOpen ? (
+              {industryId !== undefined && recommendations.isPending && (
+                <p className="mt-4 text-caption text-muted" role="status">
+                  추천 품목을 찾고 있어요.
+                </p>
+              )}
+              {recommendations.isError && (
+                <Button
+                  type="link"
+                  onClick={() => void recommendations.refetch()}
+                >
+                  추천 품목 다시 불러오기
+                </Button>
+              )}
+              {suggested &&
+                suggested.ingredients.length + suggested.supplies.length >
+                  0 && (
+                  <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl bg-canvas p-4">
+                    <p className="text-caption">
+                      <strong>업종 추천 품목</strong>
+                      <br />
+                      {[...suggested.ingredients, ...suggested.supplies]
+                        .map(({ name }) => name)
+                        .join(' · ')}
+                    </p>
+                    <Button size="small" onClick={addRecommendations}>
+                      한 번에 담기
+                    </Button>
+                  </div>
+                )}
+              {moreOpen && (
                 <div id="more-panel" className="mt-6 border-t border-divider">
                   <div className="border-b border-divider py-6">
                     <div className="flex items-center gap-2">
@@ -184,7 +311,7 @@ export default function OnboardingPage() {
                       <Tag>선택</Tag>
                     </div>
                     <div className="mt-4">
-                      <ChoiceChips
+                      <ChoiceChips<SalesType>
                         block
                         label="운영 형태"
                         value={salesType}
@@ -211,25 +338,6 @@ export default function OnboardingPage() {
                     </p>
                   </div>
                 </div>
-              ) : (
-                <div
-                  id="more-panel"
-                  className="mt-6 flex flex-wrap items-center justify-between gap-3 rounded-xl bg-canvas p-4"
-                >
-                  <div>
-                    <p className="text-caption font-semibold text-muted">
-                      일반 음식점에서 많이 고르는 품목
-                    </p>
-                    <p className="mt-1">쌀 · 돼지고기 · 배추</p>
-                  </div>
-                  <Button
-                    size="small"
-                    icon={<LuPlus aria-hidden />}
-                    onClick={() => setMoreOpen(true)}
-                  >
-                    한 번에 담기
-                  </Button>
-                </div>
               )}
             </section>
           </Card>
@@ -251,8 +359,11 @@ export default function OnboardingPage() {
                 ))}
               </dl>
               <p className="mt-4 flex items-center gap-2 text-caption text-muted">
-                <Tag color="success" icon={<LuCheck aria-hidden />}>
-                  필수 입력 완료
+                <Tag
+                  color={ready ? 'success' : undefined}
+                  icon={ready ? <LuCheck aria-hidden /> : undefined}
+                >
+                  {ready ? '필수 입력 완료' : '필수 입력 필요'}
                 </Tag>
                 가게 · 업종
               </p>
@@ -262,7 +373,8 @@ export default function OnboardingPage() {
                 className="mt-4"
                 icon={<LuArrowRight aria-hidden />}
                 iconPlacement="end"
-                onClick={() => navigate('/briefing')}
+                loading={start.isPending}
+                onClick={submit}
               >
                 이번 주 브리핑 받기
               </Button>
@@ -291,6 +403,26 @@ export default function OnboardingPage() {
           </Card>
         </div>
       </div>
+      {submitted && !ready && (
+        <Alert
+          className="mt-4"
+          type="error"
+          showIcon
+          title="가게 이름과 위치, 업종을 입력해 주세요."
+        />
+      )}
+      {start.isError && (
+        <Alert
+          className="mt-4"
+          type="error"
+          showIcon
+          title={
+            isAxiosError(start.error) && start.error.response?.status === 422
+              ? '서울 안에 있는 가게 주소를 골라 주세요.'
+              : '분석을 시작하지 못했어요. 입력 내용을 확인하고 다시 시도해 주세요.'
+          }
+        />
+      )}
       <div className="sticky bottom-0 -mx-4 mt-6 border-t border-divider bg-surface p-4 lg:hidden">
         <Button
           type="primary"
@@ -298,14 +430,20 @@ export default function OnboardingPage() {
           block
           icon={<LuArrowRight aria-hidden />}
           iconPlacement="end"
-          onClick={() => navigate('/briefing')}
+          loading={start.isPending}
+          onClick={submit}
         >
           이번 주 브리핑 받기
         </Button>
       </div>
       <LocationSearchModal
         open={locationOpen}
+        location={location}
         onClose={() => setLocationOpen(false)}
+        onSelect={(next) => {
+          setLocation(next)
+          setLocationOpen(false)
+        }}
       />
     </AppLayout>
   )
