@@ -342,8 +342,9 @@ PostGIS가 생성·관리하는 테이블이며 업무 테이블이 아닙니다
 | status | text, 기본값 PENDING | PENDING / RUNNING / SUCCEEDED / FAILED |
 | steps | jsonb 배열, 기본값 [] | 4단계 진행 상태 (AnalysisStep) |
 | base_time | timestamptz(0) | 리포트 만들기를 누른 시각 |
-| input_snapshot | jsonb 객체 | 가게 정보·고른 품목·제외 목록 (AnalysisRequest) |
-| evidence_snapshot | jsonb 배열, NULL 허용 | 근거(E·H·W·R·S)와 근거별 급한 정도·영향 크기·확실성 점수 |
+| input_snapshot | jsonb 객체 | 요청 원문(AnalysisRequest)과 확인한 가게 정보(StoreSummary)·카카오 행정동 코드 (AnalysisInput) |
+| event_search | jsonb 객체, NULL 허용 | 행사 조회 조건과 건수 (EventSearch). 2단계가 끝나면 채움 (V30) |
+| evidence_snapshot | jsonb 배열, NULL 허용 | 근거(E·H·W·R·S)별 행동 마감(deadline)·급한 정도·영향 크기·확실성·합계 점수. 4단계 실패여도 남김 |
 | final_result | jsonb 객체, NULL 허용 | 브리핑 결과 (BriefingResponse). SUCCEEDED면 필수 |
 | failure | jsonb 객체, NULL 허용 | 실패 정보 (AnalysisFailure). FAILED면 필수 |
 | score_version | text, NULL 허용, 공백 불가 | 강추 점수표 버전. 점수표는 서버 코드 상수 |
