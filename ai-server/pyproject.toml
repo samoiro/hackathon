@@ -5,11 +5,13 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "hackathon-ai-server"
 version = "0.1.0"
-description = "FastAPI environment scaffold for the hackathon"
+description = "사모이로 추천 할 일 문장 생성 서버 (FastAPI + OpenAI)"
 requires-python = ">=3.11"
 dependencies = [
     "fastapi>=0.115,<1",
     "uvicorn[standard]>=0.30,<1",
+    "pydantic>=2.7,<3",
+    "openai>=1.50,<3",
 ]
 
 [project.optional-dependencies]

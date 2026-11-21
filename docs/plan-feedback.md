@@ -70,7 +70,7 @@ flowchart LR
 | 주소 확인 | 서버 | `POST /api/locations/validate` (도로명 주소·위도·경도). 항상 200이고, 서울 밖이면 `valid=false` + "서울 밖 주소는 아직 지원하지 않아요." |
 | 분석 요청 | 서버 | `POST /api/analysis`에서 서울 여부를 **한 번 더** 확인해요(서울 밖 422). |
 | 좌표 → 행정동 | 서버 | 카카오 로컬 REST `coord2regioncode`(`KakaoLocalClient`). 행정동 코드 10자리는 케이웨더 날씨 조회에 그대로 써요. |
-| 주변 행사 | 서버 | PostGIS `ST_DWithin`·`ST_Distance`(미터)로 가게 1km, 없으면 1.5km 안 행사를 찾아요. |
+| 주변 행사 | 서버 | PostGIS `ST_DWithin`·`ST_Distance`(미터)로 가게 1.5km 안 행사를 찾아요. |
 
 - 서울 여부를 어떤 값으로 판정하는지(행정동의 시·도 이름 등)는 API 구현이 본선이라 **확인 필요**.
 

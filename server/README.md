@@ -107,25 +107,32 @@ V22부터 같은 원자재의 직전 관측일 가격을 SQL LAG로 연결합니
 연결된 DB에는 이미 적용하고 18,838건을 적재했습니다(2026-11-20 한국 시간).
 기존 `/api/seoul/cultural-events`는 원본 API 중계이며 DB 조회로 바꾸지 않았습니다.
 
-현재 별도 수집·적재 실행기는 제공하지 않습니다. 아래는 기존 데이터 적재 시 적용한 갱신 기준입니다.
+수집은 `event/scheduler/CulturalEventBatch`가 매일 6시(KST, `CULTURAL_EVENT_CRON`, `-`면 끔)에 `BatchJobService`로 실행합니다(작업 이름 `CULTURAL_EVENT_DAILY`).
+실행 내용은 `event/service/CulturalEventService`입니다. 로컬에서 바로 한 번 적재하려면 서버를 이렇게 띄웁니다(약 20번 호출, 1분 안팎).
+
+```bash
+cd server && ./gradlew bootRun --args='--batch.cultural-event.run-on-startup=true'
+```
+
+결과는 `batch_job_history`의 read(원본 전체)·write(적재)·skip(제외) 건수로 확인합니다.
 
 `HMPG_ADDR`의 `cultcode`로 upsert하므로 일정·제목이 바뀌어도 ID와 `created_datetime`은 유지합니다.
 내용·활성 상태가 바뀔 때만 `updated_datetime`을 갱신합니다. API의 `RGSTDATE`는 원본 등록일입니다.
-제목·장소에 온라인/비대면 등이 명시되거나 좌표·일정이 유효하지 않은 행사는 제외합니다.
+제목·장소에 온라인/비대면 등이 명시되거나 좌표·일정이 유효하지 않은 행사는 제외합니다. LAT·LOT가 뒤바뀐 행은 작은 값을 위도로 봅니다.
 누락·제외된 기존 행사는 삭제하지 않고 비활성화하며, 다시 유효해지면 활성화합니다.
-전체 페이지 건수 불일치·식별자 누락·중복·빈 응답이면 적재 SQL을 생성하지 않습니다.
+전체 페이지 건수 불일치·식별자 누락·중복·빈 응답이면 아무것도 바꾸지 않고 실패로 남깁니다(재시도 후에도 실패하면 기존 데이터 유지).
 
 `coord`는 필수 `geography(Point,4326)`이며 경도 LOT, 위도 LAT 순입니다.
 `ST_Distance`로 target 좌표와 미터 단위 거리를 계산하고 `ST_DWithin`으로 반경을 제한합니다.
+분석의 행사 후보(`event/service/EventEvidenceService`)는 이 테이블에서 가게 1.5km 안을 찾습니다.
 
 [공식 데이터셋](https://data.seoul.go.kr/dataList/OA-23041/S/1/datasetView.do)의 갱신 주기는 하루 1회입니다.
-주기 수집·적재 자동화는 아직 구성하지 않았습니다.
 
 ## 작업과 재시도 이력
 
 연결된 DB에 V18__batch_job_history.sql을 적용했습니다. batch_job과 batch_job_history는 1:N 관계이며, 최초 실행은 retry_times=0입니다.
 application.yml의 batch.max-retry-times는 3(최초 포함 최대 4회)입니다. running_time은 시작·종료 시각에서 자동 계산한 밀리초입니다.
-`batch/service/BatchJobService`가 회차와 시도 이력을 남기고 실패하면 바로 다시 시도합니다. 첫 사용처는 원자재 가격 일배치(`ingredient/scheduler/IngredientPriceBatch`, 매일 10시 KST, `INGREDIENT_PRICE_CRON`)입니다. 서버가 실행 중에 죽어 RUNNING으로 남은 작업을 복구하는 로직은 아직 없습니다.
+`batch/service/BatchJobService`가 회차와 시도 이력을 남기고 실패하면 바로 다시 시도합니다. 사용처는 원자재 가격 일배치(`ingredient/scheduler/IngredientPriceBatch`, 매일 10시 KST, `INGREDIENT_PRICE_CRON`), 지원사업 공고 일배치(`supportprogram/scheduler/SupportProgramBatch`, 매일 6시 KST, `SUPPORT_PROGRAM_CRON`), 문화행사 일배치(`event/scheduler/CulturalEventBatch`, 매일 6시 KST, `CULTURAL_EVENT_CRON`)입니다. 서버가 실행 중에 죽어 RUNNING으로 남은 작업을 복구하는 로직은 아직 없습니다.
 
 ## 배포 (Render + Neon, 무료)
 
