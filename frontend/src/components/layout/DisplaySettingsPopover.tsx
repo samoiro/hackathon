@@ -9,6 +9,8 @@ import {
   LuSun,
   LuX,
 } from 'react-icons/lu'
+import ResponsiveDialog from '@/components/common/ResponsiveDialog'
+import { useIsMobile } from '@/hooks/useIsMobile'
 import {
   FONT_SCALE_OPTIONS,
   useDisplaySettings,
@@ -29,7 +31,7 @@ const COACH_KEY = 'samoiro:coach-seen'
 
 // 선택 표시는 색 + 체크 + 굵기(리뷰 F-02). 동그라미는 숨기고 카드 전체를 라디오 라벨로 쓴다 (화살표 키 이동은 네이티브 라디오 그대로)
 const OPTION =
-  'm-0 flex flex-1 cursor-pointer rounded-xl border border-line-strong bg-surface has-[:checked]:border-primary-700 has-[:checked]:bg-primary-50 has-[:checked]:font-semibold has-[:checked]:text-brand-text has-[:checked]:ring-1 has-[:checked]:ring-primary-700 has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-focus [&_.ant-radio]:sr-only'
+  'm-0 flex flex-1 cursor-pointer rounded-xl border border-line-strong bg-surface has-[:checked]:border-primary-700 has-[:checked]:bg-primary-50 has-[:checked]:font-semibold has-[:checked]:text-brand-text has-[:checked]:ring-1 has-[:checked]:ring-primary-700 has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-focus [&_.ant-radio]:sr-only [&_.ant-radio-label]:w-full'
 
 // '가'(글자) + 반쯤 찬 원(밝기). 글자·화면 팝오버의 두 항목과 짝을 이룬다
 function DisplaySettingsGlyph() {
@@ -91,6 +93,7 @@ export default function DisplaySettingsPopover({
   showCoach?: boolean
 }) {
   const { settings, setSettings } = useDisplaySettings()
+  const mobile = useIsMobile()
   const [open, setOpen] = useState(false)
   const [coachVisible, setCoachVisible] = useState(
     () => showCoach && !readCoachSeen(),
@@ -116,27 +119,8 @@ export default function DisplaySettingsPopover({
     }
   }
 
-  const panel = (
-    <div
-      ref={panelRef}
-      role="dialog"
-      aria-labelledby={titleId}
-      className="flex w-80 flex-col gap-4 p-2"
-      onKeyDown={(event) => event.key === 'Escape' && closeAndReturnFocus()}
-    >
-      <div className="flex items-center justify-between">
-        <h2 id={titleId} className="text-item">
-          글자·화면
-        </h2>
-        <Button
-          type="text"
-          size="small"
-          aria-label="닫기"
-          icon={<LuX aria-hidden />}
-          onClick={closeAndReturnFocus}
-        />
-      </div>
-
+  const body = (
+    <>
       <OptionGroup
         labelId={sizeLabelId}
         label="글자 크기"
@@ -195,37 +179,97 @@ export default function DisplaySettingsPopover({
       <p className="border-t border-divider pt-3 text-tag text-muted">
         이 기기에 저장돼요. 다른 기기에서는 따로 정해요.
       </p>
+    </>
+  )
+
+  const panel = (
+    <div
+      ref={panelRef}
+      role="dialog"
+      aria-labelledby={titleId}
+      className="flex w-80 flex-col gap-4 p-2"
+      onKeyDown={(event) => event.key === 'Escape' && closeAndReturnFocus()}
+    >
+      <div className="flex items-center justify-between">
+        <h2 id={titleId} className="text-item">
+          글자·화면
+        </h2>
+        <Button
+          type="text"
+          size="small"
+          aria-label="닫기"
+          icon={<LuX aria-hidden />}
+          onClick={closeAndReturnFocus}
+        />
+      </div>
+
+      {body}
     </div>
+  )
+
+  const trigger = (
+    <Button
+      ref={triggerRef}
+      size="small"
+      aria-label="글자·화면 설정"
+      aria-haspopup="dialog"
+      aria-expanded={open}
+      aria-describedby={coachVisible ? coachId : undefined}
+      title="글자·화면 설정"
+      icon={<DisplaySettingsGlyph />}
+      className="max-lg:size-11"
+      onClick={() => {
+        dismissCoach()
+        if (mobile) setOpen(true)
+      }}
+    />
   )
 
   return (
     <div className="relative">
-      <Popover
-        open={open}
-        onOpenChange={setOpen}
-        trigger="click"
-        placement="bottomRight"
-        arrow={false}
-        content={panel}
-        afterOpenChange={(visible) =>
-          visible &&
-          panelRef.current
-            ?.querySelector<HTMLInputElement>('input[type=radio]:checked')
-            ?.focus()
-        }
-      >
-        <Button
-          ref={triggerRef}
-          size="small"
-          aria-label="글자·화면 설정"
-          aria-haspopup="dialog"
-          aria-expanded={open}
-          aria-describedby={coachVisible ? coachId : undefined}
-          title="글자·화면 설정"
-          icon={<DisplaySettingsGlyph />}
-          onClick={dismissCoach}
-        />
-      </Popover>
+      {mobile ? (
+        <>
+          {trigger}
+          {/* 모바일은 아래 시트(BI-MO-06). 고르면 바로 적용되고 확인은 닫기만 한다 */}
+          <ResponsiveDialog
+            open={open}
+            onClose={() => setOpen(false)}
+            title="글자·화면"
+            afterOpenChange={(visible) =>
+              visible &&
+              panelRef.current
+                ?.querySelector<HTMLInputElement>('input[type=radio]:checked')
+                ?.focus()
+            }
+            footer={
+              <Button type="primary" onClick={() => setOpen(false)}>
+                확인
+              </Button>
+            }
+          >
+            <div ref={panelRef} className="flex flex-col gap-6">
+              {body}
+            </div>
+          </ResponsiveDialog>
+        </>
+      ) : (
+        <Popover
+          open={open}
+          onOpenChange={setOpen}
+          trigger="click"
+          placement="bottomRight"
+          arrow={false}
+          content={panel}
+          afterOpenChange={(visible) =>
+            visible &&
+            panelRef.current
+              ?.querySelector<HTMLInputElement>('input[type=radio]:checked')
+              ?.focus()
+          }
+        >
+          {trigger}
+        </Popover>
+      )}
 
       {coachVisible && (
         <div

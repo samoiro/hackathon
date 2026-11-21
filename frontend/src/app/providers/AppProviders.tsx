@@ -15,6 +15,7 @@ import {
 import { BrowserRouter } from 'react-router'
 import { queryClient } from '@/lib/query/queryClient'
 import { FONT_SCALE, getAppTheme } from '@/app/providers/theme'
+import { useIsMobile } from '@/hooks/useIsMobile'
 import {
   DisplaySettingsContext,
   loadDisplaySettings,
@@ -40,7 +41,11 @@ export default function AppProviders({ children }: PropsWithChildren) {
     settings.colorMode === 'dark' ||
     (settings.colorMode === 'system' && systemDark)
   const scale = FONT_SCALE[settings.fontScale]
-  const appTheme = useMemo(() => getAppTheme(dark, scale), [dark, scale])
+  const mobile = useIsMobile()
+  const appTheme = useMemo(
+    () => getAppTheme(dark, scale, mobile),
+    [dark, scale, mobile],
+  )
   const displayContext = useMemo(() => ({ settings, setSettings }), [settings])
 
   // Tailwind 색 토큰(data-theme)과 rem 크기(html font-size)를 설정에 맞춘다

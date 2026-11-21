@@ -94,8 +94,8 @@ export default function OnboardingPage() {
         가게와 업종만 알려주시면 바로 시작할 수 있어요.
       </p>
 
-      <div className="mt-8 grid grid-cols-[minmax(0,736fr)_minmax(0,360fr)] items-start gap-6">
-        <div className="flex flex-col gap-6">
+      <div className="mt-6 grid grid-cols-[minmax(0,1fr)] items-start gap-4 lg:mt-8 lg:grid-cols-[minmax(0,736fr)_minmax(0,360fr)] lg:gap-6">
+        <div className="flex flex-col gap-4 lg:gap-6">
           <Card className={CARD_HOVER}>
             <section aria-labelledby="store-heading">
               <div className="flex items-center gap-2">
@@ -104,7 +104,7 @@ export default function OnboardingPage() {
                 </h2>
                 <RequiredTag />
               </div>
-              <div className="mt-4 flex items-center gap-4 rounded-xl border border-border px-6 py-5">
+              <div className="mt-4 flex items-center gap-3 rounded-xl border border-border p-4 lg:gap-4 lg:px-6 lg:py-5">
                 <LuMapPin aria-hidden className="size-6 shrink-0" />
                 <div className="flex-1">
                   <p className="text-body-strong">성수동 한식당</p>
@@ -214,7 +214,7 @@ export default function OnboardingPage() {
               ) : (
                 <div
                   id="more-panel"
-                  className="mt-6 flex items-center justify-between rounded-xl bg-canvas p-4"
+                  className="mt-6 flex flex-wrap items-center justify-between gap-3 rounded-xl bg-canvas p-4"
                 >
                   <div>
                     <p className="text-caption font-semibold text-muted">
@@ -235,7 +235,8 @@ export default function OnboardingPage() {
           </Card>
         </div>
 
-        <div className="flex flex-col gap-6">
+        {/* 모바일(BI-MO-01)은 요약·안내 카드 없이 아래 고정 버튼만 둔다 */}
+        <div className="flex flex-col gap-6 max-lg:hidden">
           <Card className={CARD_HOVER}>
             <section aria-labelledby="summary-heading">
               <h2 id="summary-heading" className="text-item font-bold">
@@ -289,6 +290,18 @@ export default function OnboardingPage() {
             </ul>
           </Card>
         </div>
+      </div>
+      <div className="sticky bottom-0 -mx-4 mt-6 border-t border-divider bg-surface p-4 lg:hidden">
+        <Button
+          type="primary"
+          size="large"
+          block
+          icon={<LuArrowRight aria-hidden />}
+          iconPlacement="end"
+          onClick={() => navigate('/briefing')}
+        >
+          이번 주 브리핑 받기
+        </Button>
       </div>
       <LocationSearchModal
         open={locationOpen}

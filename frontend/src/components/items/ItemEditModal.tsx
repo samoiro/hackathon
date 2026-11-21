@@ -1,6 +1,7 @@
-import { Button, Modal, Tag } from 'antd'
+import { Button, Tag } from 'antd'
 import { useState } from 'react'
 import { LuInfo } from 'react-icons/lu'
+import ResponsiveDialog from '@/components/common/ResponsiveDialog'
 import InterestItemsEditor from '@/components/items/InterestItemsEditor'
 import type { InterestItems } from '@/types/search'
 
@@ -20,28 +21,28 @@ export default function ItemEditModal({
   const [draft, setDraft] = useState(items)
 
   return (
-    <Modal
+    <ResponsiveDialog
       open={open}
-      onCancel={onClose}
+      onClose={onClose}
       afterOpenChange={(visible) => visible && setDraft(items)}
       title="품목 수정"
       width={760}
-      centered
-      footer={[
-        <Button key="cancel" onClick={onClose}>
-          취소
-        </Button>,
-        <Button
-          key="save"
-          type="primary"
-          onClick={() => {
-            onSave(draft)
-            onClose()
-          }}
-        >
-          수정
-        </Button>,
-      ]}
+      footer={
+        <>
+          <Button className="max-lg:hidden" onClick={onClose}>
+            취소
+          </Button>
+          <Button
+            type="primary"
+            onClick={() => {
+              onSave(draft)
+              onClose()
+            }}
+          >
+            수정
+          </Button>
+        </>
+      }
     >
       <div className="flex flex-col gap-4 py-2">
         <div className="flex items-center gap-2">
@@ -60,6 +61,6 @@ export default function ItemEditModal({
           수정하면 바뀐 품목 기준으로 브리핑을 다시 만들어요.
         </p>
       </div>
-    </Modal>
+    </ResponsiveDialog>
   )
 }

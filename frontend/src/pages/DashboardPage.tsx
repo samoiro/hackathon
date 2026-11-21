@@ -7,6 +7,7 @@ import EvidenceSection from '@/components/dashboard/EvidenceSection'
 import PriceSection from '@/components/dashboard/PriceSection'
 import SupportPrograms from '@/components/dashboard/SupportPrograms'
 import TodayChecklist from '@/components/dashboard/TodayChecklist'
+import TodayChecklistBar from '@/components/dashboard/TodayChecklistBar'
 import TodoProvider from '@/components/dashboard/TodoProvider'
 import AppLayout from '@/components/layout/AppLayout'
 
@@ -19,7 +20,7 @@ export default function DashboardPage() {
     <AppLayout
       title="오늘의 1분 경영회의"
       wide
-      className="flex flex-col gap-6"
+      className="flex flex-col gap-4 lg:gap-6"
       showSettingsCoach
       headerContext={
         <Link
@@ -37,19 +38,23 @@ export default function DashboardPage() {
       <TodoProvider>
         <DashboardHero empty={empty} />
 
-        <div className="grid grid-cols-[minmax(0,855fr)_minmax(0,400fr)] items-start gap-6">
-          <div className="flex flex-col gap-6">
+        <div className="grid grid-cols-[minmax(0,1fr)] items-start gap-4 lg:grid-cols-[minmax(0,855fr)_minmax(0,400fr)] lg:gap-6">
+          <div className="flex flex-col gap-4 lg:gap-6">
             <EventsSection empty={empty} />
             <PriceSection empty={empty} />
           </div>
-          <div className="flex flex-col gap-6">
-            <TodayChecklist />
+          <div className="flex flex-col gap-4 lg:gap-6">
+            {/* 모바일은 화면 아래 고정 줄(TodayChecklistBar)에서 연다 */}
+            <div className="max-lg:hidden">
+              <TodayChecklist />
+            </div>
             <AreaStatus />
             <SupportPrograms />
           </div>
         </div>
 
         <EvidenceSection />
+        <TodayChecklistBar />
       </TodoProvider>
     </AppLayout>
   )

@@ -27,7 +27,7 @@ export default function EvidenceSection() {
         <p className="mt-1 text-caption text-muted">
           출처와 확인 시각을 함께 보여드려요.
         </p>
-        <ul className="mt-4 grid grid-cols-3 gap-3">
+        <ul className="mt-4 grid gap-3 lg:grid-cols-3">
           {SOURCES.map((source) => (
             <li
               key={source.title}

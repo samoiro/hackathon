@@ -51,13 +51,13 @@ export default function AppLayout({
         id="main"
         ref={mainRef}
         tabIndex={-1}
-        className={`mx-auto ${width ?? chromeWidth} px-20 pt-8 pb-16 focus:outline-none ${className}`}
+        className={`mx-auto ${width ?? chromeWidth} px-4 pt-4 pb-16 focus:outline-none lg:px-20 lg:pt-8 ${className}`}
       >
         {children}
       </main>
       <footer className="border-t border-divider bg-surface">
         <div
-          className={`mx-auto ${chromeWidth} px-20 py-6 text-caption text-muted`}
+          className={`mx-auto ${chromeWidth} px-4 py-6 text-caption text-muted lg:px-20`}
         >
           <div className="flex flex-wrap justify-between gap-x-6 gap-y-1">
             <p>

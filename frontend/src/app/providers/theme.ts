@@ -59,8 +59,12 @@ const darkColors = {
 
 export const FONT_SCALE = { normal: 1, large: 1.125, xlarge: 1.25 } as const
 
-// 글자 크기 설정은 글자와 함께 버튼·입력 높이도 같은 비율로 키운다
-export function getAppTheme(dark: boolean, scale: number): ThemeConfig {
+// 글자 크기 설정은 글자와 함께 버튼·입력 높이도 같은 비율로 키운다. mobile은 카드 안쪽 여백(24 → 20)만 바꾼다
+export function getAppTheme(
+  dark: boolean,
+  scale: number,
+  mobile: boolean,
+): ThemeConfig {
   const px = (value: number) => Math.round(value * scale)
   const brandText = dark ? '#ffc15c' : '#693a00'
 
@@ -88,6 +92,7 @@ export function getAppTheme(dark: boolean, scale: number): ThemeConfig {
       borderRadiusSM: 8,
     },
     components: {
+      Card: { bodyPadding: mobile ? 20 : 24 },
       // 버튼 체계(헤더·버튼 시안): 주 버튼은 노란 면 + 본문색 글자(8.1:1), 보조 버튼은 진한 테두리, 글자는 SemiBold
       Button: {
         primaryColor: '#241a0d',

@@ -67,7 +67,7 @@ function RecommendationItem({
   return (
     <li
       className={`rounded-xl border border-divider bg-surface p-4 ${
-        stacked ? '' : 'flex items-center gap-4'
+        stacked ? '' : 'lg:flex lg:items-center lg:gap-4'
       }`}
     >
       <div className="flex-1">
@@ -84,7 +84,7 @@ function RecommendationItem({
         </p>
       </div>
       <div
-        className={`flex flex-wrap items-center gap-2 ${stacked ? 'mt-3' : ''}`}
+        className={`flex flex-wrap items-center gap-2 ${stacked ? 'mt-3' : 'max-lg:mt-3'}`}
       >
         <div
           role="group"

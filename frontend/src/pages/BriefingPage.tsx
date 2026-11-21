@@ -109,13 +109,13 @@ export default function BriefingPage() {
       }
     >
       <Card>
-        <div className="flex flex-col items-center px-4 pt-4 text-center">
+        <div className="flex flex-col items-center pt-4 text-center lg:px-4">
           <img
             src="/images/mascot-face.png"
             alt=""
             width={96}
             height={96}
-            className="size-24 rounded-full bg-primary-100 object-contain p-2"
+            className="size-16 rounded-full bg-primary-100 object-contain p-1.5 lg:size-24 lg:p-2"
           />
           <h1 aria-live="polite" className="mt-6 text-title">
             {failed
@@ -136,8 +136,8 @@ export default function BriefingPage() {
           </ul>
         </div>
 
-        <div className="mt-8 px-4">
-          <div className="flex justify-between text-caption">
+        <div className="mt-6 lg:mt-8 lg:px-4">
+          <div className="flex flex-wrap justify-between gap-x-3 text-caption">
             <span className="font-semibold">
               {failed
                 ? `${FAILED_AT} / ${STEPS.length} 단계에서 멈췄어요`
@@ -197,7 +197,7 @@ export default function BriefingPage() {
                   </span>
                 }
               />
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid gap-3 lg:grid-cols-2">
                 <Button
                   type="primary"
                   icon={<LuRotateCw aria-hidden />}

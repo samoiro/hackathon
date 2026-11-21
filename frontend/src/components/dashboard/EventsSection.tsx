@@ -36,7 +36,7 @@ export default function EventsSection({ empty = false }: { empty?: boolean }) {
   return (
     <Card id="events">
       <section aria-labelledby="events-heading">
-        <div className="flex items-start justify-between gap-4">
+        <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <div className="flex items-center gap-2">
               <h2 id="events-heading" className="text-card">
@@ -89,16 +89,20 @@ export default function EventsSection({ empty = false }: { empty?: boolean }) {
                     <span className="text-muted">{event.day}</span>
                     <span className="text-item">{event.date}</span>
                   </div>
-                  <div className="flex-1">
-                    <p className="flex items-center gap-2 text-item">
+                  <div className="min-w-0 flex-1">
+                    <p className="flex flex-wrap items-center gap-2 text-item">
                       <Tag color={event.statusColor}>{event.status}</Tag>
                       {event.title}
                     </p>
                     <p className="mt-1 text-caption text-muted">
                       {event.detail}
                     </p>
+                    {/* 모바일은 거리를 오른쪽 칸 대신 설명 아래 한 줄로 */}
+                    <p className="mt-1 text-body-strong lg:hidden">
+                      {event.distance} · {event.walk}
+                    </p>
                   </div>
-                  <div className="text-right">
+                  <div className="text-right max-lg:hidden">
                     <p className="text-item">{event.distance}</p>
                     <p className="text-caption text-muted">{event.walk}</p>
                   </div>

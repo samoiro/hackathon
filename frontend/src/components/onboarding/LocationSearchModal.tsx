@@ -1,8 +1,9 @@
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
-import { Alert, Button, Input, Modal, Radio, Spin, Tag } from 'antd'
+import { Alert, Button, Input, Radio, Spin, Tag } from 'antd'
 import { useState } from 'react'
 import { LuInfo, LuSearch, LuStore } from 'react-icons/lu'
 import EmptyState from '@/components/common/EmptyState'
+import ResponsiveDialog from '@/components/common/ResponsiveDialog'
 import { useDebouncedValue } from '@/hooks/useDebouncedValue'
 import { searchAddresses } from '@/mocks/search'
 
@@ -26,25 +27,21 @@ export default function LocationSearchModal({
   const outsideSeoul = !selected.startsWith('서울')
 
   return (
-    <Modal
+    <ResponsiveDialog
       open={open}
-      onCancel={onClose}
+      onClose={onClose}
       title="가게 위치 검색"
       width={560}
-      centered
-      footer={[
-        <Button key="cancel" onClick={onClose}>
-          취소
-        </Button>,
-        <Button
-          key="ok"
-          type="primary"
-          disabled={outsideSeoul}
-          onClick={onClose}
-        >
-          이 주소로 변경
-        </Button>,
-      ]}
+      footer={
+        <>
+          <Button className="max-lg:hidden" onClick={onClose}>
+            취소
+          </Button>
+          <Button type="primary" disabled={outsideSeoul} onClick={onClose}>
+            이 주소로 변경
+          </Button>
+        </>
+      }
     >
       <div className="flex flex-col gap-6 py-2">
         <section aria-labelledby="location-label">
@@ -129,6 +126,6 @@ export default function LocationSearchModal({
           </p>
         </section>
       </div>
-    </Modal>
+    </ResponsiveDialog>
   )
 }

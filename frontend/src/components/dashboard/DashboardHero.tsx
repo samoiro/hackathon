@@ -77,16 +77,17 @@ export default function DashboardHero({ empty = false }: { empty?: boolean }) {
   return (
     <section
       aria-labelledby="hero-heading"
-      className="rounded-[20px] bg-hero p-8 text-on-hero"
+      className="rounded-[20px] bg-hero p-5 text-on-hero lg:p-8"
     >
-      <div className="flex items-center gap-4">
+      {/* 모바일(BI-MO-03)은 캐릭터를 오른쪽 위로 보낸다 */}
+      <div className="flex items-center gap-4 max-lg:flex-row-reverse max-lg:justify-between">
         {/* 전신 캐릭터는 어두운 바탕 위에 둔다(브랜드가이드 06). 제목이 뜻을 전하니 꾸밈 그림으로 둔다 */}
         <img
           src="/images/mascot.png"
           alt=""
           width={88}
           height={86}
-          className="shrink-0"
+          className="shrink-0 max-lg:w-18"
         />
         <div>
           <p className="text-caption font-semibold text-primary-300">
@@ -97,7 +98,8 @@ export default function DashboardHero({ empty = false }: { empty?: boolean }) {
           </h1>
         </div>
       </div>
-      <ul className="mt-4 grid grid-cols-3 gap-4">
+      {/* PC는 카드 3장, 모바일은 흰 카드 하나에 세 줄(아이콘 · 이름과 수치 · ›) */}
+      <ul className="mt-4 grid gap-4 max-lg:gap-0 max-lg:divide-y max-lg:divide-divider max-lg:rounded-xl max-lg:bg-surface max-lg:px-4 lg:grid-cols-3">
         {SUMMARIES.map((base) => {
           const summary = {
             ...base,
@@ -107,19 +109,21 @@ export default function DashboardHero({ empty = false }: { empty?: boolean }) {
             <li key={summary.label}>
               <a
                 href={summary.href}
-                className="block rounded-xl bg-surface p-6 text-fg"
+                className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-3 text-fg max-lg:py-4 lg:gap-x-2 lg:rounded-xl lg:bg-surface lg:p-6"
               >
-                <span className="flex items-center gap-2 text-item">
-                  <span className="flex size-8 items-center justify-center rounded-full bg-canvas">
-                    {summary.icon}
-                  </span>
-                  {summary.label}
-                  <LuChevronRight aria-hidden className="ml-auto" />
+                <span className="flex size-10 items-center justify-center rounded-full bg-canvas max-lg:row-span-2 lg:size-8">
+                  {summary.icon}
                 </span>
-                <span className="mt-3 flex items-center gap-3 text-display">
+                <span className="text-caption font-semibold text-muted lg:text-item lg:text-fg">
+                  {summary.label}
+                </span>
+                <LuChevronRight aria-hidden className="max-lg:row-span-2" />
+                <span className="flex items-center gap-3 text-item lg:col-span-3 lg:mt-3 lg:text-display">
                   {summary.value}
                 </span>
-                <span className="mt-2 block text-body">{summary.detail}</span>
+                <span className="col-span-3 mt-2 text-body max-lg:hidden">
+                  {summary.detail}
+                </span>
               </a>
             </li>
           )

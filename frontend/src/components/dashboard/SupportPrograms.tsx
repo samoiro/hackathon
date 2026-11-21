@@ -102,8 +102,11 @@ export default function SupportPrograms() {
           setFocused(false)
         }
       >
-        <div className="flex items-center gap-2">
-          <h2 id="support-heading" className="flex-1 text-card">
+        <div className="flex flex-wrap items-center gap-2">
+          <h2
+            id="support-heading"
+            className="flex-1 text-card max-lg:basis-full"
+          >
             마감 임박 지원사업
           </h2>
           {/* 자동으로 돌 때는 위치를 읽지 않는다. 멈췄을 때만 넘길 때마다 알려준다 */}

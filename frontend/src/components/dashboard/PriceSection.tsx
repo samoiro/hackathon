@@ -83,10 +83,18 @@ function describe(prices: number[]) {
     Mark,
     Icon,
     badge: { rise: '상승', fall: '하락', flat: '변동 없음' }[direction],
+    // 모바일 타일은 좁아서 '4.1%'만 보이고 '상승'·'하락'은 화면 낭독용으로 남긴다
     tileChange:
-      direction === 'flat'
-        ? '변동 없음'
-        : `${percent(weekDiff, prev)} ${direction === 'rise' ? '상승' : '하락'}`,
+      direction === 'flat' ? (
+        '변동 없음'
+      ) : (
+        <>
+          {percent(weekDiff, prev)}
+          <span className="max-lg:sr-only">
+            {direction === 'rise' ? ' 상승' : ' 하락'}
+          </span>
+        </>
+      ),
     weekChange:
       direction === 'flat'
         ? '1주 전과 같아요'
@@ -157,16 +165,16 @@ export default function PriceSection({ empty = false }: { empty?: boolean }) {
           <>
             <div className="mt-4 flex justify-between text-caption">
               <h3 className="text-body-strong">원자재 · 3</h3>
-              <span className="text-muted">
+              <span className="text-muted max-lg:hidden">
                 하나를 고르면 4주 추이를 볼 수 있어요
               </span>
             </div>
-            <div className="mt-2 grid grid-cols-[160px_1fr] gap-3">
+            <div className="mt-2 grid gap-3 lg:grid-cols-[160px_1fr]">
               <Radio.Group
                 aria-label="가격을 볼 원자재"
                 value={selectedName}
                 onChange={(event) => setSelectedName(event.target.value)}
-                className="flex flex-col gap-2"
+                className="flex gap-2 lg:flex-col"
               >
                 {PRICE_ITEMS.map((item) => {
                   const info = describe(item.prices)
@@ -175,12 +183,12 @@ export default function PriceSection({ empty = false }: { empty?: boolean }) {
                     <Radio
                       key={item.name}
                       value={item.name}
-                      className="relative m-0 flex cursor-pointer rounded-xl border border-line-strong bg-surface p-3 has-[:checked]:border-primary-700 has-[:checked]:bg-primary-50 has-[:checked]:ring-1 has-[:checked]:ring-primary-700 has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-focus [&_.ant-radio]:sr-only"
+                      className="relative m-0 flex min-w-0 cursor-pointer rounded-xl max-lg:flex-1 border border-line-strong bg-surface p-3 has-[:checked]:border-primary-700 has-[:checked]:bg-primary-50 has-[:checked]:ring-1 has-[:checked]:ring-primary-700 has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-focus [&_.ant-radio]:sr-only"
                     >
                       {checked && (
                         <LuCircleCheck
                           aria-hidden
-                          className="absolute top-3 right-3 text-primary-700"
+                          className="absolute top-3 right-3 text-primary-700 max-lg:top-2 max-lg:right-2"
                         />
                       )}
                       <span className="block text-item">{item.name}</span>
@@ -217,14 +225,14 @@ export default function PriceSection({ empty = false }: { empty?: boolean }) {
                 {/* 품목을 바꾸면 새 가격을 낭독기에 알려준다 */}
                 <p
                   aria-live="polite"
-                  className="mt-1 flex items-baseline gap-3"
+                  className="mt-1 flex flex-wrap items-baseline gap-x-3"
                 >
                   <span className="sr-only">{selected.name} </span>
                   <span className="text-display tabular-nums">
                     {won(detail.last)}
                   </span>
                   <span
-                    className={`flex items-center gap-1 text-body font-semibold ${detail.tone}`}
+                    className={`flex items-center gap-1 text-body font-semibold whitespace-nowrap ${detail.tone}`}
                   >
                     {detail.Mark && '1주 전 대비'}
                     {detail.Mark && (
@@ -271,7 +279,7 @@ export default function PriceSection({ empty = false }: { empty?: boolean }) {
               <Tag color="warning">수요 높음</Tag>
             </div>
 
-            <div className="mt-4 grid grid-cols-2 gap-3">
+            <div className="mt-4 grid gap-3 lg:grid-cols-2">
               <RecommendationList
                 stacked
                 tag="원자재"

@@ -46,7 +46,7 @@ export default function InterestItemsEditor({
     onChange({ ...value, [key]: value[key].filter((v) => v !== item) })
 
   return (
-    <div className="grid grid-cols-2 gap-4">
+    <div className="grid gap-4 lg:grid-cols-2">
       {GROUPS.map((group) => {
         const full = value[group.key].length >= group.max
         return (
