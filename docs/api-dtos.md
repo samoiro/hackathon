@@ -18,7 +18,7 @@ API 구현(컨트롤러·서비스)은 본선에서 합니다. Python ai-server�
 | 분석 중 · 대시보드 | `GET /api/analysis/{id}` | — | `AnalysisResponse` | 1~2초마다 다시 물음. `SUCCEEDED`면 `briefing`, `FAILED`면 `failure` |
 | 대시보드 | `POST /api/analysis/{id}/feedback` | `SuggestionFeedbackRequest` | 204 | 카드 1장에 1표, 다시 보내면 표를 바꿈 |
 | 대시보드 | `GET /api/areas` | — | `List<AreaResponse>` | "지금 이 지역은" 장소 목록 |
-| 대시보드 | `GET /api/seoul/city-data/{area}` | — | `CityDataResponse` | 원본 CITYDATA에서 화면에 쓰는 값만 줌 |
+| 대시보드 | `GET /api/seoul/city-data/{area}` | — | `CityDataResponse` | 지금은 원본 CITYDATA를 그대로 줌. 이 DTO로 바꿀 예정 |
 | 대시보드 | `GET /api/support-programs` | — | `SupportProgramListResponse` | 마감 임박 지원사업. 오늘 이후 마감, 임박 순 최대 5개. 원본이 하루 1번 갱신되고 느려서 서버가 매일 6시에 모아 두고 내줌. 한 번도 모으지 못했으면 503 |
 
 - 오류는 모두 Spring `ProblemDetail`(RFC 9457) 형식입니다.
@@ -30,7 +30,7 @@ API 구현(컨트롤러·서비스)은 본선에서 합니다. Python ai-server�
 ### 개발용 원본 중계 API
 
 공공데이터 원본을 그대로 돌려주는 확인용 API입니다. 화면에서는 위 API를 씁니다.
-`GET /api/kakao/admin-dong` (`AdminDong`) · `/api/kweather/*` · `/api/seoul/*`(city-data 제외) · `GET /api/agro/price-trends` · `GET /api/bizinfo/support-programs` (모두 `ListResponse` 또는 원본 JSON)
+`GET /api/kakao/admin-dong` (`AdminDong`) · `/api/kweather/*` · `/api/seoul/*` · `GET /api/agro/price-trends` · `GET /api/bizinfo/support-programs` (모두 `ListResponse` 또는 원본 JSON)
 
 ## 가게 정보 선택
 
@@ -379,11 +379,8 @@ GET /api/seoul/city-data/{area}를 화면용으로 줄인 응답 ("지금 이 �
 | `congestion` | `Congestion` | 필수 | 현재 혼잡도 (AREA_CONGEST_LVL) |
 | `populationMin` | `int` | 필수 | 현재 인구 최소 (AREA_PPLTN_MIN) (예: 28000) |
 | `populationMax` | `int` | 필수 | 현재 인구 최대 (AREA_PPLTN_MAX) (예: 30000) |
-| `malePercent` | `Double` | null 가능 | 남성 인구 비율 (MALE_PPLTN_RATE, %) (예: 52.7) |
-| `femalePercent` | `Double` | null 가능 | 여성 인구 비율 (FEMALE_PPLTN_RATE, %) (예: 47.3) |
 | `forecasts` | `List<CityPopulationForecast>` | 필수 | 이후 예상 혼잡도 (FCST_PPLTN, 12시간 뒤까지 시각 순) |
-| `consumptionRatios` | `List<CityAgeRatio>` | 필수 | 연령대별 소비 비율 (LIVE_CMRCL_STTS의 CMRCL_10~60_RATE). 상권 자료가 없는 장소면 빈 목록 |
-| `events` | `List<CityEvent>` | 필수 | 주변 문화행사 (EVENT_STTS, 좌표 있는 것만). 지도 핀 |
+| `ageRatios` | `List<CityAgeRatio>` | 필수 | 연령대별 인구 비율 (PPLTN_RATE_0~70) |
 | `weather` | `CityWeather` | null 가능 | 날씨 (WEATHER_STTS). 자료가 없으면 null |
 
 ### CityPopulationForecast
@@ -399,32 +396,24 @@ GET /api/seoul/city-data/{area}를 화면용으로 줄인 응답 ("지금 이 �
 
 ### CityAgeRatio
 
-연령대별 소비 비율
+연령대별 인구 비율
 
 | 필드 | 타입 | 값 | 설명 |
 | --- | --- | --- | --- |
-| `ageGroup` | `int` | 필수 | 연령대 (10 = 10대 … 60 = 60대 이상) (예: 20) |
+| `ageGroup` | `int` | 필수 | 연령대 (0 = 10세 미만, 10 = 10대 … 70 = 70대 이상) (예: 20) |
 | `percent` | `double` | 필수 | 비율 (%) (예: 31.0) |
-
-### CityEvent
-
-지도 핀 "축제 870m". 거리는 가게 좌표를 아는 프론트가 계산한다.
-
-| 필드 | 타입 | 값 | 설명 |
-| --- | --- | --- | --- |
-| `name` | `String` | 필수 | 행사 이름 (EVENT_NM) (예: 서울숲 재즈 페스티벌) |
-| `latitude` | `double` | 필수 | 위도 (EVENT_Y) (예: 37.5444) |
-| `longitude` | `double` | 필수 | 경도 (EVENT_X) (예: 127.0374) |
 
 ### CityWeather
 
-"맑음 · 8°C · 강수 확률 10%".
+"맑음 · 8°C · 강수 확률 10% · 미세먼지 보통".
 
 | 필드 | 타입 | 값 | 설명 |
 | --- | --- | --- | --- |
-| `sky` | `String` | null 가능 | 하늘 상태 (가장 가까운 시각 FCST24HOURS의 SKY_STTS) (예: 맑음) |
+| `sky` | `String` | null 가능 | 하늘 상태 (SKY_STTS) (예: 맑음) |
 | `temperature` | `Double` | null 가능 | 기온 (TEMP, ℃) (예: 8.0) |
-| `precipitationChance` | `Integer` | null 가능 | 강수 확률 (가장 가까운 시각 FCST24HOURS의 RAIN_CHANCE, %) (예: 10) |
+| `precipitationChance` | `Integer` | null 가능 | 강수 확률 (가장 가까운 시각의 RAIN_CHANCE, %) (예: 10) |
+| `pm10Index` | `String` | null 가능 | 미세먼지 등급 (PM10_INDEX). FINE_DUST 판정에 씀 (예: 보통) |
+| `pm25Index` | `String` | null 가능 | 초미세먼지 등급 (PM25_INDEX) (예: 좋음) |
 
 ## 지원사업
 
