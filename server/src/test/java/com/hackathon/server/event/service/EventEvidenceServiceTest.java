@@ -33,7 +33,7 @@ import com.hackathon.server.event.dto.CulturalEventRow;
 import com.hackathon.server.event.repository.CulturalEventRepository;
 import com.hackathon.server.event.repository.SeasonEventRepository;
 
-/** 행사 후보 규칙(분류·기간·반경·회차·최대 5건)을 실제 PostGIS로 확인한다. 날씨는 경계라 mock. */
+/** 행사 후보 규칙(분류·기간·반경 1.5km·회차·최대 5건)을 실제 PostGIS로 확인한다. 날씨는 경계라 mock. */
 @DataJpaTest
 @Import(TestcontainersConfiguration.class) // 마이그레이션 테스트와 같은 context를 써서 컨테이너를 더 띄우지 않는다
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
@@ -84,7 +84,7 @@ class EventEvidenceServiceTest {
 		event("전시", "전시/미술", "갤러리", 100, BASE, BASE.plusDays(3), null);           // 후보 분류 아님
 		event("다음 주 공연", "연극", "소극장", 200, BASE.plusDays(8), BASE.plusDays(8), null); // 7일 넘게 남음
 		event("끝난 공연", "연극", "소극장", 200, BASE.minusDays(5), BASE.minusDays(1), null);
-		event("먼 공연", "연극", "소극장", 1200, BASE.plusDays(1), BASE.plusDays(1), null);     // 1km 안에 다른 행사가 있으면 안 넓힘
+		event("먼 공연", "연극", "소극장", 1600, BASE.plusDays(1), BASE.plusDays(1), null);     // 1.5km 밖
 		event("긴 축제 둘째 주", "축제-기타", "공원", 400, BASE.minusDays(7), BASE.plusDays(20), null); // 15일 이상, 시작 후 7일 지남
 		event("긴 축제 첫 주", "축제-기타", "광장", 600, BASE.minusDays(6), BASE.plusDays(20), null);
 
@@ -109,11 +109,12 @@ class EventEvidenceServiceTest {
 	}
 
 	@Test
-	void widensToOneAndHalfKilometersOnlyWhenNothingWithinOne() {
-		event("1.2km 공연", "국악", "국악당", 1200, BASE.plusDays(1), BASE.plusDays(1), null);
-		event("2km 공연", "국악", "국악당2", 2000, BASE.plusDays(1), BASE.plusDays(1), null);
+	void searchesWithinOneAndHalfKilometers() {
+		event("300m 공연", "국악", "국악당", 300, BASE.plusDays(1), BASE.plusDays(1), null);
+		event("1.4km 공연", "국악", "국악당2", 1400, BASE.plusDays(1), BASE.plusDays(1), null);
+		event("1.6km 공연", "국악", "국악당3", 1600, BASE.plusDays(1), BASE.plusDays(1), null);
 
-		assertThat(titles(collect())).containsExactly("1.2km 공연");
+		assertThat(titles(collect())).containsExactly("300m 공연", "1.4km 공연");
 	}
 
 	@Test

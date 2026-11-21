@@ -34,8 +34,7 @@ public class EventEvidenceService implements EventEvidenceCollector {
 	static final int EVENT_DAYS = 7;
 	// 부자재 준비표(supply_rule)의 최대 준비 일수. 그만큼 앞의 시즌 행사까지 봐야 준비 시점을 놓치지 않는다
 	static final int SEASON_DAYS = 21;
-	static final int RADIUS_M = 1000;
-	static final int WIDE_RADIUS_M = 1500;
+	static final int RADIUS_M = 1500;
 	static final int MAX_EVENTS = 5;
 	// 성인 평균 보행 속도 4km/h. 길을 돌아가는 거리는 모르니 직선거리로 추정한다
 	private static final double WALK_METERS_PER_MINUTE = 67;
@@ -77,14 +76,10 @@ public class EventEvidenceService implements EventEvidenceCollector {
 		return new EventEvidence(new EventSearch(EVENT_DAYS, store.baseDate(), events.size(), source), events, seasons, weather, sources);
 	}
 
-	/** 1km 안에 없으면 1.5km. 회차(같은 제목·장소)는 날짜를 이어 1건으로 묶는다. */
+	/** 가게 1.5km 안. 회차(같은 제목·장소)는 날짜를 이어 1건으로 묶는다. */
 	private List<EventCandidate> events(StoreContext store) {
 		List<NearbyEvent> rows = eventRepository.findNearby(store.latitude(), store.longitude(), RADIUS_M, store.baseDate(),
 				EVENT_DAYS, TRIGGERS.keySet());
-		if (rows.isEmpty()) {
-			rows = eventRepository.findNearby(store.latitude(), store.longitude(), WIDE_RADIUS_M, store.baseDate(),
-					EVENT_DAYS, TRIGGERS.keySet());
-		}
 		Map<String, NearbyEvent> merged = new LinkedHashMap<>();
 		for (NearbyEvent row : rows) {
 			merged.merge(row.title() + "\n" + row.place(), row, (a, b) -> new NearbyEvent(a.title(), a.category(), a.place(),

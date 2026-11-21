@@ -124,7 +124,7 @@ cd server && ./gradlew bootRun --args='--batch.cultural-event.run-on-startup=tru
 
 `coord`는 필수 `geography(Point,4326)`이며 경도 LOT, 위도 LAT 순입니다.
 `ST_Distance`로 target 좌표와 미터 단위 거리를 계산하고 `ST_DWithin`으로 반경을 제한합니다.
-분석의 행사 후보(`event/service/EventEvidenceService`)는 이 테이블에서 1km(없으면 1.5km) 안을 찾습니다.
+분석의 행사 후보(`event/service/EventEvidenceService`)는 이 테이블에서 가게 1.5km 안을 찾습니다.
 
 [공식 데이터셋](https://data.seoul.go.kr/dataList/OA-23041/S/1/datasetView.do)의 갱신 주기는 하루 1회입니다.
 
