@@ -168,6 +168,7 @@ export default function BriefingPage() {
           <WaveProgress
             percent={(doneCount / STEPS.length) * 100}
             showInfo={false}
+            size={{ height: 16 }}
             strokeColor={
               failed ? 'var(--color-muted)' : 'var(--color-primary-500)'
             }
