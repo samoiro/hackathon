@@ -5,31 +5,50 @@ import { LuInfo, LuSearch, LuStore } from 'react-icons/lu'
 import EmptyState from '@/components/common/EmptyState'
 import ResponsiveDialog from '@/components/common/ResponsiveDialog'
 import { useDebouncedValue } from '@/hooks/useDebouncedValue'
-import { searchAddresses } from '@/mocks/search'
+import { searchAddresses } from '@/lib/kakao/maps'
+import type { StoreLocation } from '@/types/search'
 
 export default function LocationSearchModal({
   open,
   onClose,
+  location,
+  onSelect,
 }: {
   open: boolean
   onClose: () => void
+  location?: StoreLocation
+  onSelect: (value: StoreLocation) => void
 }) {
-  const [keyword, setKeyword] = useState('서울숲2길')
-  const [selected, setSelected] = useState('서울 성동구 서울숲2길 32')
-  const debouncedKeyword = useDebouncedValue(keyword)
-  const { data: results = [], isFetching } = useQuery({
-    queryKey: ['search', 'address', debouncedKeyword],
-    queryFn: () => searchAddresses(debouncedKeyword),
+  const [keyword, setKeyword] = useState(location?.address.road ?? '')
+  const [selected, setSelected] = useState(location?.address)
+  const [name, setName] = useState(location?.name ?? '')
+  const query = useDebouncedValue(keyword.trim())
+  const {
+    data: results = [],
+    isFetching,
+    isError,
+  } = useQuery({
+    queryKey: ['search', 'kakao-address', query],
+    queryFn: () => searchAddresses(query),
+    enabled: open && Boolean(query),
     placeholderData: keepPreviousData,
+    retry: false,
   })
 
-  // shortcut: 서울 여부를 도로명 앞글자로 본다. 주소 API 연동 때 시·도 코드로 바꾼다
-  const outsideSeoul = !selected.startsWith('서울')
+  const outsideSeoul = Boolean(
+    selected && !/^서울(?:특별시)?\s/.test(selected.road),
+  )
 
   return (
     <ResponsiveDialog
       open={open}
       onClose={onClose}
+      afterOpenChange={(visible) => {
+        if (visible) return
+        setKeyword(location?.address.road ?? '')
+        setSelected(location?.address)
+        setName(location?.name ?? '')
+      }}
       title="가게 위치 검색"
       width={560}
       height="42.3125rem" // 기본 글자 크기에서 검색 결과 두 건이 들어가는 팝업 높이
@@ -38,7 +57,13 @@ export default function LocationSearchModal({
           <Button className="max-lg:hidden" onClick={onClose}>
             취소
           </Button>
-          <Button type="primary" disabled={outsideSeoul} onClick={onClose}>
+          <Button
+            type="primary"
+            disabled={!selected || !name.trim() || outsideSeoul}
+            onClick={() => {
+              if (selected) onSelect({ name: name.trim(), address: selected })
+            }}
+          >
             이 주소로 변경
           </Button>
         </>
@@ -70,22 +95,39 @@ export default function LocationSearchModal({
             </span>
             <span>도로명 · 지번 · 건물명으로 찾아요</span>
           </div>
-          {results.length === 0 && !isFetching && (
-            <EmptyState
-              title="검색 결과가 없어요."
-              description="도로명이나 지번, 건물명으로 다시 찾아 주세요."
-            />
+          {isError && (
+            <Alert type="error" showIcon title="주소를 불러오지 못했어요." />
           )}
+          {Boolean(query) &&
+            results.length === 0 &&
+            !isFetching &&
+            !isError && (
+              <EmptyState
+                title="검색 결과가 없어요."
+                description="도로명이나 지번, 건물명으로 다시 찾아 주세요."
+              />
+            )}
           <Radio.Group
-            value={selected}
-            onChange={(event) => setSelected(event.target.value)}
+            value={
+              selected
+                ? `${selected.latitude}:${selected.longitude}`
+                : undefined
+            }
+            onChange={(event) =>
+              setSelected(
+                results.find(
+                  (row) =>
+                    `${row.latitude}:${row.longitude}` === event.target.value,
+                ),
+              )
+            }
             className="flex max-h-[calc(10.25rem+4px)] w-full flex-col gap-2 overflow-y-auto"
             aria-label="검색 결과"
           >
             {results.map((result) => (
               <Radio
-                key={result.road}
-                value={result.road}
+                key={`${result.latitude}:${result.longitude}:${result.road}`}
+                value={`${result.latitude}:${result.longitude}`}
                 className="m-0 flex shrink-0 items-center rounded-xl border border-divider p-4 has-[:checked]:border-primary-700 has-[:checked]:bg-primary-50"
               >
                 <span className="block text-body-strong">{result.road}</span>
@@ -119,7 +161,8 @@ export default function LocationSearchModal({
           </div>
           <Input
             id="store-name"
-            defaultValue="성수동 한식당"
+            value={name}
+            onChange={(event) => setName(event.target.value)}
             prefix={<LuStore aria-hidden />}
           />
           <p className="mt-2 text-caption text-muted">

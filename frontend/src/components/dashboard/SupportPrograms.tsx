@@ -1,4 +1,7 @@
-import { Button, Card, Tag } from 'antd'
+import { useQuery } from '@tanstack/react-query'
+import { Alert, Button, Card, Spin, Tag } from 'antd'
+import dayjs from 'dayjs'
+import { supportPrograms } from '@/lib/api/generated'
 import { useEffect, useRef, useState } from 'react'
 import {
   LuCalendar,
@@ -9,35 +12,12 @@ import {
 import EmptyState from '@/components/common/EmptyState'
 import { usePrefersReducedMotion } from '@/hooks/usePrefersReducedMotion'
 
-// 마감이 가까운 순서. 기준일 11.17(월)에서 센 D-day
-const PROGRAMS = [
-  {
-    dDay: '마감 D-3',
-    kind: '컨설팅',
-    title: '소상공인 경영 컨설팅 지원',
-    detail: '신청 마감 11.20(목) · 소상공인시장진흥공단',
-  },
-  {
-    dDay: '마감 D-5',
-    kind: '정책자금',
-    title: '소상공인 정책자금 · 일반경영안정자금',
-    detail: '신청 마감 11.22(토) · 중소벤처기업부',
-  },
-  {
-    dDay: '마감 D-7',
-    kind: '교육',
-    title: '스마트상점 기술보급 사업',
-    detail: '신청 마감 11.24(월) · 소상공인시장진흥공단',
-  },
-]
-
 const AUTO_MS = 3000
 
 // 가로 스크롤 목록을 이전·다음 버튼, 점, 손으로 밀기(스크롤) 세 가지로 넘기고, 3초마다 자동으로 다음 공고로 돈다.
 // 마우스를 올리거나 키보드로 안에 들어오면 잠시 멈추고, 동작 줄이기 설정이면 자동 넘김을 하지 않는다.
 // 멈춤 버튼은 두지 않는다(요청). 5초 넘게 움직이는 콘텐츠의 멈춤 수단(WCAG 2.2.2)은 마우스·포커스 멈춤뿐이다
 // 지금 위치는 스크롤 위치에서 계산하므로 어떤 방법으로 넘겨도 숫자와 점이 맞는다
-// shortcut: 공고는 가짜 데이터다. 기능 구현 때 지원사업 API로 바꾼다
 // 목록 상자만 가로로 옮긴다. scrollIntoView는 페이지 전체까지 캐러셀 쪽으로 끌고 가서 쓰지 않는다
 function scrollListTo(
   list: HTMLUListElement | null,
@@ -52,12 +32,15 @@ function scrollListTo(
   })
 }
 
-// empty: 이번 주 마감 공고가 없을 때(BI-PC-05). 넘김 버튼과 목록 대신 빈 상태를 보여준다
-export default function SupportPrograms({
-  empty = false,
-}: {
-  empty?: boolean
-}) {
+export default function SupportPrograms() {
+  const query = useQuery({
+    queryKey: ['support-programs'],
+    queryFn: async ({ signal }) =>
+      (await supportPrograms({ signal, throwOnError: true })).data,
+    retry: false,
+  })
+  const programs = query.data?.items ?? []
+  const empty = programs.length === 0
   const listRef = useRef<HTMLUListElement>(null)
   const [index, setIndex] = useState(0)
   const reduceMotion = usePrefersReducedMotion()
@@ -71,16 +54,16 @@ export default function SupportPrograms({
     scrollListTo(listRef.current, next, !reduceMotion)
 
   const step = (delta: number) =>
-    goTo((index + delta + PROGRAMS.length) % PROGRAMS.length)
+    goTo((index + delta + programs.length) % programs.length)
 
   useEffect(() => {
     if (!rotating) return
     const timer = setTimeout(
-      () => scrollListTo(listRef.current, (index + 1) % PROGRAMS.length, true),
+      () => scrollListTo(listRef.current, (index + 1) % programs.length, true),
       AUTO_MS,
     )
     return () => clearTimeout(timer)
-  }, [index, rotating])
+  }, [index, programs.length, rotating])
 
   const syncIndex = () => {
     const list = listRef.current
@@ -121,7 +104,7 @@ export default function SupportPrograms({
                 className="text-caption text-muted"
               >
                 <span className="sr-only">공고 </span>
-                {index + 1} / {PROGRAMS.length}
+                {index + 1} / {programs.length}
               </span>
               <Button
                 size="small"
@@ -139,11 +122,23 @@ export default function SupportPrograms({
           )}
         </div>
         <p className="mt-1 text-caption text-muted">
-          {empty
-            ? '서울 · 소상공인 대상 공고 0건'
-            : `서울 · 일반 음식점 조건에 맞는 공고 ${PROGRAMS.length}건`}
+          {query.data && `서울 · 소상공인 대상 공고 ${programs.length}건`}
         </p>
-        {empty ? (
+        {query.isPending ? (
+          <Spin className="mt-4" />
+        ) : query.isError ? (
+          <Alert
+            className="mt-4"
+            type="error"
+            showIcon
+            title="지원사업을 불러오지 못했어요."
+            action={
+              <Button size="small" onClick={() => void query.refetch()}>
+                다시 시도
+              </Button>
+            }
+          />
+        ) : empty ? (
           <div className="mt-4">
             <EmptyState
               icon={LuCalendar}
@@ -170,33 +165,37 @@ export default function SupportPrograms({
               onScroll={syncIndex}
               className="mt-4 flex snap-x snap-mandatory gap-3 overflow-x-auto [scrollbar-width:none]"
             >
-              {PROGRAMS.map((program, position) => (
+              {programs.map((program, position) => (
                 <li
-                  key={program.title}
-                  aria-label={`${PROGRAMS.length}개 중 ${position + 1}번째`}
+                  key={program.id}
+                  aria-label={`${programs.length}개 중 ${position + 1}번째`}
                   className="w-[85%] shrink-0 snap-start rounded-xl bg-canvas p-4"
                 >
                   <span className="flex gap-1">
-                    <Tag color="warning">{program.dDay}</Tag>
-                    <Tag>{program.kind}</Tag>
+                    <Tag color="warning">
+                      마감 {dayjs(program.deadline).format('M.D(ddd)')}
+                    </Tag>
+                    {program.field && <Tag>{program.field}</Tag>}
                   </span>
                   <p className="mt-2 text-body-strong">{program.title}</p>
                   <p className="mt-1 text-caption text-muted">
-                    {program.detail}
+                    {program.agency} · {program.applicationPeriod}
                   </p>
-                  <a
-                    href="/"
-                    className="mt-3 inline-flex min-h-6 items-center gap-1 text-caption font-semibold underline"
-                  >
-                    공고 보기 <LuExternalLink aria-hidden />
-                  </a>
+                  {/^https?:\/\//i.test(program.url) && (
+                    <a
+                      href={program.url}
+                      className="mt-3 inline-flex min-h-6 items-center gap-1 text-caption font-semibold underline"
+                    >
+                      공고 보기 <LuExternalLink aria-hidden />
+                    </a>
+                  )}
                 </li>
               ))}
             </ul>
             <div className="mt-3 flex justify-center gap-1">
-              {PROGRAMS.map((program, position) => (
+              {programs.map((program, position) => (
                 <button
-                  key={program.title}
+                  key={program.id}
                   type="button"
                   aria-label={`${position + 1}번째 공고 보기`}
                   aria-current={position === index}
@@ -212,9 +211,9 @@ export default function SupportPrograms({
           </>
         )}
         <p className="mt-4 text-caption text-muted">
-          7일 안에 마감되거나 마감일이 따로 없는 공고예요.
-          <br />
-          매일 갱신 · 출처: 기업마당(중소벤처기업부)
+          출처 · 기업마당
+          {query.data?.checkedAt &&
+            ` · 확인 ${dayjs(query.data.checkedAt).format('M.D HH:mm')}`}
         </p>
       </section>
     </Card>

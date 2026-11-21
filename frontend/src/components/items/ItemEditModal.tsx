@@ -1,30 +1,36 @@
 import { Button, Tag } from 'antd'
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import { LuInfo } from 'react-icons/lu'
 import ResponsiveDialog from '@/components/common/ResponsiveDialog'
 import InterestItemsEditor from '@/components/items/InterestItemsEditor'
 import type { InterestItems } from '@/types/search'
 
 // BI-PC-04 품목 수정. 고친 내용은 '수정'을 눌러야 반영되고, 취소·닫기는 열기 전 그대로 둔다
-// shortcut: 반영은 화면 안에서만 된다. 기능 구현 때 품목 저장 mutation과 브리핑 재생성에 연결한다
 export default function ItemEditModal({
   open,
   items,
   onClose,
   onSave,
+  saving,
+  children,
 }: {
   open: boolean
   items: InterestItems
   onClose: () => void
   onSave: (items: InterestItems) => void
+  saving: boolean
+  children?: ReactNode
 }) {
-  const [draft, setDraft] = useState(items)
+  const [draft, setDraft] = useState<InterestItems>()
+  const selection = draft ?? items
 
   return (
     <ResponsiveDialog
       open={open}
       onClose={onClose}
-      afterOpenChange={(visible) => visible && setDraft(items)}
+      afterOpenChange={(visible) => {
+        if (!visible) setDraft(undefined)
+      }}
       title="품목 수정"
       width={760}
       footer={
@@ -34,10 +40,8 @@ export default function ItemEditModal({
           </Button>
           <Button
             type="primary"
-            onClick={() => {
-              onSave(draft)
-              onClose()
-            }}
+            loading={saving}
+            onClick={() => onSave(selection)}
           >
             수정
           </Button>
@@ -52,7 +56,8 @@ export default function ItemEditModal({
             고를수록 브리핑이 구체적이 돼요
           </span>
         </div>
-        <InterestItemsEditor value={draft} onChange={setDraft} />
+        {children}
+        <InterestItemsEditor value={selection} onChange={setDraft} />
         <p className="flex items-center gap-2 rounded-xl bg-canvas p-4 text-caption text-muted">
           <LuInfo aria-hidden />
           조사 가격은 실제 매입가와 다를 수 있어요.

@@ -44,10 +44,10 @@ export default function TodayChecklist({ sheet = false }: { sheet?: boolean }) {
       />
       <ul className="mt-2 flex flex-col divide-y divide-divider">
         {todos.map((todo) => (
-          <li key={todo.title} className="flex items-start gap-3 py-3">
+          <li key={todo.id} className="flex items-start gap-3 py-3">
             <Checkbox
               checked={Boolean(todo.done)}
-              onChange={() => toggleDone(todo.title)}
+              onChange={() => toggleDone(todo.id)}
               className="flex-1"
             >
               <span
@@ -64,7 +64,7 @@ export default function TodayChecklist({ sheet = false }: { sheet?: boolean }) {
                 <Tag>{todo.tag}</Tag>
               </span>
             </Checkbox>
-            {/* 강추는 따로 API로 받아오는 할 일이라 지울 수 없다 */}
+            {/* 강추는 분석 결과로 받아온 할 일이라 지울 수 없다 */}
             {!todo.strong && (
               <>
                 {/* 삭제 확인(BI-PC-05): 아이콘 없이 제목·설명, 같은 너비의 아니요 / 예, 삭제해요(빨강) */}
@@ -90,7 +90,7 @@ export default function TodayChecklist({ sheet = false }: { sheet?: boolean }) {
                     size: 'middle',
                     className: 'w-[calc(50%-4px)]',
                   }}
-                  onConfirm={() => remove(todo.title)}
+                  onConfirm={() => remove(todo.id)}
                 >
                   <Button
                     type="text"
