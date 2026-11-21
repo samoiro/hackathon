@@ -114,9 +114,9 @@ UI/UX 확정안(`[261118]사모이로_UI-UX`)의 대시보드를 그릴 수 있�
   ],
   "supplies": [
     { "evidence_id": "S1", "item_id": 3, "name": "포장 용기", "kind": "SUPPLY", "demand": "UP",
-      "trigger_label": "공연", "trigger_evidence_id": "E1", "prepare_by_label": "11.18(화)" },
+      "trigger_label": "공연", "trigger_evidence_id": "E1", "prepare_by_label": "11.18(수)" },
     { "evidence_id": "S2", "item_id": 5, "name": "일회용 수저", "kind": "SUPPLY", "demand": "UP",
-      "trigger_label": "공연", "trigger_evidence_id": "E1", "prepare_by_label": "11.19(수)" }
+      "trigger_label": "공연", "trigger_evidence_id": "E1", "prepare_by_label": "11.19(목)" }
   ],
   "cards": [
     { "card_id": "C1", "category": "EVENT", "task_type": "STAFFING", "item_id": null, "evidence_ids": ["E1"] },
@@ -192,7 +192,7 @@ UI/UX 확정안(`[261118]사모이로_UI-UX`)의 대시보드를 그릴 수 있�
       "card_id": "C6",
       "title": "포장 용기 재고 확인",
       "expected_effect": "공연 준비 마감 전에 포장 용기가 모자라지 않게 할 수 있어요.",
-      "sub_tasks": ["포장 용기 남은 수량 세기", "11.18(화)까지 포장 용기 주문"]
+      "sub_tasks": ["포장 용기 남은 수량 세기", "11.18(수)까지 포장 용기 주문"]
     }
   ],
   "model": "provider/model-name",
