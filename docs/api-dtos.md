@@ -22,7 +22,8 @@ API 구현(컨트롤러·서비스)은 본선에서 합니다. Python ai-server�
 | 대시보드 | `GET /api/support-programs` | — | `SupportProgramListResponse` | 마감 임박 지원사업. 원본이 하루 1번 갱신되고 느려서 서버가 모아 두고 내줌 |
 
 - 오류는 모두 Spring `ProblemDetail`(RFC 9457) 형식입니다.
-- 할 일(오늘 확인할 일)은 로그인이 없어 브라우저 localStorage `todos:{analysisId}`에 둡니다. 서버 API가 없습니다. 강추 카드의 `subTasks`를 처음 열 때 담고, AI 강추는 삭제 버튼을 숨깁니다.
+- 할 일(오늘 확인할 일)은 로그인이 없어 브라우저 localStorage `todos:{analysisId}`에 둡니다. 서버 API가 없습니다. 강추 카드의 `subTasks`를 처음 열 때 담습니다(항목 `{ id, text, cardKey, done }`, 직접 추가한 할 일은 `cardKey`가 `null`).
+- 강추 할 일도 정리할 수 있습니다. 목록에서 `cardKey`로 묶어 `title`·`reason`·`dueDate`(`null`이면 "이번 주 발주 전")를 보여 주고, 세부 할 일은 "이미 했어요"(`done`), 카드는 "해당 없어요"(피드백 `NOT_RELEVANT` + `excludedKeys`에 키 추가 + 그 카드의 할 일을 뺌, 되돌리기 가능)로 정리합니다. 삭제 버튼은 직접 추가한 할 일에만 둡니다. 같은 분석 안에서 강추를 다시 고르지 않습니다.
 - "해당 없어요"를 누른 카드 키는 localStorage에 모아 다음 `POST /api/analysis`의 `excludedKeys`로 보냅니다.
 - 카드 키 형식: `{category}:{taskType}:{itemId 또는 -}` (예: `EVENT:STAFFING:-`, `INGREDIENT:PRICE_CHECK:12`). `SuggestionResponse.cardKey`, `SuggestionFeedbackRequest.cardKey`, `AnalysisRequest.excludedKeys`, DB `suggestion_feedback.card_key`가 같은 형식입니다.
 
@@ -304,28 +305,29 @@ GET /api/analysis/{id}. 분석 중에는 steps만, 끝나면 briefing 또는 fai
 | `itemId` | `long` | 필수 | 부자재 id |
 | `name` | `String` | 필수 | 품목 이름 (예: 포장 용기) |
 | `demand` | `Demand` | null 가능 | 수요 변화 (수요 높음 배지) |
-| `prepareBy` | `(description = "이날까지 준비 (11.18(화))") LocalDate` | null 가능 |  |
+| `prepareBy` | `LocalDate` | null 가능 | 이날까지 준비 (11.18(화)) |
 | `leadDays` | `Integer` | null 가능 | 며칠 전 준비 (supply_rule.lead_days_max) (예: 3) |
 | `triggerLabel` | `String` | null 가능 | 준비 이유 (예: 공연) |
 | `triggerEvidenceId` | `String` | null 가능 | 연결된 행사·시즌·날씨 근거 id. 없으면 null (예: E1) |
 
 ### SuggestionResponse
 
-추천 카드 (순서도 18~19). Python 응답을 Java가 검증해 저장한 것.
+추천 카드 (순서도 18~19). Java가 칸·사유·준비 기한·강추를 정하고, Python(LLM)이 제목·기대 효과·세부 할 일을 쓴다.
 
 | 필드 | 타입 | 값 | 설명 |
 | --- | --- | --- | --- |
 | `id` | `long` | 필수 | 추천 id |
 | `cardKey` | `String` | 필수 | 카드 키 {category}:{taskType}:{itemId 또는 -}. 피드백·해당 없어요 제외에 씀 (예: INGREDIENT:PRICE_CHECK:12) |
 | `category` | `SuggestionCategory` | 필수 | 유형 라벨 |
-| `taskType` | `TaskType` | 필수 | 할 일 유형. 묶음마다 쓸 수 있는 유형이 정해져 있다 |
+| `taskType` | `TaskType` | 필수 | 할 일 유형. 세 묶음 모두 필수이고 묶음마다 쓸 수 있는 유형이 정해져 있다 |
 | `itemId` | `Long` | null 가능 | 원자재·부자재 id. EVENT는 null |
-| `title` | `String` | 필수 | 할 일 제목 (24자 이내) (예: 배추 거래처 단가 확인) |
-| `reason` | `String` | 필수 | 한 줄 사유: 왜 추천했는지 정보형으로. 서버가 근거 숫자로 템플릿을 채운다 (순서도 19) (예: 배추가 1주 전보다 4.1% 올랐어요.) |
-| `expectedEffect` | `String` | null 가능 | 기대 효과 (Figma 시안 문구, 60자 이내). 순서도에는 없어서 쓸지 합의 필요 |
-| `subTasks` | `List<String>` | 필수 | 세부 할 일 (최대 3개). 강추면 내 준비할 일에 자동 추가 (순서도 20) |
-| `recommended` | `boolean` | 필수 | 강추 여부. 모든 추천 중 근거 점수 상위 3개 (같은 유형 최대 2개). 기준: ai-server/docs/API_CONTRACT_DRAFT.md 강추 고르기 |
-| `evidenceIds` | `List<String>` | 필수 | 근거 id (E·H·W·R·S + 번호) |
+| `title` | `String` | 필수 | 할 일 제목 (LLM, 24자 이내) (예: 배추 거래처 단가 확인) |
+| `reason` | `String` | 필수 | 한 줄 사유: 왜 추천했는지 정보형으로. 서버가 대표 근거(evidenceIds 첫 번째)의 숫자로 템플릿을 채운다 (순서도 19) (예: 배추가 4주 전보다 10.9% 올랐어요.) |
+| `dueDate` | `LocalDate` | null 가능 | 준비 기한: 이날까지 하면 좋은 날. 강추 '급한 정도'의 행동 마감과 같다. EVENT는 대표 근거의 시작일(행사·시즌 시작일, 날씨 영향 첫날, 진행 중이면 기준일), SUPPLY는 prepareBy, INGREDIENT는 null('이번 주 발주 전'으로 표시) |
+| `expectedEffect` | `String` | null 가능 | 기대 효과 (LLM, 60자 이내, '~수 있어요.'). reason과 같은 대표 근거에서 나온 효과만, 숫자·매출·손님 수 없이 쓴다. 근거로 말할 효과가 없으면 null이고 화면은 그 줄을 숨긴다 (예: 배추값이 오른 만큼 메뉴 원가 부담을 미리 살펴볼 수 있어요.) |
+| `subTasks` | `List<String>` | 필수 | 세부 할 일 (LLM, 2~3개). 강추면 내 준비할 일에 자동 추가하고, 이미 했어요(완료)·해당 없어요(할 일에서 뺌)로 정리한다 (순서도 20) |
+| `recommended` | `boolean` | 필수 | 강추 여부. 모든 추천 중 근거 점수 상위 3개 (같은 유형 최대 2개). 강추도 해당 없어요로 뺄 수 있다. 기준: ai-server/docs/API_CONTRACT_DRAFT.md 강추 고르기 |
+| `evidenceIds` | `List<String>` | 필수 | 근거 id (E·H·W·R·S + 번호). 첫 번째가 대표 근거로, 카드를 그 행사·품목과 묶어 보여 준다 |
 
 ### SourceResponse
 
@@ -344,7 +346,7 @@ GET /api/analysis/{id}. 분석 중에는 steps만, 끝나면 briefing 또는 fai
 
 ### SuggestionFeedbackRequest
 
-POST /api/analysis/{id}/feedback 요청 → 204. 분석 1건의 카드 1장에 1표, 다시 보내면 표를 바꾼다. 감사 팝업("고마워요! 더 나은 추천에 도움이 돼요")은 프론트가 띄운다.
+POST /api/analysis/{id}/feedback 요청 → 204. 분석 1건의 카드 1장에 1표, 다시 보내면 표를 바꾼다. 감사 토스트는 프론트가 띄운다. 해당 없어요는 강추에도 쓰며, 프론트가 그 카드 키를 excludedKeys에 더하고 할 일에서 뺀다.
 
 | 필드 | 타입 | 값 | 설명 |
 | --- | --- | --- | --- |

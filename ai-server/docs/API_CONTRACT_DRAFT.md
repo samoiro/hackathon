@@ -1,7 +1,7 @@
 # Java ↔ Python API 계약 초안 (설계 전용)
 
 **아직 구현하지 않은 API의 제안 명세입니다.** UI/UX 확정안(`[261118]사모이로_UI-UX`)의 대시보드를 그릴 수 있게 맞췄고, Python 담당자와 합의한 뒤 확정합니다.
-프롬프트 초안은 [`PROMPT_DRAFT.md`](PROMPT_DRAFT.md)에 있습니다.
+프롬프트 초안은 [`PROMPT_DRAFT.md`](PROMPT_DRAFT.md), Java가 카드 칸을 만드는 규칙은 [`SUGGESTION_TODOS_DRAFT.md`](SUGGESTION_TODOS_DRAFT.md)에 있습니다.
 
 ## 역할 나누기
 
@@ -10,11 +10,12 @@
 | 단계 | 화면 문구 | 담당 |
 | --- | --- | --- |
 | 1 | 가게 정보 확인 | Java (주소·업종·품목 검증) |
-| 2 | 주변 행사 조회 | Java (서울시 문화행사, 1km → 없으면 1.5km, 향후 7일) |
+| 2 | 주변 행사 조회 | Java (서울시 문화행사, 1km → 없으면 1.5km, 향후 7일 → 없으면 시즌 행사 → 날씨) |
 | 3 | 품목 가격 조회 | Java (aT 가격 추이 4주, 부자재 준비표) |
-| 4 | 준비할 일 정리 | **Python** (`POST /v1/analyze`, LLM) |
+| 4 | 준비할 일 정리 | Java가 카드 칸을 정하고 **Python**이 문장을 씀 (`POST /v1/analyze`, LLM) |
 
-- 숫자(거리, 가격, 변동률, 준비 시점)는 **Java가 계산해서 넘기고**, Python은 그 숫자로 추천 문장만 만듭니다. 화면의 행사 목록, 가격, 추이 그래프도 Java가 계산한 값을 그대로 씁니다.
+- **Java가 카드 칸(묶음·할 일 유형·품목·근거·순서)을 정하고, LLM은 칸마다 `title`·`expected_effect`·`sub_tasks` 문장만 씁니다.** 사유(`reason`), 준비 기한(`dueDate`), 강추(`recommended`), 카드 키(`cardKey`)는 Java가 붙입니다.
+- 숫자(거리, 가격, 변동률, 준비 시점)는 **Java가 계산해서 넘기고**, Python은 그 숫자로 문장만 만듭니다. 날짜·시간은 `date_label`("11.21(토)")·`peak_label`("15~20시") 같은 화면용 문구로 넘깁니다.
 - 지역 현황(혼잡도·연령 비율)은 기획서상 AI 브리핑과 분리돼 있어 LLM에 보내지 않습니다.
 - 카드 소제목("조회된 행사 2건을 종합했어요" 등)은 프론트 고정 문구이므로 LLM이 만들지 않습니다.
 
@@ -27,6 +28,8 @@
 | 형식 | `application/json`, 필드명 snake_case |
 | 타임아웃 | Python의 LLM 호출 40초, Java의 읽기 대기 60초 |
 | 재시도 | LLM 출력이 형식에 맞지 않으면 Python이 1번만 다시 요청합니다. Java는 재시도하지 않고 화면의 [다시 시도]에 맡깁니다. |
+
+세 묶음 모두 칸이 0개면 Java는 Python을 부르지 않고 4단계를 완료로 두며 `suggestions`는 빈 배열입니다.
 
 ## `POST /v1/analyze`
 
@@ -50,17 +53,18 @@
       "title": "서울숲 음악회",
       "category": "공연",
       "place": "서울숲 야외무대",
-      "start": "2026-11-21T16:00:00+09:00",
-      "end": "2026-11-21T19:00:00+09:00",
+      "date_label": "11.21(토)",
+      "status": "UPCOMING",
       "distance_m": 650,
       "walk_minutes": 10,
       "is_free": true,
       "trigger": "PERFORMANCE",
       "time_band": "AFTERNOON",
-      "peak_time": "15:00~20:00",
-      "task_types": ["STAFFING", "PICKUP", "PACKING", "STOCK"]
+      "peak_label": "15~20시"
     }
   ],
+  "season_events": [],
+  "weather": null,
   "raw_materials": [
     {
       "evidence_id": "R1",
@@ -70,10 +74,27 @@
       "grade": "상품",
       "base_date": "2026-11-16",
       "price": 4380,
-      "weekly_prices": [3950, 4050, 4120, 4208, 4380],
       "change_1w_pct": 4.1,
       "change_4w_pct": 10.9,
-      "trend": "UP"
+      "trend": "UP",
+      "consecutive_weeks": 4,
+      "price_stage": "ALERT_HIGH",
+      "signals": [{ "text": "4주 전보다 많이 오름 (상승 경계: 부류 상위 12.5%)", "demand": "STRONG_DOWN" }]
+    },
+    {
+      "evidence_id": "R2",
+      "item_id": 15,
+      "name": "돼지고기",
+      "unit": "100g",
+      "grade": "상품",
+      "base_date": "2026-11-16",
+      "price": 2650,
+      "change_1w_pct": -1.2,
+      "change_4w_pct": -6.3,
+      "trend": "DOWN",
+      "consecutive_weeks": 2,
+      "price_stage": "WATCH_LOW",
+      "signals": [{ "text": "4주 전보다 내림 (하락 주의: 부류 하위 20%)", "demand": "UP" }]
     },
     {
       "evidence_id": "R3",
@@ -83,28 +104,33 @@
       "grade": "상품",
       "base_date": "2026-11-16",
       "price": 54200,
-      "weekly_prices": [54200, 54200, 54200, 54200, 54200],
       "change_1w_pct": 0.0,
       "change_4w_pct": 0.0,
-      "trend": "FLAT"
+      "trend": "FLAT",
+      "consecutive_weeks": 0,
+      "price_stage": "STABLE",
+      "signals": []
     }
   ],
   "supplies": [
-    {
-      "evidence_id": "S1",
-      "item_id": 3,
-      "name": "포장 용기",
-      "trigger": "공연",
-      "trigger_evidence_id": "E1",
-      "prepare_by": "2026-11-18",
-      "lead_days_min": 3,
-      "lead_days_max": 3,
-      "demand": "UP"
-    }
+    { "evidence_id": "S1", "item_id": 3, "name": "포장 용기", "kind": "SUPPLY", "demand": "UP",
+      "trigger_label": "공연", "trigger_evidence_id": "E1", "prepare_by_label": "11.18(화)" },
+    { "evidence_id": "S2", "item_id": 5, "name": "일회용 수저", "kind": "SUPPLY", "demand": "UP",
+      "trigger_label": "공연", "trigger_evidence_id": "E1", "prepare_by_label": "11.19(수)" }
   ],
-  "excluded_titles": ["돼지고기 발주량 점검"]
+  "cards": [
+    { "card_id": "C1", "category": "EVENT", "task_type": "STAFFING", "item_id": null, "evidence_ids": ["E1"] },
+    { "card_id": "C2", "category": "EVENT", "task_type": "STOCK", "item_id": null, "evidence_ids": ["E1"] },
+    { "card_id": "C3", "category": "EVENT", "task_type": "PICKUP", "item_id": null, "evidence_ids": ["E1"] },
+    { "card_id": "C4", "category": "INGREDIENT", "task_type": "PRICE_CHECK", "item_id": 12, "evidence_ids": ["R1"] },
+    { "card_id": "C5", "category": "INGREDIENT", "task_type": "ORDER_PLAN", "item_id": 15, "evidence_ids": ["R2"] },
+    { "card_id": "C6", "category": "SUPPLY", "task_type": "RESTOCK", "item_id": 3, "evidence_ids": ["S1", "E1"] },
+    { "card_id": "C7", "category": "SUPPLY", "task_type": "RESTOCK", "item_id": 5, "evidence_ids": ["S2", "E1"] }
+  ]
 }
 ```
+
+`price_stage`·`signals` 값은 설명용 예시입니다(실제 단계는 부류별 분위수로 정해짐).
 
 | 필드 | 설명 |
 | --- | --- |
@@ -112,18 +138,38 @@
 | `store` | 가게 이름과 상세 주소는 **보내지 않습니다**(LLM에 개인정보를 보내지 않기 위해). 자치구와 생활권 이름까지만 보냅니다. |
 | `store.operation_type` | `STORE`(매장만) · `DELIVERY`(배달만) · `BOTH` · `null`(선택 안 함) |
 | `event_search.radius_m` | 1000. 1km 안에 행사가 없어서 넓혀 찾았으면 1500 |
-| `events` | 비어 있을 수 있습니다. 진행 중 행사는 `start`가 기준 시각보다 앞섭니다. 후보는 아래 "행사 후보와 할 일 유형"으로 Java가 고릅니다. |
+| `events` · `season_events` · `weather` | `EVENT` 칸의 근거입니다. 주변 행사(E)가 있으면 `events`, 없으면 시즌 행사(H) `season_events`, 그것도 없으면 날씨(W) `weather`를 채웁니다. 부자재 트리거가 H·W이면 그 근거도 넣습니다. 안 쓰는 것은 빈 배열·`null` |
+| `events[].date_label` · `peak_label` | 화면용 날짜 문구와 붐비는 시간(시작 1시간 전 ~ 끝 1시간 후). LLM이 그대로 옮깁니다. 시간을 못 읽으면 `peak_label`은 `null` |
+| `events[].status` | `UPCOMING` · `ONGOING` |
 | `events[].trigger` | `FESTIVAL`(축제) · `PERFORMANCE`(공연). 부자재 준비표 규칙도 이 값으로 켭니다. |
-| `events[].time_band` · `peak_time` | 시간 문구(`PRO_TIME`)에서 읽은 시간대(`MORNING`·`LUNCH`·`AFTERNOON`·`EVENING`)와 붐비는 시간(시작 1시간 전 ~ 끝 1시간 후). 못 읽으면 `UNKNOWN`·`null` |
-| `events[].task_types` | 이 행사로 만들 수 있는 할 일 유형. Java가 업종·운영 방식·시간으로 고릅니다. |
-| `raw_materials[].price` | 가격 자료가 없는 품목이면 `price`, `weekly_prices`, `change_*`, `trend`가 모두 `null`입니다. |
-| `raw_materials[].weekly_prices` | 4주 전 → 기준일 순서로 5개. 비어 있는 주는 `null` |
-| `raw_materials[].trend` | `UP` · `DOWN` · `FLAT`. Java가 1주 전 대비 변동률로 정합니다(±1% 미만이면 `FLAT`, 기준은 합의 필요). |
-| `supplies` | 부자재 준비표(`supply_rule`)에서 이번 주에 걸린 규칙만 보냅니다. `trigger_evidence_id`는 행사·날씨 근거 id이고, 없으면 `null`입니다. |
+| `events[].time_band` | 시간 문구(`PRO_TIME`)에서 읽은 시간대 `MORNING`·`LUNCH`·`AFTERNOON`·`EVENING`, 못 읽으면 `UNKNOWN` |
+| `season_events[]` | `evidence_id`, `code`, `label`, `type`(`HOLIDAY`·`SCHOOL`·`SEASON`), `date_label`, `days_left` |
+| `weather` | `evidence_id`, `impacts`(`WeatherImpact`), `warnings`(`kind`·`level`), `first_date_label`(영향이 시작되는 날) |
+| `raw_materials[].price` | 가격 자료가 없는 품목이면 `price`, `change_*`, `trend`, `consecutive_weeks`, `price_stage`가 모두 `null`입니다. |
+| `raw_materials[].trend` | `UP` · `DOWN` · `FLAT`. 1주 전 대비 변동률로 정한 화면용 흐름(±1% 미만이면 `FLAT`, 기준은 합의 필요). 점수에는 쓰지 않습니다. |
+| `raw_materials[].price_stage` | 가격 단계 7개(`PriceStage`): `SEVERE_HIGH`·`ALERT_HIGH`·`WATCH_HIGH`·`STABLE`·`WATCH_LOW`·`ALERT_LOW`·`SEVERE_LOW`. **4주 변동률**을 부류별 분위수로 나눈 값(수급조절매뉴얼 방식)이고, 원자재 가격 신호는 이 값만 씁니다. |
+| `raw_materials[].signals` | 이번 주 걸린 `ingredient_rule`의 `trigger_text`(`text`)와 `demand`. 가격 단계 규칙, 제철, 김장·설·추석 전 규칙이 들어갑니다. |
+| `supplies` | 부자재 준비표(`supply_rule`)에서 이번 주에 걸린 규칙만, 물품당 1개 보냅니다. `trigger_evidence_id`는 행사·시즌·날씨 근거 id이고, 없으면 `null`입니다. |
+| `supplies[].kind` | `SUPPLY`(부자재) · `STOCK`(손님에게 파는 상품) |
 | `supplies[].demand` | `UP` · `STRONG_UP` · `DOWN` |
-| `excluded_titles` | 이 가게가 이전 브리핑에서 "해당 없어요"로 표시한 추천 제목 |
+| `supplies[].prepare_by_label` | 이날까지 준비(화면용 문구) |
+| `cards` | **Java가 정한 카드 칸**, 화면에 보일 순서대로. 묶음당 최대 `EVENT` 3 · `INGREDIENT` 3 · `SUPPLY` 2. 사장님이 "해당 없어요"로 뺀 칸(`excludedKeys`)은 Java가 이미 뺐습니다. |
+| `cards[].evidence_ids` | 첫 번째가 **대표 근거**입니다. Java의 `reason`과 LLM의 `title`·`expected_effect`가 이 근거로 쓰입니다. |
 
-`evidence_id`는 Java가 요청마다 붙이는 짧은 id입니다(행사 `E`, 원자재 `R`, 부자재 `S` + 번호).
+`evidence_id`는 Java가 요청마다 붙이는 짧은 id입니다(행사 `E`, 시즌 `H`, 날씨 `W`, 원자재 `R`, 부자재 `S` + 번호).
+"해당 없어요" 제외 목록은 LLM에 보내지 않습니다. 예전 `excluded_titles`는 없앴습니다(같은 일을 다른 말로 다시 쓸 수 있어서 Java가 카드 키로 거릅니다).
+
+#### 묶음과 할 일 유형
+
+`category`는 `EVENT`(행사 종합) · `INGREDIENT`(원자재 품목별) · `SUPPLY`(부자재 품목별)입니다. `task_type`은 세 묶음 모두 필수이고 Java `TaskType` 13개 값 중 묶음에 맞는 것입니다.
+
+| 묶음 | `task_type` |
+| --- | --- |
+| `EVENT` | `STAFFING` 근무 배치 · `STOCK` 재고 · `HOURS` 영업시간 · `PICKUP` 주문·픽업 안내 · `RESERVATION` 예약 안내 · `FACILITY` 매장 정비 · `PACKING` 포장 동선 |
+| `INGREDIENT` | `PRICE_CHECK` 단가 확인 · `BUY_AHEAD` 미리 주문 · `ORDER_PLAN` 발주량 점검 |
+| `SUPPLY` | `RESTOCK` 재고 채우기 · `DISPLAY` 판매 상품 진열 · `ORDER_LESS` 주문 줄이기 |
+
+어떤 근거·업종·운영 방식에서 어떤 유형을 여는지는 [`SUGGESTION_TODOS_DRAFT.md`](SUGGESTION_TODOS_DRAFT.md) "카드 칸 만들기"를 따릅니다.
 
 ### 응답 (200)
 
@@ -131,26 +177,22 @@
 {
   "suggestions": [
     {
-      "category": "EVENT",
-      "task_type": "STAFFING",
-      "item_id": null,
-      "title": "공연 시간대 근무자 역할 나누기",
-      "expected_effect": "주문·수령 안내 혼선을 줄이는 데 도움이 될 수 있어요.",
-      "evidence_ids": ["E1"]
+      "card_id": "C1",
+      "title": "토요일 공연 시간대 역할 나누기",
+      "expected_effect": "공연 전후로 붐비는 시간에 주문·수령 혼선을 줄일 수 있어요.",
+      "sub_tasks": ["토요일 15~20시 근무자 정하기", "주문·수령 담당 나누기", "근무표 미리 공유하기"]
     },
     {
-      "category": "RAW_MATERIAL",
-      "item_id": 12,
+      "card_id": "C4",
       "title": "배추 거래처 단가 확인",
-      "expected_effect": "다음 발주 전에 단가 변동을 미리 확인할 수 있어요.",
-      "evidence_ids": ["R1"]
+      "expected_effect": "배추값이 오른 만큼 메뉴 원가 부담을 미리 살펴볼 수 있어요.",
+      "sub_tasks": ["배추 거래처 단가 묻기", "배추 들어간 메뉴 원가 보기", "배추 대체 재료 알아보기"]
     },
     {
-      "category": "SUPPLY",
-      "item_id": 3,
+      "card_id": "C6",
       "title": "포장 용기 재고 확인",
-      "expected_effect": "행사 전 포장 주문 증가에 대비할 수 있어요.",
-      "evidence_ids": ["S1", "E1"]
+      "expected_effect": "공연 준비 마감 전에 포장 용기가 모자라지 않게 할 수 있어요.",
+      "sub_tasks": ["포장 용기 남은 수량 세기", "11.18(화)까지 포장 용기 주문"]
     }
   ],
   "model": "provider/model-name",
@@ -158,27 +200,45 @@
 }
 ```
 
+(예시는 C2·C3·C5·C7을 줄였습니다. 실제 응답에는 요청의 모든 칸이 있어야 합니다.)
+
 | 규칙 | 내용 |
 | --- | --- |
-| `category` | `EVENT`(행사 종합) · `RAW_MATERIAL`(원자재 품목별) · `SUPPLY`(부자재 품목별) |
-| `task_type` | `EVENT`만 필수이고 근거 행사의 `task_types` 중 하나. 나머지는 `null` |
-| 개수 | 묶음마다 최대 3개. 입력이 비어 있는 묶음은 0개 |
-| `item_id` | `EVENT`는 `null`, 나머지는 입력에 있는 `item_id` 중 하나 |
-| 순서 | 묶음 안에서는 먼저 해야 할 일부터 둡니다. 강추는 Python이 정하지 않고 Java가 근거 점수로 고릅니다(아래 "강추 고르기"). |
-| `title` | 24자 이내, 명사형으로 끝나는 할 일("~확인", "~점검", "~나누기") |
-| `expected_effect` | 60자 이내, "~수 있어요"처럼 단정하지 않는 문장. 숫자는 입력에 있는 것만 씁니다. |
-| `evidence_ids` | 1개 이상, 모두 입력에 있는 id |
-| 제외 | `excluded_titles`와 같은 제목은 만들지 않습니다. |
+| `card_id` | 요청의 `cards`에 있는 id를 **빠짐없이 한 번씩**. 순서는 상관없습니다(Java가 요청 순서로 둡니다). |
+| `title` | 24자 이내. 대상 + 행동 명사형("~확인", "~점검", "~정하기", "~나누기"). `INGREDIENT`·`SUPPLY`는 품목 이름을 넣습니다. 한 응답 안에서 겹치지 않습니다. |
+| `expected_effect` | 60자 이내 해요체 한 문장, "~수 있어요."로 끝냅니다. 아래 "기대 효과의 근거"를 지키지 못하면 `null`. |
+| `sub_tasks` | 2~3개, 각 24자 이내, 하는 순서대로. 할 일 목록에 따로 담기므로 대상(품목·요일·시간)을 넣어 혼자 읽어도 통하게 씁니다. 제목을 그대로 되풀이하지 않습니다. |
+| 숫자·날짜 | `title`·`sub_tasks`의 숫자는 입력에 있는 것만, 날짜·시간은 `date_label`·`peak_label`·`prepare_by_label`을 그대로 옮깁니다. |
+| 뺀 필드 | `category`, `task_type`, `item_id`, `evidence_ids`는 Java가 이미 알아서 받지 않습니다. |
 
-### Java 쪽 검증
+#### 기대 효과의 근거
 
-Python 응답을 그대로 믿지 않고, 저장하기 전에 한 번 더 거릅니다.
+`expected_effect`는 **그 칸의 대표 근거(`evidence_ids[0]`) 하나에 기댑니다.** `reason`과 같은 근거라서 화면은 사유 바로 아래에 기대 효과를 두어 "이 근거라서 이런 효과"로 읽히게 합니다. 따로 근거 id 필드를 두지 않습니다.
 
-- 입력에 없는 `evidence_id`나 `item_id`가 들어간 추천, 근거 행사의 `task_types`에 없는 `task_type`을 단 `EVENT` 추천은 버립니다.
-- 남은 추천으로 강추를 고릅니다(아래 "강추 고르기").
-- Python이 준 추천이 걸러져서 하나도 남지 않으면 4단계 실패로 처리합니다. 입력(행사·품목)이 모두 비어서 처음부터 추천이 없는 경우는 실패가 아닙니다.
+- 대표 근거가 말하는 상황(붐비는 시간, 행사 날, 가격 상승·하락, 준비 마감, 날씨)에 할 일이 어떻게 대비하는지만 씁니다.
+- **숫자를 쓰지 않습니다.** 숫자는 `reason`에 이미 있습니다.
+- 매출·수익, 손님·방문객 수, 주문 수의 증감, 절약 금액처럼 근거가 말하지 않는 결과를 쓰지 않습니다. "~할 거예요", "반드시"처럼 단정하지 않습니다.
+- 대표 근거로 말할 효과가 없으면 지어내지 말고 `null`을 줍니다. 화면은 그 줄을 숨깁니다.
 
-### 행사 후보와 할 일 유형 (Java)
+### 검증과 실패
+
+- Python: 길이·개수, `card_id` 누락·중복, `title`·`sub_tasks`의 입력에 없는 숫자, `expected_effect`의 숫자·금지어(매출, 수익, 방문객, 손님이 늘)·끝맺음("수 있어요.")을 검사하고, 어기면 오류를 붙여 1번 다시 요청합니다. 그래도 `expected_effect`만 어긴 칸은 `expected_effect`를 `null`로 바꿔 남기고, 다른 규칙을 어긴 칸은 뺍니다. 남은 칸이 0개면 502 `INVALID_LLM_OUTPUT`.
+- Java: 요청에 없는 `card_id`는 버립니다. 응답이 빠진 칸은 화면에 내지 않습니다. 칸이 있었는데 남은 카드가 0개면 4단계 실패입니다. 칸이 처음부터 0개면 Python을 부르지 않고 실패도 아닙니다.
+- Java가 `cardKey`·`reason`·`dueDate`를 붙이고 강추를 고른 뒤 `SuggestionResponse`로 저장합니다.
+
+### 준비 기한 (Java)
+
+카드마다 `SuggestionResponse.dueDate`(LocalDate)로 "언제까지 준비할지"를 보여 줍니다. 아래 "강추 고르기"의 **행동 마감과 같은 날짜**라서, 점수의 급한 정도와 화면의 기한이 어긋나지 않습니다. Python에는 보내지 않습니다.
+
+| 묶음 · 대표 근거 | `dueDate` | 근거 |
+| --- | --- | --- |
+| `EVENT` · E 주변 행사 | 행사 시작일. 진행 중이면 기준일 | 행사 전에 끝내야 하는 준비 |
+| `EVENT` · H 시즌 행사 | 시즌 행사 시작일. 기간 중이면 기준일 | 같음 |
+| `EVENT` · W 날씨 | 영향이 시작되는 날(첫 영향 예보일). 특보 발효 중이면 기준일 | 날씨가 바뀌기 전에 하는 정비 |
+| `SUPPLY` | 그 물품의 `prepareBy` | 준비표의 받아 둘 날짜를 그대로 씀 |
+| `INGREDIENT` | `null`. 화면은 "이번 주 발주 전"으로 보여 줍니다 | 가격 신호에는 날짜가 없고, 점수도 "이번 주 발주 전"(4~7일)으로 고정해서 |
+
+## 행사 후보 (Java)
 
 행사는 이 순서로 걸러 `events`에 넣습니다.
 
@@ -194,20 +254,9 @@ Python 응답을 그대로 믿지 않고, 저장하기 전에 한 번 더 거릅
 | 콘서트 · 클래식 · 국악 · 독주/독창회 · 뮤지컬/오페라 · 연극 · 무용 | `PERFORMANCE` |
 | 교육/체험 · 전시/미술 · 영화 · 기타 | 후보 아님 (사전 신청 소규모, 몇 주씩 이어져 몰리는 날이 없음, 강당 상영, 포럼·강연 섞임) |
 
-할 일 유형은 행사·업종·운영 방식이 맞을 때만 `task_types`에 넣습니다. LLM은 이 안에서만 `EVENT` 할 일을 씁니다.
+## 강추 고르기 (Java)
 
-| 유형 | 할 일 예 | 넣는 조건 |
-| --- | --- | --- |
-| `STAFFING` 근무 배치 | 붐비는 시간 근무자 역할 나누기 | 음식점·소매점 |
-| `HOURS` 영업시간 | 행사 끝나는 21시까지 영업 연장 검토 | 행사가 21시 이후 끝나거나 11시 전에 시작 (시간 미상이면 뺌) |
-| `PICKUP` 주문·픽업 안내 | 행사 전 미리 주문·픽업 안내문 붙이기 | 음식점이고 운영 방식이 `STORE`·`BOTH`·모름 |
-| `PACKING` 포장 동선 | 포장 대기 줄·픽업 자리 정하기 | 음식점이고 축제이거나 행사가 17시 이후에 끝남 (저녁 손님과 겹침) |
-| `STOCK` 재고 | 많이 나갈 메뉴·상품 재고 확인 | 음식점·소매점. 부자재 묶음에 같은 물품이 있으면 그쪽에서 다룹니다. |
-| `RESERVATION` 예약 안내 | 행사 시간대 예약 손님에게 주차·교통 안내 | 단체·개인서비스업 |
-
-### 강추 고르기 (Java)
-
-강추는 유형별 1개가 아니라, **모든 추천 중 점수가 가장 높은 3개**입니다. 점수는 LLM이 아니라 Java가 근거(`E`·`H`·`W`·`R`·`S`)마다 매기고, 추천의 점수는 그 추천이 단 `evidence_ids` 중 가장 높은 근거 점수입니다.
+강추는 유형별 1개가 아니라, **모든 카드 중 점수가 가장 높은 3개**입니다. 점수는 LLM이 아니라 Java가 근거(`E`·`H`·`W`·`R`·`S`)마다 매기고, 카드의 점수는 그 카드의 `evidence_ids` 중 가장 높은 근거 점수입니다.
 
 근거 점수 = 급한 정도 + 영향 크기 + 확실성 (각 0~3점, 최대 9점)
 
@@ -217,12 +266,13 @@ Python 응답을 그대로 믿지 않고, 저장하기 전에 한 번 더 거릅
 | 영향 크기 | 행사 500m 이내 · 기상특보 · 원자재 신호 크기 3 이상 · 부자재 `STRONG_UP` | 행사 1km 이내 · 영업에 영향 주는 예보 · 원자재 신호 크기 2 · 부자재 `UP` | 행사 1.5km 이내 · 시즌 행사 · 원자재 신호 크기 1 · 부자재 `DOWN` | 원자재 신호 0 (후보 아님) |
 | 확실성 | 날짜가 정해진 행사·공휴일·학사일정, 조사된 가격 | 날씨 예보·특보 | 그 밖의 추정 | |
 
-- 행동 마감: 행사는 시작일까지(진행 중이면 0일), 부자재는 `prepare_by`까지, 날씨는 영향이 시작되는 날까지입니다. 원자재는 "이번 주 발주 전"으로 보고 4~7일(1점)로 둡니다. 0일로 두면 작은 가격 변동도 늘 1등이 되기 때문입니다.
-- 원자재 신호는 걸린 규칙의 `demand`를 더한 값입니다: 제철 +2, 제철 한 달 전 +1, 1주 전보다 하락 +1, 10% 이상 하락 +2, 상승 −1. 오른 품목(단가 확인)도 할 일이 되므로 크기(절댓값)로 영향을 봅니다.
+- 행동 마감: 행사는 시작일까지(진행 중이면 0일), 부자재는 `prepare_by`까지, 날씨는 영향이 시작되는 날까지입니다. 이 날짜가 카드의 준비 기한(`dueDate`)입니다. 원자재는 "이번 주 발주 전"으로 보고 4~7일(1점)로 두고 `dueDate`는 `null`입니다. 0일로 두면 작은 가격 변동도 늘 1등이 되기 때문입니다.
+- 원자재 신호는 걸린 규칙의 `demand`를 더한 값입니다: 제철 +2, 제철 한 달 전 +1, 김장·설·추석 전 +1, 4주 가격 단계(`price_stage`) 하락 주의 +1 · 하락 경계·심각 +2 · 상승 주의 −1 · 상승 경계·심각 −2. 1주 변동(`trend`)은 점수에 넣지 않습니다. 오른 품목(단가 확인)도 할 일이 되므로 크기(절댓값)로 영향을 봅니다.
 - 실시간 혼잡도는 강추 계산에 쓰지 않습니다. 지역 현황은 대시보드에 따로 보여주고 LLM에도 보내지 않습니다(위 "역할 나누기"). 혼잡도로만 켜지는 부자재 `CROWD_SURGE` 규칙도 후보가 되지 않습니다.
-- 고르는 순서: 점수 높은 순 → 같으면 급한 정도 높은 순 → 같으면 Python이 준 순서.
+- 고르는 순서: 점수 높은 순 → 같으면 급한 정도 높은 순 → 같으면 `cards` 순서(Java가 정한 묶음 안 순서).
 - 부자재 근거의 확실성은 그 부자재를 걸리게 한 행사·날씨 근거(`trigger_evidence_id`)를 따릅니다.
-- 같은 유형은 강추 최대 2개, 같은 근거로 만든 추천은 강추 1개(Python이 준 순서상 첫 번째)까지입니다.
+- 같은 유형은 강추 최대 2개, 같은 대표 근거로 만든 카드는 강추 1개(`cards` 순서상 첫 번째)까지입니다.
+- 강추도 사장님이 정리할 수 있습니다. 강추 카드와 할 일에도 `reason`·`dueDate`를 보여 주고, "이미 했어요"(완료)·"해당 없어요"(피드백 `NOT_RELEVANT` + 할 일에서 뺌 + 다음 분석의 `excludedKeys`)로 정리합니다. 같은 분석 안에서 강추를 다시 고르지는 않습니다.
 - 점수 구간은 실제 데이터로 돌려 보기 전 초안입니다.
 
 ### 오류
@@ -233,7 +283,7 @@ Python 응답을 그대로 믿지 않고, 저장하기 전에 한 번 더 거릅
 | --- | --- | --- |
 | 401 | `UNAUTHORIZED` | `X-Internal-Token`이 없거나 틀림 |
 | 422 | `INVALID_REQUEST` | 요청 스키마 오류 |
-| 502 | `INVALID_LLM_OUTPUT` | 재시도 후에도 LLM 출력이 규칙에 맞지 않음 |
+| 502 | `INVALID_LLM_OUTPUT` | 재시도 후에도 남은 칸이 0개 |
 | 503 | `LLM_UNAVAILABLE` | LLM 공급자 오류, API 키 미설정 |
 | 504 | `LLM_TIMEOUT` | LLM 호출 40초 초과 |
 
@@ -241,6 +291,6 @@ Python 응답을 그대로 믿지 않고, 저장하기 전에 한 번 더 거릅
 
 ## 남은 결정
 
-- LLM 모델 (`LLM_MODEL`). 공급자는 OpenAI로 정함
+- LLM 모델: OpenAI GPT 6.2 Astra로 정함([`docs/plan-feedback.md`](../../docs/plan-feedback.md) 1절). `LLM_MODEL`에 넣을 API 모델 id만 확인 필요
 - `trend`를 `FLAT`으로 보는 변동률 기준
-- 날씨 근거(`W` id)를 부자재 트리거로 함께 보낼지 (준비표에 폭염·한파·비 트리거가 있음)
+- 카드 칸 규칙의 남은 결정: [`SUGGESTION_TODOS_DRAFT.md`](SUGGESTION_TODOS_DRAFT.md) "남은 결정"
