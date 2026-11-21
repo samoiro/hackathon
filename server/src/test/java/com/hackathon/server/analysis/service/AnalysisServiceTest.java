@@ -199,7 +199,8 @@ class AnalysisServiceTest {
 	void noCardsSucceedsWithoutCallingAiServer() {
 		eventCollector = store -> new EventEvidence(new EventSearch(7, store.baseDate(), 0, EventSource.NONE), List.of(), List.of(), null,
 				List.of());
-		ingredients = new IngredientEvidenceResult(List.of(ContractExample.R3), List.of());
+		// 신호 없는 원자재도 단가 확인 칸이 되므로, 카드가 없으려면 고른 원자재도 없어야 한다
+		ingredients = new IngredientEvidenceResult(List.of(), List.of());
 		UUID id = pending();
 
 		service().run(id);
@@ -208,7 +209,6 @@ class AnalysisServiceTest {
 		AnalysisResponse response = service().get(id);
 		assertThat(response.status()).isEqualTo(AnalysisStatus.SUCCEEDED);
 		assertThat(response.briefing().suggestions()).isEmpty();
-		assertThat(response.briefing().ingredients()).hasSize(1);
 	}
 
 	@Test

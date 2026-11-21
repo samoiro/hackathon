@@ -16,6 +16,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.EnumMap;
+import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -67,7 +68,7 @@ import com.hackathon.server.supply.dto.TriggerType;
 final class BriefingPlanner {
 
 	/** briefing_analysis_job.score_version. 점수표·카드 규칙을 바꾸면 올린다. */
-	static final String SCORE_VERSION = "2026-11-21";
+	static final String SCORE_VERSION = "2026-11-21.2";
 	static final DateTimeFormatter DATE_LABEL = DateTimeFormatter.ofPattern("M.d(E)", Locale.KOREAN);
 
 	private static final String FOOD = "음식점";
@@ -76,6 +77,8 @@ final class BriefingPlanner {
 	private static final int MAX_EVENT_CARDS = 3;
 	private static final int MAX_INGREDIENT_CARDS = 3;
 	private static final int MAX_SUPPLY_CARDS = 2;
+	/** 묶음별 최대로 이만큼이 안 되면 남은 후보로 채운다. 후보가 모자라면 더 적을 수 있다 */
+	private static final int MIN_CARDS = 6;
 	private static final int MAX_CARD_EVIDENCE = 3;
 	private static final int MAX_RECOMMENDED = 3;
 	private static final int MAX_RECOMMENDED_PER_CATEGORY = 2;
@@ -92,16 +95,21 @@ final class BriefingPlanner {
 	record Score(String evidenceId, LocalDate deadline, int urgency, int impact, int certainty, int total) {
 	}
 
-	/** Java가 정한 카드 칸. */
+	/** Java가 정한 카드 칸. filled는 묶음별 최대 안에서 고르지 않고 MIN_CARDS를 채우려고 넣은 칸 */
 	record Card(String cardId, SuggestionCategory category, TaskType taskType, Long itemId, List<String> evidenceIds, String reason,
-			LocalDate dueDate) {
+			LocalDate dueDate, boolean filled) {
+
+		Card(String cardId, SuggestionCategory category, TaskType taskType, Long itemId, List<String> evidenceIds, String reason,
+				LocalDate dueDate) {
+			this(cardId, category, taskType, itemId, evidenceIds, reason, dueDate, false);
+		}
 
 		String key() {
 			return category + ":" + taskType + ":" + (itemId == null ? "-" : itemId);
 		}
 
-		Card withId(String id) {
-			return new Card(id, category, taskType, itemId, evidenceIds, reason, dueDate);
+		Card withId(String id, boolean filled) {
+			return new Card(id, category, taskType, itemId, evidenceIds, reason, dueDate, filled);
 		}
 	}
 
@@ -122,6 +130,8 @@ final class BriefingPlanner {
 	private final Map<String, SeasonEventResponse> seasonById = new HashMap<>();
 	private final Map<String, IngredientEvidence> ingredientById = new HashMap<>();
 	private final Map<String, SupplyEvidence> supplyById = new LinkedHashMap<>();
+	/** 묶음별 최대 안에서는 고르지 않고 MIN_CARDS를 채울 때만 쓰는 후보 */
+	private final Set<Card> fillers = new HashSet<>();
 	private final List<Card> cards;
 
 	BriefingPlanner(StoreContext store, EventEvidence events, IngredientEvidenceResult ingredients, List<SupplyEvidence> supplies,
@@ -136,11 +146,22 @@ final class BriefingPlanner {
 		ingredients.items().forEach(r -> ingredientById.put(r.price().evidenceId(), r));
 		supplies.stream().filter(BriefingPlanner::hit).forEach(s -> supplyById.put(s.timing().evidenceId(), s));
 		scoreAll();
-		List<Card> supplyCards = supplyCards();
-		List<Card> all = new ArrayList<>(eventCards(stockTriggers(supplyCards)));
-		all.addAll(ingredientCards());
-		all.addAll(supplyCards);
-		this.cards = IntStream.range(0, all.size()).mapToObj(i -> all.get(i).withId("C" + (i + 1))).toList();
+		List<Card> supplyAll = supplyCards();
+		List<Card> supplyCards = supplyAll.stream().limit(MAX_SUPPLY_CARDS).toList();
+		List<Card> eventAll = eventCards(stockTriggers(supplyCards));
+		List<Card> ingredientAll = ingredientCards();
+		List<Card> picked = new ArrayList<>(eventAll.stream().filter(c -> !fillers.contains(c)).limit(MAX_EVENT_CARDS).toList());
+		picked.addAll(ingredientAll.stream().filter(c -> !fillers.contains(c)).limit(MAX_INGREDIENT_CARDS).toList());
+		picked.addAll(supplyCards);
+		// 묶음별 최대로 MIN_CARDS가 안 되면 남은 후보(넘친 칸, 다음 근거의 행사 칸, 신호 없는 원자재)를 카드 점수 높은 순으로 채운다
+		List<Card> filled = Stream.of(eventAll, ingredientAll, supplyAll).flatMap(List::stream).filter(c -> !picked.contains(c))
+				.sorted(comparingInt((Card c) -> -best(c).total()).thenComparingInt(c -> -best(c).urgency()))
+				.limit(Math.max(0, MIN_CARDS - picked.size()))
+				.toList();
+		picked.addAll(filled);
+		// 순서는 묶음(행사 → 원자재 → 부자재), 묶음 안에서는 후보 순서라 채운 칸은 묶음 안에서 뒤에 온다
+		List<Card> all = Stream.of(eventAll, ingredientAll, supplyAll).flatMap(List::stream).filter(picked::contains).toList();
+		this.cards = IntStream.range(0, all.size()).mapToObj(i -> all.get(i).withId("C" + (i + 1), filled.contains(all.get(i)))).toList();
 	}
 
 	List<Score> scores() {
@@ -171,9 +192,13 @@ final class BriefingPlanner {
 		}
 		for (IngredientEvidence r : ingredients.items()) {
 			int signal = signal(r);
+			int certainty = r.price().price() != null ? 3 : 1;
 			if (signal != 0) {
 				// "이번 주 발주 전"으로 보고 4~7일(1점). 0일로 두면 작은 가격 변동도 늘 1등이 된다
-				put(r.price().evidenceId(), null, 1, Math.min(3, Math.abs(signal)), r.price().price() != null ? 3 : 1);
+				put(r.price().evidenceId(), null, 1, Math.min(3, Math.abs(signal)), certainty);
+			} else {
+				// 신호 없는 품목은 채우기 후보(단가 확인)로만 쓰여서 급한 정도·영향 0
+				put(r.price().evidenceId(), null, 0, 0, certainty);
 			}
 		}
 		for (SupplyEvidence s : supplyById.values()) {
@@ -254,9 +279,26 @@ final class BriefingPlanner {
 
 	// ---- 카드 칸 ----
 
+	/** 고른 근거(EventSource)의 칸 다음에, 채우기 후보로 나머지 근거(행사 → 시즌 → 날씨)가 여는 다른 유형의 칸을 붙인다 */
 	private List<Card> eventCards(Set<String> stockTriggers) {
+		EventSource primary = events.search().source();
+		List<Card> list = new ArrayList<>(eventCards(primary, Set.of(), stockTriggers));
+		Set<TaskType> taken = EnumSet.noneOf(TaskType.class);
+		list.forEach(c -> taken.add(c.taskType()));
+		for (EventSource source : List.of(EventSource.CULTURAL_EVENT, EventSource.SEASON, EventSource.WEATHER)) {
+			if (source != primary) {
+				List<Card> more = eventCards(source, taken, stockTriggers);
+				more.forEach(c -> taken.add(c.taskType()));
+				fillers.addAll(more);
+				list.addAll(more);
+			}
+		}
+		return list;
+	}
+
+	private List<Card> eventCards(EventSource source, Set<TaskType> taken, Set<String> stockTriggers) {
 		Map<TaskType, List<String>> opened = new EnumMap<>(TaskType.class);
-		switch (events.search().source()) {
+		switch (source) {
 			case CULTURAL_EVENT -> events.events().forEach(c -> eventTypes(c).forEach(t -> open(opened, t, c.event().evidenceId())));
 			case SEASON -> events.seasonEvents().forEach(h -> seasonTypes(h).forEach(t -> open(opened, t, h.evidenceId())));
 			case WEATHER -> {
@@ -268,6 +310,7 @@ final class BriefingPlanner {
 			case NONE -> {
 			}
 		}
+		opened.keySet().removeAll(taken);
 		// 부자재 묶음에 같은 근거로 걸린 판매 상품(kind=STOCK)이 있으면 재고 칸은 그쪽에서 다룬다
 		List<String> stock = opened.get(TaskType.STOCK);
 		if (stock != null) {
@@ -285,7 +328,6 @@ final class BriefingPlanner {
 				.filter(c -> !excluded.contains(c.key()))
 				// 대표 근거 마감 빠른 순 → 카드 점수 높은 순 → 유형 순서(EnumMap 순서, 정렬은 안정적)
 				.sorted(comparing(Card::dueDate, nullsLast(naturalOrder())).thenComparingInt(c -> -best(c).total()))
-				.limit(MAX_EVENT_CARDS)
 				.toList();
 	}
 
@@ -355,19 +397,25 @@ final class BriefingPlanner {
 
 	private List<Card> ingredientCards() {
 		List<Card> list = new ArrayList<>();
+		List<Card> quiet = new ArrayList<>();
 		for (IngredientEvidence r : ingredients.items()) {
 			int signal = signal(r);
+			IngredientPriceResponse p = r.price();
 			if (signal == 0) {
+				// 신호가 없는 품목은 채우기 후보로만 쓰는 단가 확인 칸
+				quiet.add(new Card(null, SuggestionCategory.INGREDIENT, TaskType.PRICE_CHECK, p.itemId(), List.of(p.evidenceId()),
+						quietReason(p), null));
+				fillers.add(quiet.get(quiet.size() - 1));
 				continue;
 			}
 			TaskType type = signal < 0 ? TaskType.PRICE_CHECK : holidayCode(r) != null ? TaskType.BUY_AHEAD : TaskType.ORDER_PLAN;
-			IngredientPriceResponse p = r.price();
 			list.add(new Card(null, SuggestionCategory.INGREDIENT, type, p.itemId(), List.of(p.evidenceId()), ingredientReason(r, type), null));
 		}
-		// 카드 점수 높은 순 → 1주 변동률 절댓값 큰 순 → 사장님이 고른 순(안정 정렬)
-		return list.stream().filter(c -> !excluded.contains(c.key()))
-				.sorted(comparingInt((Card c) -> -best(c).total()).thenComparing(c -> -weekChange(c)))
-				.limit(MAX_INGREDIENT_CARDS)
+		// 카드 점수 높은 순 → 1주 변동률 절댓값 큰 순 → 사장님이 고른 순(안정 정렬). 신호 없는 칸은 그 뒤
+		return Stream.concat(
+				list.stream().filter(c -> !excluded.contains(c.key()))
+						.sorted(comparingInt((Card c) -> -best(c).total()).thenComparing(c -> -weekChange(c))),
+				quiet.stream().filter(c -> !excluded.contains(c.key())))
 				.toList();
 	}
 
@@ -395,7 +443,6 @@ final class BriefingPlanner {
 		// prepare_by 빠른 순 → 카드 점수 높은 순 → 사장님이 고른 순(안정 정렬)
 		return list.stream().filter(c -> !excluded.contains(c.key()))
 				.sorted(comparing(Card::dueDate, nullsLast(naturalOrder())).thenComparingInt(c -> -best(c).total()))
-				.limit(MAX_SUPPLY_CARDS)
 				.toList();
 	}
 
@@ -501,6 +548,22 @@ final class BriefingPlanner {
 		return josa(name, "은", "는") + " 지금 사기 좋은 때예요.";
 	}
 
+	/** 신호 없는 원자재의 단가 확인 사유: 4주 변동을 있는 그대로 말한다 */
+	private static String quietReason(IngredientPriceResponse p) {
+		String name = p.name();
+		if (p.price() == null) {
+			return josa(name, "은", "는") + " 이번 주 가격 자료가 없어요.";
+		}
+		Double change4w = p.change4w() == null ? null : p.change4w().percent();
+		if (change4w == null) {
+			return josa(name, "은", "는") + " 4주 전 가격 자료가 없어요.";
+		}
+		if (change4w == 0) {
+			return josa(name, "은", "는") + " 4주 전과 가격이 같아요.";
+		}
+		return josa(name, "이", "가") + " 4주 전보다 " + percent(change4w) + "% " + (change4w > 0 ? "올랐어요." : "내렸어요.");
+	}
+
 	private static String supplyReason(SupplyTimingResponse t, TaskType type) {
 		String label = t.triggerLabel();
 		if (type == TaskType.ORDER_LESS) {
@@ -545,7 +608,7 @@ final class BriefingPlanner {
 
 	AiAnalyzeRequest aiRequest(StoreSummary summary) {
 		EventSource source = events.search().source();
-		Set<String> triggers = supplyTriggers();
+		Set<String> triggers = referenced();
 		WeatherResponse w = events.weather();
 		AiAnalyzeRequest.Weather weather = w != null && (source == EventSource.WEATHER || triggers.contains(w.evidenceId()))
 				? new AiAnalyzeRequest.Weather(w.evidenceId(), w.impacts(),
@@ -605,13 +668,14 @@ final class BriefingPlanner {
 			Card c = kept.get(i);
 			AiAnalyzeResponse.Suggestion s = written.get(c.cardId());
 			return new SuggestionResponse(i + 1, c.key(), c.category(), c.taskType(), c.itemId(), s.title(), c.reason(), c.dueDate(),
-					s.expected_effect(), s.sub_tasks() == null ? List.of() : s.sub_tasks(), picks.contains(c.cardId()), c.evidenceIds());
+					s.expected_effect(), s.sub_tasks() == null ? List.of() : s.sub_tasks(), picks.contains(c.cardId()), c.filled(),
+					c.evidenceIds());
 		}).toList();
 	}
 
-	/** 점수 높은 순 → 급한 정도 높은 순 → cards 순서로 3개. 같은 묶음 최대 2개, 같은 대표 근거 1개 */
+	/** 점수 높은 순 → 급한 정도 높은 순 → cards 순서로 3개. 같은 묶음 최대 2개, 같은 대표 근거 1개. 채운 칸은 근거가 약해 강추가 아니다 */
 	private Set<String> recommended(List<Card> kept) {
-		List<Card> ranked = kept.stream()
+		List<Card> ranked = kept.stream().filter(c -> !c.filled())
 				.sorted(comparingInt((Card c) -> -best(c).total()).thenComparingInt(c -> -best(c).urgency()))
 				.toList();
 		Set<String> picks = new HashSet<>();
@@ -631,8 +695,8 @@ final class BriefingPlanner {
 
 	BriefingResponse briefing(List<SuggestionResponse> suggestions) {
 		List<EventResponse> nearby = events.events().stream().map(EventCandidate::event).toList();
-		// 부자재 카드가 근거로 쓰는 시즌 행사는 대체 분기가 아니어도 보여 준다 (카드의 evidenceIds가 화면에서 풀리도록). 날씨는 지역 현황에 늘 보여 준다
-		Set<String> triggers = supplyTriggers();
+		// 카드·부자재가 근거로 쓰는 시즌 행사는 대체 분기가 아니어도 보여 준다 (카드의 evidenceIds가 화면에서 풀리도록). 날씨는 지역 현황에 늘 보여 준다
+		Set<String> triggers = referenced();
 		List<SeasonEventResponse> seasons = events.seasonEvents().stream()
 				.filter(h -> nearby.isEmpty() || triggers.contains(h.evidenceId())).toList();
 		WeatherResponse weather = events.weather();
@@ -641,9 +705,11 @@ final class BriefingPlanner {
 				supplies.stream().map(SupplyEvidence::timing).toList(), suggestions, sources);
 	}
 
-	private Set<String> supplyTriggers() {
-		Set<String> triggers = new HashSet<>();
-		supplyById.values().forEach(s -> triggers.add(s.timing().triggerEvidenceId()));
-		return triggers;
+	/** 부자재 트리거와 카드 근거. 채우기로 다른 근거(시즌·날씨)의 행사 칸이 들어오면 그 근거도 여기 있다 */
+	private Set<String> referenced() {
+		Set<String> ids = new HashSet<>();
+		supplyById.values().forEach(s -> ids.add(s.timing().triggerEvidenceId()));
+		cards.forEach(c -> ids.addAll(c.evidenceIds()));
+		return ids;
 	}
 }

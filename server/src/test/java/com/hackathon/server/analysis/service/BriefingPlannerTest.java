@@ -8,6 +8,7 @@ import java.time.OffsetDateTime;
 import java.util.List;
 
 import org.junit.jupiter.api.Test;
+import tools.jackson.databind.json.JsonMapper;
 
 import com.hackathon.server.analysis.dto.AiAnalyzeResponse;
 import com.hackathon.server.analysis.dto.EventSearch;
@@ -38,12 +39,13 @@ class BriefingPlannerTest {
 	void scoresEachEvidenceOnThreeAxes() {
 		var planner = ContractExample.planner(List.of());
 
-		// 쌀(R3)은 신호 0이라 후보가 아니다
+		// 쌀(R3)은 신호 0이라 채우기 후보(단가 확인)로만 쓰여 급한 정도·영향이 0이다
 		assertThat(planner.scores()).extracting(s -> s.evidenceId(), s -> s.urgency(), s -> s.impact(), s -> s.certainty(), s -> s.total())
 				.containsExactly(
 						tuple("E1", 1, 2, 3, 6),
 						tuple("R1", 1, 2, 3, 6),
 						tuple("R2", 1, 1, 3, 5),
+						tuple("R3", 0, 0, 3, 3),
 						tuple("S1", 3, 2, 3, 8),
 						tuple("S2", 2, 2, 3, 7));
 	}
@@ -157,14 +159,11 @@ class BriefingPlannerTest {
 
 	@Test
 	void briefingAlwaysShowsWeatherEvenWithSeasonEvents() {
-		var christmas = new SeasonEventResponse("H1", "CHRISTMAS", "크리스마스", TriggerType.HOLIDAY, LocalDate.of(2026, 12, 25),
-				LocalDate.of(2026, 12, 25));
-		var rain = new WeatherResponse("W1", "1120065000", List.of(WeatherImpact.RAIN_SNOW), List.of(),
-				List.of(new WeatherForecast(LocalDate.of(2026, 11, 18), DayPart.AM, "비", 4.0, null, 80)),
-				OffsetDateTime.parse("2026-11-17T06:50:00+09:00"),
-				List.of(new WeatherImpactStart(WeatherImpact.RAIN_SNOW, LocalDate.of(2026, 11, 18))));
+		var calm = new WeatherResponse("W1", "1120065000", List.of(), List.of(),
+				List.of(new WeatherForecast(LocalDate.of(2026, 11, 18), DayPart.AM, "맑음", 4.0, null, 10)),
+				OffsetDateTime.parse("2026-11-17T06:50:00+09:00"));
 		var events = new EventEvidence(new EventSearch(7, ContractExample.BASE_DATE, 0, EventSource.SEASON), List.of(),
-				List.of(christmas), rain, List.of());
+				List.of(CHRISTMAS), calm, List.of());
 		var bag = new SupplyEvidence(new SupplyTimingResponse("S1", 5, "배달 봉투", Demand.UP, LocalDate.of(2026, 11, 17), 1, "비", "W1"),
 				"SUPPLY", true);
 
@@ -176,6 +175,61 @@ class BriefingPlannerTest {
 		assertThat(withoutTrigger.seasonEvents()).extracting(SeasonEventResponse::evidenceId).containsExactly("H1");
 	}
 
+	/** 실제 브리핑에서 카드가 4장뿐이던 경우: 시즌 칸 2 + 원자재 1 + 부자재 1 → 날씨 칸으로 6장을 채운다 */
+	@Test
+	void fewCardsAreFilledToSixByCardScore() {
+		var events = new EventEvidence(new EventSearch(7, ContractExample.BASE_DATE, 0, EventSource.SEASON), List.of(),
+				List.of(CHRISTMAS), rain(), List.of());
+		var bag = new SupplyEvidence(new SupplyTimingResponse("S1", 5, "배달 봉투", Demand.UP, LocalDate.of(2026, 11, 17), 1, "비", "W1"),
+				"SUPPLY", true);
+		var ingredients = new IngredientEvidenceResult(List.of(ContractExample.R2, ContractExample.R3), List.of());
+
+		var planner = new BriefingPlanner(ContractExample.store(), events, ingredients, List.of(bag), List.of());
+
+		// 남은 후보 중 날씨(W1, 7점) 칸이 쌀 단가 확인(R3, 3점)보다 먼저 들어온다
+		assertThat(planner.cards()).extracting(c -> c.key(), c -> c.filled()).containsExactly(
+				tuple("EVENT:STOCK:-", false),
+				tuple("EVENT:PICKUP:-", false),
+				tuple("EVENT:STAFFING:-", true),
+				tuple("EVENT:FACILITY:-", true),
+				tuple("INGREDIENT:ORDER_PLAN:15", false),
+				tuple("SUPPLY:RESTOCK:5", false));
+		assertThat(planner.briefing(List.of()).weather().evidenceId()).isEqualTo("W1");
+
+		// 채운 날씨 칸은 점수가 더 높아도 강추가 아니다
+		List<SuggestionResponse> suggestions = planner.suggestions(written(planner, "C1", "C2", "C3", "C4", "C5", "C6"));
+		assertThat(suggestions).filteredOn(SuggestionResponse::recommended).extracting(SuggestionResponse::cardKey)
+				.containsExactly("EVENT:STOCK:-", "INGREDIENT:ORDER_PLAN:15", "SUPPLY:RESTOCK:5");
+		assertThat(suggestions).filteredOn(SuggestionResponse::filled).extracting(SuggestionResponse::cardKey)
+				.containsExactly("EVENT:STAFFING:-", "EVENT:FACILITY:-");
+	}
+
+	@Test
+	void enoughCardsAreNotFilled() {
+		var events = new EventEvidence(new EventSearch(7, ContractExample.BASE_DATE, 1, EventSource.CULTURAL_EVENT),
+				List.of(ContractExample.E1), List.of(CHRISTMAS), rain(), List.of());
+
+		var cards = new BriefingPlanner(ContractExample.store(), events, ContractExample.ingredients(), ContractExample.supplies(),
+				List.of()).cards();
+
+		// 계약 예시와 같은 7장. 시즌·날씨 칸과 쌀 단가 확인은 들어오지 않는다
+		assertThat(cards).extracting(c -> c.key()).containsExactly("EVENT:STAFFING:-", "EVENT:STOCK:-", "EVENT:PICKUP:-",
+				"INGREDIENT:PRICE_CHECK:12", "INGREDIENT:ORDER_PLAN:15", "SUPPLY:RESTOCK:3", "SUPPLY:RESTOCK:5");
+	}
+
+	@Test
+	void quietIngredientFillsAfterSignalCardsWithPlainReason() {
+		var events = new EventEvidence(new EventSearch(7, ContractExample.BASE_DATE, 0, EventSource.NONE), List.of(), List.of(), null,
+				List.of());
+
+		var cards = new BriefingPlanner(ContractExample.store(), events, ContractExample.ingredients(), List.of(), List.of()).cards();
+
+		assertThat(cards).extracting(c -> c.key(), c -> c.reason(), c -> c.filled()).containsExactly(
+				tuple("INGREDIENT:PRICE_CHECK:12", "배추가 4주 전보다 10.9% 올랐어요.", false),
+				tuple("INGREDIENT:ORDER_PLAN:15", "돼지고기가 4주 전보다 6.3% 내렸어요.", false),
+				tuple("INGREDIENT:PRICE_CHECK:7", "쌀은 4주 전과 가격이 같아요.", true));
+	}
+
 	@Test
 	void noEvidenceMeansNoCards() {
 		var events = new EventEvidence(new EventSearch(7, ContractExample.BASE_DATE, 0, EventSource.NONE), List.of(), List.of(), null,
@@ -184,11 +238,34 @@ class BriefingPlannerTest {
 		assertThat(new BriefingPlanner(ContractExample.store(), events, empty(), List.of(), null).cards()).isEmpty();
 	}
 
+	/** filled가 생기기 전에 저장된 final_result도 읽혀야 한다 */
+	@Test
+	void storedSuggestionWithoutFilledReadsAsNotFilled() {
+		String legacy = """
+				{"id":1,"cardKey":"EVENT:STOCK:-","category":"EVENT","taskType":"STOCK","itemId":null,"title":"제목","reason":"사유",
+				"dueDate":null,"expectedEffect":null,"subTasks":[],"recommended":true,"evidenceIds":["H1"]}""";
+
+		var suggestion = JsonMapper.builder().build().readValue(legacy, SuggestionResponse.class);
+
+		assertThat(suggestion.filled()).isFalse();
+		assertThat(suggestion.recommended()).isTrue();
+	}
+
 	@Test
 	void josaFollowsFinalConsonant() {
 		assertThat(BriefingPlanner.josa("배추", "이", "가")).isEqualTo("배추가");
 		assertThat(BriefingPlanner.josa("공연", "이", "가")).isEqualTo("공연이");
 		assertThat(BriefingPlanner.josa("쌀", "은", "는")).isEqualTo("쌀은");
+	}
+
+	private static final SeasonEventResponse CHRISTMAS = new SeasonEventResponse("H1", "CHRISTMAS", "크리스마스", TriggerType.HOLIDAY,
+			LocalDate.of(2026, 12, 25), LocalDate.of(2026, 12, 25));
+
+	private static WeatherResponse rain() {
+		return new WeatherResponse("W1", "1120065000", List.of(WeatherImpact.RAIN_SNOW), List.of(),
+				List.of(new WeatherForecast(LocalDate.of(2026, 11, 18), DayPart.AM, "비", 4.0, null, 80)),
+				OffsetDateTime.parse("2026-11-17T06:50:00+09:00"),
+				List.of(new WeatherImpactStart(WeatherImpact.RAIN_SNOW, LocalDate.of(2026, 11, 18))));
 	}
 
 	private static AiAnalyzeResponse written(BriefingPlanner planner, String... cardIds) {
