@@ -122,6 +122,8 @@ function RecommendationItem({
             강추
           </Tag>
         )}
+        {/* 근거가 적어 카드를 채우려고 넣은 할 일. 강추가 될 수 없다 */}
+        {item.filled && <Tag>참고</Tag>}
         {item.title}
       </p>
       <p className="mt-1 text-caption text-muted">
