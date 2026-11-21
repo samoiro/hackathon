@@ -1,6 +1,6 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { Alert, Button, Card, Spin } from 'antd'
-import { LuMapPin, LuPencil, LuStore } from 'react-icons/lu'
+import { Alert, App, Button, Card, Spin } from 'antd'
+import { LuMapPin, LuRefreshCw, LuStore } from 'react-icons/lu'
 import { useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router'
 import AreaStatus from '@/components/dashboard/AreaStatus'
@@ -65,9 +65,11 @@ export default function DashboardPage() {
         (item) => normalizeRoad(item.road) === normalizeRoad(road),
       )
   const start = useStartAnalysis()
+  const { notification } = App.useApp()
   const excluded = readExcludedCards()
 
-  function updateItems(items: InterestItems) {
+  // 같은 가게 정보로 오늘 기준 분석을 새로 만든다 (품목 수정·갱신 버튼이 함께 쓴다)
+  function restart(items: InterestItems) {
     if (!store || !address || start.isPending) return
     start.mutate(
       {
@@ -84,6 +86,10 @@ export default function DashboardPage() {
       {
         onSuccess: ({ analysisId }) =>
           navigate(`/briefing?id=${encodeURIComponent(analysisId)}`),
+        onError: () =>
+          notification.error({
+            title: '새 브리핑을 시작하지 못했어요. 잠시 후 다시 시도해 주세요.',
+          }),
       },
     )
   }
@@ -93,7 +99,28 @@ export default function DashboardPage() {
       wide
       className="flex flex-col gap-4 lg:gap-6"
       showSettingsCoach
-      // 헤더 가게 정보(피그마 BI-PC-03): 구분선 · 가게 아이콘 · 이름 · 위치와 업종, 그 옆에 수정 아이콘 버튼
+      // 매일 아침 다시 누르는 버튼: 지금 가게 정보·품목으로 오늘 기준 브리핑을 새로 받는다
+      headerActions={
+        store && (
+          <Button
+            size="small"
+            aria-label="오늘 기준으로 다시 받기"
+            title={
+              address
+                ? '오늘 기준으로 다시 받기'
+                : '가게 위치를 확인하는 중이에요'
+            }
+            icon={<LuRefreshCw aria-hidden />}
+            loading={start.isPending}
+            disabled={!address}
+            className="max-lg:size-11"
+            onClick={() =>
+              restart({ raw: store.ingredients, sub: store.supplies })
+            }
+          />
+        )
+      }
+      // 헤더 가게 정보(피그마 BI-PC-03): 구분선 · 가게 아이콘 · 이름 · 위치와 업종, 그 옆에 가게 정보 수정 버튼
       headerContext={
         store && (
           <div className="flex min-w-0 items-center gap-2 lg:gap-5">
@@ -102,7 +129,10 @@ export default function DashboardPage() {
               className="h-6 w-px shrink-0 bg-divider max-lg:hidden"
             />
             <p className="flex min-w-0 items-center gap-2">
-              <LuStore aria-hidden className="size-[18px] shrink-0" />
+              <LuStore
+                aria-hidden
+                className="size-[18px] shrink-0 max-sm:hidden"
+              />
               {/* 좁은 화면 + 큰 글자에서는 말줄임. 전체 이름은 마우스를 올리면 보인다 */}
               <span
                 title={store.name}
@@ -131,13 +161,13 @@ export default function DashboardPage() {
             />
             <Button
               size="small"
-              aria-label="가게 정보 수정"
               aria-haspopup="dialog"
-              title="가게 정보 수정"
-              icon={<LuPencil aria-hidden />}
               className="shrink-0"
               onClick={() => setResetOpen(true)}
-            />
+            >
+              <span className="max-lg:hidden">가게 정보 수정</span>
+              <span className="lg:hidden">수정</span>
+            </Button>
           </div>
         )
       }
@@ -191,7 +221,7 @@ export default function DashboardPage() {
               <PriceSection
                 analysis={analysis}
                 briefing={briefing}
-                onSave={updateItems}
+                onSave={restart}
                 saving={start.isPending || addressLookup.isFetching}
                 saveFailed={
                   start.isError || (!address && !addressLookup.isFetching)
