@@ -41,3 +41,4 @@ Never cut: validation at trust boundaries, error handling that prevents data los
 - 커밋과 push는 사용자가 요청했을 때만 합니다.
 - `server/`에서 예외를 던지거나 에러 코드를 추가할 때는 [`server/docs/exception-guide.md`](server/docs/exception-guide.md)를 따릅니다.
 - `server/` 테스트를 작성하거나 고칠 때는 [`server/.claude/skills/backend-testing`](server/.claude/skills/backend-testing/SKILL.md) skill을 따릅니다.
+- `server/`의 Repository는 Spring Data JPA 기본 문법(파생 쿼리 메서드, `Sort`·`Pageable` 파라미터, 기본 제공 메서드)을 먼저 씁니다. `@Query`는 메서드 이름이 지나치게 길어지거나 파생 쿼리로 표현할 수 없을 때만 씁니다.
