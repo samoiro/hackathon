@@ -4,7 +4,8 @@ import {
   Polygon,
   useKakaoLoader,
 } from 'react-kakao-maps-sdk'
-import { LuStore } from 'react-icons/lu'
+import { Tooltip } from 'antd'
+import { LuCalendar, LuStore } from 'react-icons/lu'
 import { kakaoOptions } from '@/lib/kakao/maps'
 import type { Address } from '@/types/search'
 import type { AreaResponse } from '@/lib/api/generated'
@@ -45,6 +46,12 @@ const inPolygons = (point: LatLng, polygons: LatLng[][][]) =>
     ([outer, ...holes]) =>
       inRing(point, outer) && !holes.some((hole) => inRing(point, hole)),
   )
+
+const groupByPlace = (events: MapEvent[]) =>
+  events.reduce((groups, event) => {
+    const key = `${event.latitude}:${event.longitude}`
+    return groups.set(key, [...(groups.get(key) ?? []), event])
+  }, new Map<string, MapEvent[]>())
 
 type MapEvent = { title: string; latitude: number; longitude: number }
 type MapProps = {
@@ -112,20 +119,33 @@ function KakaoAreaMap({
           </CustomOverlayMap>
         </>
       )}
-      {/* 핀끼리 가까워 이름을 지도에 쓰면 겹친다. 번호만 찍고 이름은 지도 아래 목록에 둔다 */}
-      {events.map((event, index) => (
+      {/* 같은 좌표의 행사는 한 이름표로 묶는다(광화문·시청처럼 한 점에 여럿). 이름이 길어 이름표엔 건수만, 이름은 툴팁으로 */}
+      {[...groupByPlace(events)].map(([key, group]) => (
         <CustomOverlayMap
-          key={`${event.title}:${event.latitude}:${event.longitude}`}
-          position={{ lat: event.latitude, lng: event.longitude }}
+          key={key}
+          position={{ lat: group[0].latitude, lng: group[0].longitude }}
           yAnchor={1}
           zIndex={1}
         >
-          <span
-            title={event.title}
-            className="flex size-7 items-center justify-center rounded-full border-2 border-primary-700 bg-surface text-tag font-semibold text-fg shadow-sm"
+          <Tooltip
+            trigger={['hover', 'focus', 'click']}
+            title={
+              <ul className="flex flex-col gap-1">
+                {group.map((event) => (
+                  <li key={event.title}>{event.title}</li>
+                ))}
+              </ul>
+            }
           >
-            {index + 1}
-          </span>
+            <button
+              type="button"
+              aria-label={`행사 ${group.length}건: ${group.map((event) => event.title).join(', ')}`}
+              className="flex items-center gap-1 rounded-full border-2 border-primary-700 bg-surface px-2 py-1 text-tag font-semibold whitespace-nowrap text-fg shadow-sm select-none"
+            >
+              <LuCalendar aria-hidden />
+              행사 {group.length}
+            </button>
+          </Tooltip>
         </CustomOverlayMap>
       ))}
     </KakaoMap>
@@ -161,27 +181,6 @@ export default function AreaMap({ address, area, events }: MapProps) {
         />
       ) : (
         <p className={statusClassName}>지도 설정이 필요해요.</p>
-      )}
-      {pins.length > 0 && (
-        <ol
-          aria-label="지도에 표시한 행사"
-          className="flex flex-col gap-1 border-t border-divider bg-surface px-3 py-2 text-caption"
-        >
-          {pins.map((event, index) => (
-            <li
-              key={`${event.title}:${event.latitude}:${event.longitude}`}
-              className="flex items-start gap-2"
-            >
-              <span
-                aria-hidden
-                className="flex size-5 shrink-0 items-center justify-center rounded-full border border-primary-700 bg-surface text-tag font-semibold text-fg"
-              >
-                {index + 1}
-              </span>
-              {event.title}
-            </li>
-          ))}
-        </ol>
       )}
       <figcaption
         id="area-map-caption"
