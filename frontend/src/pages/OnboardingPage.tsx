@@ -1,7 +1,7 @@
-import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
 import { Alert, Button, Card, Select, Tag } from 'antd'
 import { isAxiosError } from 'axios'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import {
   LuArrowRight,
   LuCheck,
@@ -13,13 +13,18 @@ import {
   LuMapPin,
   LuSearch,
 } from 'react-icons/lu'
-import { useLocation, useNavigate } from 'react-router'
+import { useNavigate } from 'react-router'
 import ChoiceChips from '@/components/common/ChoiceChips'
 import AppLayout from '@/components/layout/AppLayout'
 import StepIndicator from '@/components/layout/StepIndicator'
 import InterestItemsEditor from '@/components/items/InterestItemsEditor'
 import LocationSearchModal from '@/components/onboarding/LocationSearchModal'
-import type { InterestItems, StoreLocation } from '@/types/search'
+import {
+  loadOnboardingDraft,
+  saveOnboardingDraft,
+} from '@/lib/onboarding/draft'
+import type { SalesType } from '@/types/onboarding'
+import type { InterestItems } from '@/types/search'
 import { industries, recommendedItems } from '@/lib/api/generated'
 import { readExcludedCards, useStartAnalysis } from '@/lib/api/analysis'
 
@@ -37,14 +42,6 @@ const BENEFITS = [
   },
 ]
 
-type SalesType = 'STORE' | 'DELIVERY' | 'BOTH'
-type Draft = {
-  location?: StoreLocation
-  industryId?: number
-  salesType?: SalesType
-  items: InterestItems
-}
-
 const SALES_TYPES: { value: SalesType; label: string }[] = [
   { value: 'STORE', label: '매장만' },
   { value: 'DELIVERY', label: '배달만' },
@@ -57,10 +54,8 @@ function RequiredTag() {
 
 export default function OnboardingPage() {
   const navigate = useNavigate()
-  const { state } = useLocation()
-  const analysisFailure: unknown = state?.analysisFailure
-  const queryClient = useQueryClient()
-  const draft = queryClient.getQueryData<Draft>(['onboarding-draft'])
+  // 성공·실패 뒤 입력 화면으로 돌아와도 마지막 입력이 그대로 채워진다
+  const [draft] = useState(loadOnboardingDraft)
   const [locationOpen, setLocationOpen] = useState(false)
   const [location, setLocation] = useState(draft?.location)
   const [industryId, setIndustryId] = useState(draft?.industryId)
@@ -95,14 +90,13 @@ export default function OnboardingPage() {
   const ready = Boolean(location && industryId !== undefined)
   const suggested = recommendations.data
 
+  // 입력할 때마다 저장한다
+  useEffect(() => {
+    saveOnboardingDraft({ location, industryId, salesType, items })
+  }, [location, industryId, salesType, items])
+
   function submit() {
     if (start.isPending || !location || industryId === undefined) return
-    queryClient.setQueryData<Draft>(['onboarding-draft'], {
-      location,
-      industryId,
-      salesType,
-      items,
-    })
     start.mutate(
       {
         storeName: location.name,
@@ -160,9 +154,9 @@ export default function OnboardingPage() {
 
   return (
     <AppLayout
-      title="가게 정보 입력"
+      // 진행 단계는 로고 폭과 상관없이 헤더 정중앙에 둔다
       headerContext={
-        <div className="mx-auto">
+        <div className="absolute top-1/2 left-1/2 -translate-1/2">
           <StepIndicator current={1} />
         </div>
       }
@@ -174,9 +168,6 @@ export default function OnboardingPage() {
       <p className="mt-3 text-muted">
         가게와 업종만 알려주시면 바로 시작할 수 있어요.
       </p>
-      {typeof analysisFailure === 'string' && (
-        <Alert className="mt-4" type="error" showIcon title={analysisFailure} />
-      )}
 
       <div className="mt-6 grid grid-cols-[minmax(0,1fr)] items-start gap-4 lg:mt-8 lg:grid-cols-[minmax(0,736fr)_minmax(0,360fr)] lg:gap-6">
         <div className="flex flex-col gap-4 lg:gap-6">

@@ -22,11 +22,11 @@ export default function EvidenceSection({
             표시할 근거 자료가 없어요.
           </p>
         )}
-        <ul className="mt-4 grid gap-3 lg:grid-cols-3">
+        <ul className="mt-4 grid grid-cols-[minmax(0,1fr)] max-lg:divide-y max-lg:divide-divider lg:grid-cols-4 lg:gap-3">
           {sources.map((source) => (
             <li
               key={`${source.provider}:${source.name}`}
-              className="rounded-xl border border-divider p-4"
+              className="py-3 lg:rounded-xl lg:border lg:border-divider lg:p-4"
             >
               <p className="text-body-strong">{source.name}</p>
               <p className="mt-1 text-caption text-muted">

@@ -14,7 +14,7 @@ export default function AppHeader({
   return (
     <header className="border-b border-divider bg-surface">
       <div
-        className={`mx-auto grid h-14 ${width} grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 px-4 lg:h-18 lg:gap-5 lg:px-20`}
+        className={`relative mx-auto grid h-14 ${width} grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 px-4 lg:h-18 lg:gap-5 lg:px-20`}
       >
         {/* 로고는 누르는 기능 없이 표시만 한다. 모바일은 글자를 화면에서 빼고 낭독기에만 남긴다 */}
         <div className="flex items-center gap-3 whitespace-nowrap">

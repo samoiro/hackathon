@@ -10,6 +10,7 @@ import {
   LuExternalLink,
 } from 'react-icons/lu'
 import EmptyState from '@/components/common/EmptyState'
+import { useIsMobile } from '@/hooks/useIsMobile'
 import { usePrefersReducedMotion } from '@/hooks/usePrefersReducedMotion'
 
 const AUTO_MS = 3000
@@ -32,6 +33,14 @@ function scrollListTo(
   })
 }
 
+// 마감까지 남은 날 (마감 D-2). 오늘 마감이면 '오늘 마감'
+const dDay = (deadline: string) => {
+  const days = dayjs(deadline)
+    .startOf('day')
+    .diff(dayjs().startOf('day'), 'day')
+  return days <= 0 ? '오늘 마감' : `마감 D-${days}`
+}
+
 export default function SupportPrograms() {
   const query = useQuery({
     queryKey: ['support-programs'],
@@ -46,7 +55,9 @@ export default function SupportPrograms() {
   const reduceMotion = usePrefersReducedMotion()
   const [hovered, setHovered] = useState(false)
   const [focused, setFocused] = useState(false)
-  const rotating = !empty && !reduceMotion && !hovered && !focused
+  // PC는 세 줄 목록, 모바일만 옆으로 넘기는 캐러셀(피드백 반영안)
+  const mobile = useIsMobile()
+  const rotating = mobile && !empty && !reduceMotion && !hovered && !focused
 
   const cards = () => [...(listRef.current?.querySelectorAll('li') ?? [])]
 
@@ -80,7 +91,7 @@ export default function SupportPrograms() {
     <Card>
       <section
         aria-labelledby="support-heading"
-        aria-roledescription="캐러셀"
+        aria-roledescription={mobile ? '캐러셀' : undefined}
         onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => setHovered(false)}
         onFocus={() => setFocused(true)}
@@ -96,7 +107,7 @@ export default function SupportPrograms() {
           >
             마감 임박 지원사업
           </h2>
-          {!empty && (
+          {mobile && !empty && (
             <>
               {/* 자동으로 돌 때는 위치를 읽지 않는다. 멈췄을 때만 넘길 때마다 알려준다 */}
               <span
@@ -158,6 +169,35 @@ export default function SupportPrograms() {
               }
             />
           </div>
+        ) : !mobile ? (
+          <ul className="mt-4 flex flex-col gap-2">
+            {programs.map((program) => (
+              <li key={program.id}>
+                <a
+                  href={program.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="flex items-start gap-3 rounded-xl bg-canvas p-4 hover:bg-primary-50"
+                >
+                  <span className="min-w-0 flex-1">
+                    <span className="flex flex-wrap gap-1">
+                      <Tag color="warning">{dDay(program.deadline)}</Tag>
+                      {program.field && <Tag>{program.field}</Tag>}
+                    </span>
+                    <span className="mt-2 block text-body-strong">
+                      {program.title}
+                    </span>
+                    <span className="mt-1 block text-caption text-muted">
+                      {dayjs(program.deadline).format('M.D(ddd)')} 마감 ·{' '}
+                      {program.agency}
+                    </span>
+                  </span>
+                  <LuExternalLink aria-hidden className="mt-1 shrink-0" />
+                  <span className="sr-only">(새 창)</span>
+                </a>
+              </li>
+            ))}
+          </ul>
         ) : (
           <>
             <ul
@@ -172,9 +212,7 @@ export default function SupportPrograms() {
                   className="w-[85%] shrink-0 snap-start rounded-xl bg-canvas p-4"
                 >
                   <span className="flex gap-1">
-                    <Tag color="warning">
-                      마감 {dayjs(program.deadline).format('M.D(ddd)')}
-                    </Tag>
+                    <Tag color="warning">{dDay(program.deadline)}</Tag>
                     {program.field && <Tag>{program.field}</Tag>}
                   </span>
                   <p className="mt-2 text-body-strong">{program.title}</p>

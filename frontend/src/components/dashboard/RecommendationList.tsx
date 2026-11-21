@@ -1,12 +1,12 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { App, Button, Tag } from 'antd'
-import dayjs from 'dayjs'
+import DueBadge from '@/components/dashboard/DueBadge'
+import { useIsMobile } from '@/hooks/useIsMobile'
+import type { SuggestionResponse } from '@/lib/api/generated'
 import {
-  feedback,
-  type SuggestionResponse,
-  type SuggestionFeedbackRequest,
-} from '@/lib/api/generated'
-import { readExcludedCards, saveExcludedCard } from '@/lib/api/analysis'
+  readExcludedCards,
+  saveExcludedCard,
+  useSuggestionFeedback,
+} from '@/lib/api/analysis'
 import { useEffect, useRef, useState } from 'react'
 import { LuBan, LuCheck, LuPlus, LuThumbsUp } from 'react-icons/lu'
 import { TODO_LIMIT, useTodos } from '@/lib/dashboard/todos'
@@ -14,20 +14,31 @@ import type { TodoTag } from '@/types/todo'
 
 type Feedback = 'helpful' | 'dismissed' | null
 
-// 담기·피드백은 눌러서 켜고 끄는 버튼(aria-pressed). 모양과 너비는 그대로, 아이콘·글자·색이 함께 바뀐다
-// 담기를 누르면 오른쪽 '오늘 확인할 일'에 들어가고, 다시 누르면 빠진다
+const toTodo = (item: SuggestionResponse, tag: TodoTag) => ({
+  id: item.cardKey,
+  title: item.title,
+  tag,
+  strong: item.recommended,
+  reason: item.reason,
+  dueDate: item.dueDate,
+})
+
+// 추천 할 일 카드(피드백 반영안): 제목 · 기대 효과 · 준비 기한, 아래 줄에 피드백과 추가.
+// 피드백은 PC에서 글자 버튼, 모바일에서 44px 아이콘 버튼(이름은 그대로 '도움돼요'·'해당 없어요')
+// 추가를 누르면 '오늘 확인할 일'에 들어가고, 다시 누르면 빠진다. 강추는 처음부터 담겨 있고 뺄 수 없다
 function RecommendationItem({
   item,
   analysisId,
   tag,
-  stacked,
 }: {
   item: SuggestionResponse
   analysisId: string
   tag: TodoTag
-  stacked: boolean
+  // 묶음 머리의 '전체 추가' 버튼 (행사별 묶음에는 없다)
+  bulkAdd?: boolean
 }) {
   const { todos, add, remove } = useTodos()
+  const mobile = useIsMobile()
   const added = todos.some((todo) => todo.id === item.cardKey)
   const full = !added && todos.length >= TODO_LIMIT
   const [voteState, setFeedback] = useState<Feedback>(() =>
@@ -37,27 +48,27 @@ function RecommendationItem({
   const dismissRef = useRef<HTMLButtonElement>(null)
   const returnFocus = useRef(false)
   const { notification } = App.useApp()
-  const queryClient = useQueryClient()
-  const vote = useMutation({
-    mutationFn: (value: SuggestionFeedbackRequest['vote']) =>
-      feedback({
-        path: { id: analysisId },
-        body: { cardKey: item.cardKey, vote: value },
-        throwOnError: true,
-      }),
-    onSuccess: async (_, value) => {
+  const vote = useSuggestionFeedback(analysisId, item.cardKey, {
+    onSuccess: (value) => {
       const dismissed = value === 'NOT_RELEVANT'
       returnFocus.current = dismissed
       setFeedback(dismissed ? 'dismissed' : 'helpful')
-      saveExcludedCard(item.cardKey, dismissed)
       if (dismissed) remove(item.cardKey)
       notification.open({
         role: 'status',
-        title: dismissed ? '추천을 숨겼어요.' : '의견 고마워요!',
+        icon: <LuCheck aria-hidden className="text-primary-300" />,
+        title: (
+          <span className="text-body-strong">
+            {dismissed ? '알려 주셔서 고마워요' : '의견 고마워요!'}
+          </span>
+        ),
+        description: (
+          <span className="text-caption">
+            사장님 의견을 반영해 다음 추천을 더 잘 맞춰 드릴게요.
+          </span>
+        ),
         duration: 5,
-      })
-      await queryClient.invalidateQueries({
-        queryKey: ['analysis', analysisId],
+        closable: false,
       })
     },
     onError: () =>
@@ -101,43 +112,25 @@ function RecommendationItem({
     )
   }
 
+  const feedbackButton = mobile ? 'size-11 shrink-0' : 'text-muted'
+
   return (
-    <li
-      className={`rounded-xl border border-divider bg-surface p-4 ${
-        stacked ? '' : 'xl:flex xl:items-center xl:gap-4'
-      }`}
-    >
-      <div className="flex-1">
-        <p className="flex items-center gap-2 text-body-strong">
-          {item.recommended && (
-            <Tag color="#241a0d" variant="solid">
-              강추
-            </Tag>
-          )}
-          {item.title}
-        </p>
-        <p className="mt-1 text-caption text-muted">{item.reason}</p>
-        {item.dueDate && (
-          <p className="mt-1 text-caption text-muted">
-            {dayjs(item.dueDate).format('M월 D일')}까지
-          </p>
+    <li className="rounded-xl border border-divider bg-surface p-4">
+      <p className="flex flex-wrap items-center gap-2 text-body-strong">
+        {item.recommended && (
+          <Tag color="#241a0d" variant="solid">
+            강추
+          </Tag>
         )}
-        {item.expectedEffect && (
-          <p className="mt-1 text-caption text-muted">
-            기대 효과 · {item.expectedEffect}
-          </p>
-        )}
-        {item.subTasks.length > 0 && (
-          <ul className="mt-2 list-disc space-y-1 pl-4 text-caption text-muted">
-            {item.subTasks.map((task) => (
-              <li key={task}>{task}</li>
-            ))}
-          </ul>
-        )}
-      </div>
-      <div
-        className={`flex flex-wrap items-center gap-2 ${stacked ? 'mt-3' : 'max-xl:mt-3'}`}
-      >
+        {item.title}
+      </p>
+      <p className="mt-1 text-caption text-muted">
+        기대 효과 · {item.expectedEffect ?? item.reason}
+      </p>
+      <p className="mt-2">
+        <DueBadge dueDate={item.dueDate} />
+      </p>
+      <div className="mt-3 flex flex-wrap items-center gap-2">
         <div
           role="group"
           aria-label="이 추천이 도움이 되었나요"
@@ -145,53 +138,64 @@ function RecommendationItem({
         >
           <Button
             size="small"
-            color="default"
-            variant={voteState === 'helpful' ? 'solid' : 'outlined'}
+            type={mobile ? 'default' : 'text'}
+            aria-label={mobile ? '도움돼요' : undefined}
             aria-pressed={voteState === 'helpful'}
             icon={<LuThumbsUp aria-hidden />}
             loading={vote.isPending && vote.variables === 'HELPFUL'}
-            disabled={voteState === 'helpful' || vote.isPending}
+            disabled={vote.isPending}
+            className={`${feedbackButton} aria-pressed:bg-hero aria-pressed:text-on-hero`}
             onClick={() => vote.mutate('HELPFUL')}
           >
-            도움돼요
+            {!mobile && '도움돼요'}
           </Button>
           <Button
             ref={dismissRef}
             size="small"
-            aria-pressed={false}
+            type={mobile ? 'default' : 'text'}
+            aria-label={mobile ? '해당 없어요' : undefined}
             icon={<LuBan aria-hidden />}
             loading={vote.isPending && vote.variables === 'NOT_RELEVANT'}
             disabled={vote.isPending}
+            className={feedbackButton}
             onClick={() => vote.mutate('NOT_RELEVANT')}
           >
-            해당 없어요
+            {!mobile && '해당 없어요'}
           </Button>
         </div>
         <Button
-          size="small"
+          size={mobile ? 'middle' : 'small'}
           aria-pressed={added}
-          // 12개가 차면 더 담을 수 없다. 강추는 오늘 확인할 일에서 뺄 수 없어 담김으로 고정한다
+          // 12개가 차면 더 담을 수 없다. 강추는 오늘 확인할 일에서 뺄 수 없어 추가됨으로 고정한다
           disabled={full || (added && item.recommended)}
           title={
             full ? `할 일은 ${TODO_LIMIT}개까지 담을 수 있어요` : undefined
           }
           icon={added ? <LuCheck aria-hidden /> : <LuPlus aria-hidden />}
-          className="min-w-20 aria-pressed:border-success aria-pressed:bg-success-bg aria-pressed:text-success"
+          className="ml-auto min-w-20 aria-pressed:border-success-bg aria-pressed:bg-success-bg aria-pressed:text-success"
           onClick={() =>
-            added
-              ? remove(item.cardKey)
-              : add({
-                  id: item.cardKey,
-                  title: item.title,
-                  tag,
-                  strong: item.recommended,
-                })
+            added ? remove(item.cardKey) : add(toTodo(item, tag))
           }
         >
-          {added ? '담김' : '담기'}
+          {added ? '추가됨' : '추가'}
         </Button>
       </div>
     </li>
+  )
+}
+
+// 피드백 버튼 범례. 모바일은 아이콘만 보이므로 여기서 뜻을 알려준다 (리뷰 F-07: 화면에 한 번만)
+export function FeedbackLegend() {
+  return (
+    <p className="mt-3 text-caption text-muted">
+      <span className="mr-2 inline-flex items-center gap-1 font-semibold text-fg">
+        <LuThumbsUp aria-hidden /> 도움돼요
+      </span>
+      <span className="mr-2 inline-flex items-center gap-1 font-semibold text-fg">
+        <LuBan aria-hidden /> 해당 없어요
+      </span>
+      알려 주시면 사장님 의견을 반영해 다음 추천을 더 잘 맞춰 드려요.
+    </p>
   )
 }
 
@@ -201,7 +205,7 @@ export default function RecommendationList({
   items,
   analysisId,
   tag,
-  stacked = false,
+  bulkAdd = true,
   showFeedbackNote = false,
 }: {
   title: string
@@ -210,36 +214,32 @@ export default function RecommendationList({
   analysisId: string
   // 오늘 확인할 일에 붙는 분류
   tag: TodoTag
-  stacked?: boolean
+  // 묶음 머리의 '전체 추가' 버튼 (행사별 묶음에는 없다)
+  bulkAdd?: boolean
   // 같은 안내가 반복되지 않게 화면의 첫 목록에만 보여준다 (리뷰 F-07)
   showFeedbackNote?: boolean
 }) {
   const { add } = useTodos()
 
   return (
-    <section className="rounded-xl bg-canvas p-4">
+    <section className="max-lg:border-t max-lg:border-divider max-lg:pt-4 lg:rounded-xl lg:bg-canvas lg:p-4">
       <div className="flex items-center justify-between gap-3">
         <div>
           <h3 className="text-body-strong">{title}</h3>
           <p className="text-caption text-muted">{description}</p>
         </div>
-        <Button
-          size="small"
-          onClick={() =>
-            items
-              .filter((item) => !readExcludedCards().includes(item.cardKey))
-              .forEach((item) =>
-                add({
-                  id: item.cardKey,
-                  title: item.title,
-                  tag,
-                  strong: item.recommended,
-                }),
-              )
-          }
-        >
-          전체 추가
-        </Button>
+        {bulkAdd && (
+          <Button
+            size="small"
+            onClick={() =>
+              items
+                .filter((item) => !readExcludedCards().includes(item.cardKey))
+                .forEach((item) => add(toTodo(item, tag)))
+            }
+          >
+            전체 추가
+          </Button>
+        )}
       </div>
       <ul className="mt-3 flex flex-col gap-2">
         {items.map((item) => (
@@ -248,17 +248,10 @@ export default function RecommendationList({
             analysisId={analysisId}
             item={item}
             tag={tag}
-            stacked={stacked}
           />
         ))}
       </ul>
-      {showFeedbackNote && (
-        <p className="mt-3 text-caption text-muted">
-          추천마다 <span className="font-semibold text-fg">도움돼요</span>나{' '}
-          <span className="font-semibold text-fg">해당 없어요</span>를 눌러
-          주시면, 다음 브리핑부터 우리 가게에 맞는 추천을 더 골라 드려요.
-        </p>
-      )}
+      {showFeedbackNote && <FeedbackLegend />}
     </section>
   )
 }

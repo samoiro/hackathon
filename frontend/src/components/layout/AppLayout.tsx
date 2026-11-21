@@ -1,11 +1,10 @@
 import { useEffect, useRef, type ReactNode } from 'react'
 import { LuClock3, LuDatabase, LuType } from 'react-icons/lu'
-import { useNavigationType } from 'react-router'
+import { useLocation, useNavigationType } from 'react-router'
 import AppHeader from '@/components/layout/AppHeader'
 
-// 화면이 바뀌면 문서 제목을 바꾸고, 앱 안에서 이동했을 때는 본문으로 포커스를 옮긴다 (첫 진입·뒤로 가기는 그대로)
+// 탭 제목은 index.html의 서비스 이름으로 고정한다. 앱 안에서 이동했을 때는 본문으로 포커스를 옮긴다 (첫 진입·뒤로 가기는 그대로)
 export default function AppLayout({
-  title,
   headerContext,
   showSettingsCoach,
   wide = false,
@@ -13,7 +12,6 @@ export default function AppLayout({
   className = '',
   children,
 }: {
-  title: string
   headerContext?: ReactNode
   showSettingsCoach?: boolean
   // 대시보드처럼 정보가 많은 화면은 헤더·본문·푸터를 1280(좌우 80 포함 1440)으로 넓힌다
@@ -25,12 +23,12 @@ export default function AppLayout({
 }) {
   const chromeWidth = wide ? 'max-w-[1440px]' : 'max-w-[1280px]'
   const navigationType = useNavigationType()
+  const { pathname } = useLocation()
   const mainRef = useRef<HTMLElement>(null)
 
   useEffect(() => {
-    document.title = `${title} | 사모이로`
     if (navigationType !== 'POP') mainRef.current?.focus()
-  }, [title, navigationType])
+  }, [pathname, navigationType])
 
   return (
     <>

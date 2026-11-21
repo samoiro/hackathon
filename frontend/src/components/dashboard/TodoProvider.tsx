@@ -26,6 +26,8 @@ export default function TodoProvider({
         setTodos((prev) =>
           prev.filter((item) => item.id !== id || item.strong),
         ),
+      dismiss: (id: string) =>
+        setTodos((prev) => prev.filter((item) => item.id !== id)),
       toggleDone: (id: string) =>
         setTodos((prev) =>
           prev.map((item) =>

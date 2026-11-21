@@ -1,5 +1,13 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { create, get, type AnalysisRequest } from '@/lib/api/generated'
+import {
+  create,
+  feedback,
+  get,
+  type AnalysisRequest,
+  type SuggestionFeedbackRequest,
+} from '@/lib/api/generated'
+
+type FeedbackVote = SuggestionFeedbackRequest['vote']
 
 export function useAnalysis(id: string, poll = false) {
   return useQuery({
@@ -52,4 +60,36 @@ export function saveExcludedCard(key: string, excluded: boolean) {
   } catch {
     /* 저장소를 사용할 수 없으면 현재 분석에서만 적용한다. */
   }
+}
+
+// 추천 카드 피드백(도움돼요·해당 없어요). 해당 없어요는 다음 분석에서 빼도록 이 기기에 카드 키를 남긴다
+export function useSuggestionFeedback(
+  analysisId: string,
+  cardKey: string,
+  {
+    onSuccess,
+    onError,
+  }: {
+    onSuccess?: (vote: FeedbackVote) => void
+    onError?: (err: Error) => void
+  } = {},
+) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (vote: FeedbackVote) => {
+      await feedback({
+        path: { id: analysisId },
+        body: { cardKey, vote },
+        throwOnError: true,
+      })
+      saveExcludedCard(cardKey, vote === 'NOT_RELEVANT')
+    },
+    onSuccess: async (_, vote) => {
+      onSuccess?.(vote)
+      await queryClient.invalidateQueries({
+        queryKey: ['analysis', analysisId],
+      })
+    },
+    onError,
+  })
 }

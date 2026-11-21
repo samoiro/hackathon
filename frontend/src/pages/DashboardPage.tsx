@@ -1,6 +1,6 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Alert, Button, Card, Spin } from 'antd'
-import { LuPencil, LuStore } from 'react-icons/lu'
+import { LuMapPin, LuPencil, LuStore } from 'react-icons/lu'
 import { useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router'
 import AreaStatus from '@/components/dashboard/AreaStatus'
@@ -11,6 +11,7 @@ import PriceSection from '@/components/dashboard/PriceSection'
 import SupportPrograms from '@/components/dashboard/SupportPrograms'
 import TodayChecklist from '@/components/dashboard/TodayChecklist'
 import TodayChecklistBar from '@/components/dashboard/TodayChecklistBar'
+import SectionTabs from '@/components/dashboard/SectionTabs'
 import TodoProvider from '@/components/dashboard/TodoProvider'
 import AppLayout from '@/components/layout/AppLayout'
 import EmptyState from '@/components/common/EmptyState'
@@ -41,6 +42,7 @@ export default function DashboardPage() {
     params.get('id') ?? client.getQueryData<string>(['last-briefing']) ?? ''
   const query = useAnalysis(id, true)
   const [resetOpen, setResetOpen] = useState(false)
+  const [areaOpen, setAreaOpen] = useState(false)
   const analysis = query.data
   const briefing = analysis?.briefing
   const store = analysis?.store
@@ -88,7 +90,6 @@ export default function DashboardPage() {
 
   return (
     <AppLayout
-      title="오늘의 1분 경영회의"
       wide
       className="flex flex-col gap-4 lg:gap-6"
       showSettingsCoach
@@ -119,6 +120,15 @@ export default function DashboardPage() {
                   .join(' · ')}
               </span>
             </p>
+            {/* 모바일은 지역 현황을 아래 시트로 연다 (BI-MO-03-2) */}
+            <Button
+              size="small"
+              aria-label="지역 현황"
+              aria-haspopup="dialog"
+              icon={<LuMapPin aria-hidden />}
+              className="shrink-0 lg:hidden"
+              onClick={() => setAreaOpen(true)}
+            />
             <Button
               size="small"
               aria-label="가게 정보 수정"
@@ -164,12 +174,15 @@ export default function DashboardPage() {
               title: item.title,
               tag: todoTags[item.category],
               strong: true,
+              reason: item.reason,
+              dueDate: item.dueDate,
             }))}
         >
           <DashboardHero analysis={analysis} briefing={briefing} />
           {/* 두 칸(855:400)은 1280px부터. 그보다 좁으면 오른쪽 칸이 너무 좁아져 한 줄로 쌓는다 */}
           <div className="grid grid-cols-[minmax(0,1fr)] items-start gap-4 lg:gap-6 xl:grid-cols-[minmax(0,855fr)_minmax(0,400fr)]">
             <div className="flex flex-col gap-4 lg:gap-6">
+              <SectionTabs />
               <EventsSection
                 id={id}
                 briefing={briefing}
@@ -187,19 +200,34 @@ export default function DashboardPage() {
             </div>
             <div className="flex flex-col gap-4 lg:gap-6">
               <div className="max-lg:hidden">
-                <TodayChecklist />
+                <TodayChecklist analysisId={id} />
               </div>
-              <AreaStatus
-                label={store?.areaLabel || store?.gu || ''}
-                address={address}
-                events={briefing.events}
-                weather={briefing.weather}
-              />
+              <div className="max-lg:hidden">
+                <AreaStatus
+                  label={store?.areaLabel || store?.gu || ''}
+                  address={address}
+                  events={briefing.events}
+                  weather={briefing.weather}
+                />
+              </div>
               <SupportPrograms />
             </div>
           </div>
           <EvidenceSection sources={briefing.sources} />
-          <TodayChecklistBar />
+          <TodayChecklistBar analysisId={id} />
+          <ResponsiveDialog
+            open={areaOpen}
+            onClose={() => setAreaOpen(false)}
+            title="지금 이 지역은 어떤가요?"
+          >
+            <AreaStatus
+              sheet
+              label={store?.areaLabel || store?.gu || ''}
+              address={address}
+              events={briefing.events}
+              weather={briefing.weather}
+            />
+          </ResponsiveDialog>
         </TodoProvider>
       ) : (
         <>

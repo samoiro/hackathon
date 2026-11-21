@@ -7,6 +7,8 @@ type TodoContextValue = {
   todos: Todo[]
   add: (todo: Todo) => void
   remove: (id: string) => void
+  // 해당 없어요: 강추도 목록에서 뺀다
+  dismiss: (id: string) => void
   toggleDone: (id: string) => void
 }
 

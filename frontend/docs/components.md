@@ -88,12 +88,12 @@
 
 ### 뼈대 `components/layout`
 
-| 컴포넌트                 | 하는 일                                                                                                                          |
-| ------------------------ | -------------------------------------------------------------------------------------------------------------------------------- |
-| `AppLayout`              | 본문 바로가기, 헤더, main, 푸터. 문서 제목과 이동 뒤 포커스 처리. `title`, `headerContext`, `wide`, `width`, `showSettingsCoach` |
-| `AppHeader`              | 헤더 v3 세 칸                                                                                                                    |
-| `StepIndicator`          | 입력 → 분석 → 브리핑 단계. 지금 단계는 `aria-current="step"`이고, 지난 단계는 '완료' 글자로 표시                                 |
-| `DisplaySettingsPopover` | 글자 크기와 화면 모드. 고르면 바로 적용되고, 첫 방문 안내 말풍선이 있음                                                          |
+| 컴포넌트                 | 하는 일                                                                                                                     |
+| ------------------------ | --------------------------------------------------------------------------------------------------------------------------- |
+| `AppLayout`              | 본문 바로가기, 헤더, main, 푸터. 이동 뒤 포커스 처리(탭 제목은 고정). `headerContext`, `wide`, `width`, `showSettingsCoach` |
+| `AppHeader`              | 헤더 v3 세 칸                                                                                                               |
+| `StepIndicator`          | 입력 → 분석 → 브리핑 단계. 지금 단계는 `aria-current="step"`이고, 지난 단계는 '완료' 글자로 표시                            |
+| `DisplaySettingsPopover` | 글자 크기와 화면 모드. 고르면 바로 적용되고, 첫 방문 안내 말풍선이 있음                                                     |
 
 ### 기능 컴포넌트
 
@@ -107,6 +107,8 @@
 | `dashboard/RecommendationList`               | 추천 할 일. 담기·담김 토글, 피드백, 숨기기와 되돌리기, 전체 추가                                                       |
 | `dashboard/PriceSection` / `PriceTrendChart` | 관심 품목 가격 타일과 4주 추이 차트(recharts). 증감색이 선, 점, 그라디언트를 따름                                      |
 | `dashboard/AreaStatus` / `AreaMap`           | 지역 자동완성 선택, 혼잡도, 연령대                                                                                     |
+| `dashboard/SectionTabs`                      | 행사·관심 품목 섹션 바로가기(링크). 보이는 섹션에 밑줄                                                                 |
+| `dashboard/DueBadge`                         | 준비 기한 배지. 기한이 없으면 '이번 주 발주 전까지'                                                                    |
 | `dashboard/TodayChecklistBar`                | 모바일 화면 아래 '오늘 확인할 일' 줄과 시트                                                                            |
 | `dashboard/TodayChecklist` + `TodoProvider`  | 오늘 확인할 일. 강추(따로 API, 삭제 불가) + 담은 할 일(삭제 확인 뒤 삭제). 체크하면 취소선, 최대 12개                  |
 | `dashboard/SupportPrograms`                  | 마감 임박 지원사업 캐러셀. 3초 자동 넘김(마우스·포커스가 있으면 잠시 멈춤), 이전·다음, 점                              |
