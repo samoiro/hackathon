@@ -9,6 +9,7 @@ import {
 } from '@/lib/api/analysis'
 import type { AnalysisRequest, AnalysisStep } from '@/lib/api/generated'
 import { useNavigate, useSearchParams } from 'react-router'
+import MascotFace from '@/components/common/MascotFace'
 import AppLayout from '@/components/layout/AppLayout'
 import StepIndicator from '@/components/layout/StepIndicator'
 import WaveProgress from '@/components/common/WaveProgress'
@@ -126,22 +127,18 @@ export default function BriefingPage() {
 
   return (
     <AppLayout
-      title={failed ? '브리핑 실패' : '브리핑 준비 중'}
+      // 진행 단계는 로고 폭과 상관없이 헤더 정중앙에 둔다
       headerContext={
-        <div className="mx-auto">
+        <div className="absolute top-1/2 left-1/2 -translate-1/2">
           <StepIndicator current={2} />
         </div>
       }
     >
-      <Card className="mx-auto w-full max-w-[720px]">
+      <Card
+        className={`mx-auto w-full max-w-[720px] ${failed ? 'border-danger' : ''}`}
+      >
         <div className="flex flex-col items-center pt-4 text-center lg:px-4">
-          <img
-            src="/images/mascot-face.png"
-            alt=""
-            width={96}
-            height={96}
-            className="size-16 rounded-full bg-primary-100 object-contain p-1.5 lg:size-24 lg:p-2"
-          />
+          <MascotFace crying={failed} className="size-16 lg:size-24" />
           <h1 aria-live="polite" className="mt-6 text-title">
             {failed
               ? '브리핑을 만들다가 멈췄어요'

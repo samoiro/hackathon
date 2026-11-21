@@ -220,6 +220,30 @@
   outline: none;
 }
 
+/* 브리핑 실패 화면의 우는 강아지 눈물. 동작 줄이기 설정이면 흐르지 않고 제자리에 둔다 */
+@media (prefers-reduced-motion: no-preference) {
+  .mascot-tear {
+    animation: mascot-tear 1.6s ease-in infinite;
+  }
+  .mascot-tear-late {
+    animation-delay: 0.8s;
+  }
+}
+
+@keyframes mascot-tear {
+  0% {
+    opacity: 0;
+    transform: translateY(0);
+  }
+  20% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(36px);
+  }
+}
+
 /* recharts는 클릭한 차트 층(tabindex=-1)에 포커스를 줘서 테두리가 생긴다. 차트는 탭으로 닿지 않고
    낭독기에서도 숨긴 꾸밈 영역(값은 figcaption 목록으로 읽는다)이라 여기서만 테두리를 지운다 */
 .recharts-wrapper :focus,

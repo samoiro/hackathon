@@ -4,7 +4,9 @@ import { useState } from 'react'
 import { LuCalendar } from 'react-icons/lu'
 import ChoiceChips from '@/components/common/ChoiceChips'
 import EmptyState from '@/components/common/EmptyState'
-import RecommendationList from '@/components/dashboard/RecommendationList'
+import RecommendationList, {
+  FeedbackLegend,
+} from '@/components/dashboard/RecommendationList'
 import type { BriefingResponse, EventSearch } from '@/lib/api/generated'
 
 export default function EventsSection({
@@ -30,14 +32,20 @@ export default function EventsSection({
     kind === '전체'
       ? events
       : events.filter(({ category }) => category === kind)
-  const recommendations = briefing.suggestions.filter(
-    (item) =>
-      item.category === 'EVENT' &&
-      (kind === '전체' ||
-        visible.some(({ evidenceId }) =>
-          item.evidenceIds.includes(evidenceId),
-        )),
+  const eventSuggestions = briefing.suggestions.filter(
+    (item) => item.category === 'EVENT',
   )
+  // 추천 할 일은 대표 근거(evidenceIds 첫 번째)인 행사 아래에 묶는다 (피드백 반영안)
+  const forEvent = (evidenceId: string) =>
+    eventSuggestions.filter((item) => item.evidenceIds[0] === evidenceId)
+  // 행사에 묶이지 않은 할 일(시즌 행사·날씨 근거)은 목록 아래에 따로
+  const others = eventSuggestions.filter(
+    (item) => !events.some((event) => event.evidenceId === item.evidenceIds[0]),
+  )
+  const groupNote = (event: (typeof events)[number]) =>
+    event.status === 'ONGOING'
+      ? `${dayjs(event.endDate).format('M.D(ddd)')}까지 진행 중이에요`
+      : `${[dayjs(event.startDate).format('M.D(ddd)'), event.timeText?.split('–')[0]].filter(Boolean).join(' ')} 시작`
   return (
     <Card id="events">
       <section aria-labelledby="events-heading">
@@ -64,47 +72,63 @@ export default function EventsSection({
               />
             </div>
             <ul className="mt-4 flex flex-col divide-y divide-divider">
-              {visible.map((event) => (
-                <li
-                  key={event.evidenceId}
-                  className="flex items-center gap-4 py-3"
-                >
-                  <div className="flex w-12 shrink-0 flex-col items-center rounded-xl bg-canvas py-2">
-                    <span className="text-caption text-muted">
-                      {dayjs(event.startDate).format('ddd')}
-                    </span>
-                    <span className="text-item">
-                      {dayjs(event.startDate).format('D')}
-                    </span>
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-item">
-                      <Tag
-                        color={
-                          event.status === 'ONGOING' ? 'success' : 'processing'
-                        }
-                      >
-                        {event.status === 'ONGOING' ? '진행 중' : '예정'}
-                      </Tag>
-                      {event.title}
-                    </p>
-                    <p className="mt-1 text-caption text-muted">
-                      {dayjs(event.startDate).format('M.D(ddd)')} ·{' '}
-                      {event.timeText && `${event.timeText} · `}
-                      {event.place}
-                    </p>
-                    <p className="mt-1 text-caption lg:hidden">
-                      {event.distanceM}m · 도보 약 {event.walkMinutes}분
-                    </p>
-                  </div>
-                  <div className="text-right max-lg:hidden">
-                    <p className="text-item">{event.distanceM}m</p>
-                    <p className="text-caption text-muted">
-                      도보 약 {event.walkMinutes}분
-                    </p>
-                  </div>
-                </li>
-              ))}
+              {visible.map((event) => {
+                const items = forEvent(event.evidenceId)
+                return (
+                  <li key={event.evidenceId} className="py-3">
+                    <div className="flex items-center gap-4">
+                      <div className="flex w-12 shrink-0 flex-col items-center rounded-xl bg-canvas py-2">
+                        <span className="text-caption text-muted">
+                          {dayjs(event.startDate).format('ddd')}
+                        </span>
+                        <span className="text-item">
+                          {dayjs(event.startDate).format('D')}
+                        </span>
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="flex flex-wrap items-center gap-x-2 text-item">
+                          <Tag
+                            color={
+                              event.status === 'ONGOING'
+                                ? 'success'
+                                : 'processing'
+                            }
+                          >
+                            {event.status === 'ONGOING' ? '진행 중' : '예정'}
+                          </Tag>
+                          {event.title}
+                        </p>
+                        <p className="mt-1 text-caption text-muted">
+                          {dayjs(event.startDate).format('M.D(ddd)')} ·{' '}
+                          {event.timeText && `${event.timeText} · `}
+                          {event.place}
+                        </p>
+                        <p className="mt-1 text-body-strong lg:hidden">
+                          {event.distanceM}m · 도보 약 {event.walkMinutes}분
+                        </p>
+                      </div>
+                      <div className="text-right max-lg:hidden">
+                        <p className="text-item">{event.distanceM}m</p>
+                        <p className="text-caption text-muted">
+                          도보 약 {event.walkMinutes}분
+                        </p>
+                      </div>
+                    </div>
+                    {items.length > 0 && (
+                      <div className="mt-3">
+                        <RecommendationList
+                          analysisId={id}
+                          tag="행사"
+                          title={`${event.title} 준비 할 일`}
+                          description={groupNote(event)}
+                          items={items}
+                          bulkAdd={false}
+                        />
+                      </div>
+                    )}
+                  </li>
+                )
+              })}
             </ul>
           </>
         ) : (
@@ -134,18 +158,18 @@ export default function EventsSection({
             {weather.forecasts[0].sky}
           </p>
         )}
-        {recommendations.length > 0 && (
+        {others.length > 0 && (
           <div className="mt-4">
             <RecommendationList
               analysisId={id}
-              showFeedbackNote
               tag="행사"
               title="추천 할 일"
-              description="브리핑에서 확인한 근거로 골랐어요."
-              items={recommendations}
+              description="시즌 행사와 날씨에서 확인한 준비 항목이에요."
+              items={others}
             />
           </div>
         )}
+        {eventSuggestions.length > 0 && <FeedbackLegend />}
       </section>
     </Card>
   )

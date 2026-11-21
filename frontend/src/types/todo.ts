@@ -7,4 +7,8 @@ export type Todo = {
   // 강추: 따로 API로 받아오는 급하고 중요한 할 일. 오늘 확인할 일에서 지울 수 없다
   strong?: boolean
   done?: boolean
+  // 왜 이 일을 하는지 (추천 카드의 reason)
+  reason?: string
+  // 준비 기한 LocalDate. 없으면 '이번 주 발주 전까지'
+  dueDate?: string
 }
