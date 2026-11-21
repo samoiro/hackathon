@@ -7,7 +7,19 @@ import EmptyState from '@/components/common/EmptyState'
 import RecommendationList, {
   FeedbackLegend,
 } from '@/components/dashboard/RecommendationList'
-import type { BriefingResponse, EventSearch } from '@/lib/api/generated'
+import type {
+  BriefingResponse,
+  EventSearch,
+  SeasonEventResponse,
+} from '@/lib/api/generated'
+
+const seasonTypes: Record<SeasonEventResponse['type'], string> = {
+  HOLIDAY: '명절·공휴일',
+  SCHOOL: '학사 일정',
+  SEASON: '계절',
+  WEATHER: '날씨',
+  EVENT: '행사',
+}
 
 export default function EventsSection({
   id,
@@ -19,7 +31,12 @@ export default function EventsSection({
   eventSearch?: EventSearch
 }) {
   const [kind, setKind] = useState('전체')
-  const { events, seasonEvents, weather } = briefing
+  const { events, weather } = briefing
+  const base = dayjs(eventSearch?.baseDate).startOf('day')
+  // 이미 끝난 시즌은 빼고, 시작이 가까운 순으로
+  const seasonEvents = briefing.seasonEvents
+    .filter((event) => !dayjs(event.endDate).isBefore(base, 'day'))
+    .sort((a, b) => a.startDate.localeCompare(b.startDate))
   const categories = [
     '전체',
     ...new Set(
@@ -143,12 +160,41 @@ export default function EventsSection({
         {!events.length && seasonEvents.length > 0 && (
           <div className="mt-4 rounded-xl bg-canvas p-4">
             <h3 className="text-body-strong">시즌 행사</h3>
-            <ul className="mt-2 grid grid-cols-[minmax(0,1fr)] gap-2">
-              {seasonEvents.map((event) => (
-                <li key={event.evidenceId} className="text-caption">
-                  {event.label} · {dayjs(event.startDate).format('M월 D일')}
-                </li>
-              ))}
+            <p className="text-caption text-muted">
+              주변 행사 대신 준비에 참고할 계절·명절 일정이에요.
+            </p>
+            <ul className="mt-2 flex flex-col divide-y divide-divider">
+              {seasonEvents.map((event) => {
+                const start = dayjs(event.startDate)
+                const end = dayjs(event.endDate)
+                const daysLeft = start.diff(base, 'day')
+                return (
+                  <li
+                    key={event.evidenceId}
+                    className="flex items-center gap-4 py-3"
+                  >
+                    <div className="flex w-12 shrink-0 flex-col items-center rounded-xl bg-surface py-2">
+                      <span className="text-caption text-muted">
+                        {start.format('M월')}
+                      </span>
+                      <span className="text-item">{start.format('D')}</span>
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="flex flex-wrap items-center gap-x-2 text-item">
+                        <Tag color={daysLeft > 0 ? 'processing' : 'success'}>
+                          {daysLeft > 0 ? `D-${daysLeft}` : '진행 중'}
+                        </Tag>
+                        {event.label}
+                      </p>
+                      <p className="mt-1 text-caption text-muted">
+                        {seasonTypes[event.type]} · {start.format('M.D(ddd)')}
+                        {!end.isSame(start, 'day') &&
+                          ` ~ ${end.format('M.D(ddd)')}`}
+                      </p>
+                    </div>
+                  </li>
+                )
+              })}
             </ul>
           </div>
         )}
