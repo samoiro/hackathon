@@ -34,6 +34,9 @@ batch:
   ingredient-price:
     # 매일 10시(KST). aT는 조사일 다음 날 가격을 공개한다. "-"면 끈다
     cron: ${INGREDIENT_PRICE_CRON:0 0 10 * * *}
+  support-program:
+    # 매일 6시(KST). 기업마당은 낮에 공고를 올려서 아침에 전날 공고까지 받는다. "-"면 끈다
+    cron: ${SUPPORT_PROGRAM_CRON:0 0 6 * * *}
 
 app:
   cors:
