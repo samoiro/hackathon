@@ -1,14 +1,15 @@
-import { Alert, Button, Card, Tag } from 'antd'
-import { LuCheck, LuRotateCw, LuX } from 'react-icons/lu'
+import { Card, Tag } from 'antd'
+import { LuCheck, LuX } from 'react-icons/lu'
 import { useEffect } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
+import { useAnalysis } from '@/lib/api/analysis'
+import type { AnalysisStep } from '@/lib/api/generated'
 import {
-  readExcludedCards,
-  useAnalysis,
-  useStartAnalysis,
-} from '@/lib/api/analysis'
-import type { AnalysisRequest, AnalysisStep } from '@/lib/api/generated'
-import { useNavigate, useSearchParams } from 'react-router'
+  Navigate,
+  useNavigate,
+  useNavigationType,
+  useSearchParams,
+} from 'react-router'
 import AppLayout from '@/components/layout/AppLayout'
 import StepIndicator from '@/components/layout/StepIndicator'
 import WaveProgress from '@/components/common/WaveProgress'
@@ -78,15 +79,23 @@ function StepMarker({ state, index }: { state: StepState; index: number }) {
 
 export default function BriefingPage() {
   const navigate = useNavigate()
+  const navigationType = useNavigationType()
   const [params] = useSearchParams()
   const id = params.get('id') ?? ''
-  const query = useAnalysis(id, true)
+  const reloaded =
+    navigationType === 'POP' &&
+    performance
+      .getEntriesByType('navigation')
+      .some(
+        (entry) =>
+          'type' in entry &&
+          entry.type === 'reload' &&
+          entry.name.split('#')[0] === window.location.href.split('#')[0],
+      )
+  const query = useAnalysis(reloaded ? '' : id, true)
   const analysis = query.data
   const client = useQueryClient()
-  const start = useStartAnalysis()
-  const original = client.getQueryData<AnalysisRequest>(['analysis-input', id])
   const failed =
-    !id ||
     query.isError ||
     analysis?.status === 'FAILED' ||
     (analysis?.status === 'SUCCEEDED' && !analysis.briefing)
@@ -102,31 +111,30 @@ export default function BriefingPage() {
     : []
 
   useEffect(() => {
-    if (analysis?.status === 'SUCCEEDED' && analysis.briefing) {
+    if (!failed && analysis?.status === 'SUCCEEDED' && analysis.briefing) {
       client.setQueryData(['last-briefing'], id)
       navigate(`/dashboard?id=${encodeURIComponent(id)}`, { replace: true })
     }
-  }, [analysis, client, id, navigate])
+  }, [analysis, client, failed, id, navigate])
 
-  function retry() {
-    if (query.isError && id) {
-      void query.refetch()
-    } else if (original) {
-      start.mutate(
-        { ...original, excludedKeys: readExcludedCards() },
-        {
-          onSuccess: ({ analysisId }) =>
-            navigate(`/briefing?id=${encodeURIComponent(analysisId)}`, {
-              replace: true,
-            }),
-        },
-      )
-    } else navigate('/')
+  if (reloaded || !id) return <Navigate to="/" replace />
+  if (failed) {
+    return (
+      <Navigate
+        to="/"
+        replace
+        state={{
+          analysisFailure:
+            analysis?.failure?.message ||
+            '분석을 완료하지 못했어요. 입력 내용을 확인하고 다시 시도해 주세요.',
+        }}
+      />
+    )
   }
 
   return (
     <AppLayout
-      title={failed ? '브리핑 실패' : '브리핑 준비 중'}
+      title="브리핑 준비 중"
       headerContext={
         <div className="mx-auto">
           <StepIndicator current={2} />
@@ -143,9 +151,7 @@ export default function BriefingPage() {
             className="size-16 rounded-full bg-primary-100 object-contain p-1.5 lg:size-24 lg:p-2"
           />
           <h1 aria-live="polite" className="mt-6 text-title">
-            {failed
-              ? '브리핑을 만들다가 멈췄어요'
-              : '이번 주의 기회와 주의할 신호를 찾고 있어요'}
+            이번 주의 기회와 주의할 신호를 찾고 있어요
           </h1>
           <ul className="mt-4 flex flex-wrap justify-center gap-2">
             {chips.map((chip) => (
@@ -162,20 +168,14 @@ export default function BriefingPage() {
         <div className="mt-6 lg:mt-8 lg:px-4">
           <div className="flex flex-wrap justify-between gap-x-3 text-caption">
             <span className="font-semibold">
-              {failed
-                ? `${doneCount} / ${STEPS.length} 단계에서 멈췄어요`
-                : `${doneCount} / ${STEPS.length} 단계 완료`}
+              {doneCount} / {STEPS.length} 단계 완료
             </span>
-            <span className="text-muted">
-              {failed ? '입력한 정보는 그대로예요' : '곧 끝나요'}
-            </span>
+            <span className="text-muted">곧 끝나요</span>
           </div>
           <WaveProgress
             percent={(doneCount / STEPS.length) * 100}
             showInfo={false}
-            strokeColor={
-              failed ? 'var(--color-muted)' : 'var(--color-primary-500)'
-            }
+            strokeColor="var(--color-primary-500)"
             aria-label="브리핑 진행률"
           />
 
@@ -219,46 +219,9 @@ export default function BriefingPage() {
             })}
           </ol>
 
-          {failed ? (
-            <div className="mt-6 mb-4 flex flex-col gap-4">
-              <Alert
-                type="error"
-                showIcon
-                title={
-                  <span className="text-caption text-danger">
-                    {analysis?.failure?.message ??
-                      (id
-                        ? '분석 상태를 불러오지 못했어요. 다시 시도해 주세요.'
-                        : '가게 정보를 입력하고 브리핑을 시작해 주세요.')}
-                  </span>
-                }
-              />
-              {start.isError && (
-                <Alert
-                  type="error"
-                  showIcon
-                  title="새 분석을 시작하지 못했어요."
-                />
-              )}
-              <div className="grid gap-3 lg:grid-cols-2">
-                <Button
-                  type="primary"
-                  icon={<LuRotateCw aria-hidden />}
-                  loading={start.isPending}
-                  onClick={retry}
-                >
-                  다시 시도
-                </Button>
-                <Button onClick={() => navigate('/')}>
-                  입력 화면으로 돌아가기
-                </Button>
-              </div>
-            </div>
-          ) : (
-            <p className="mt-6 mb-4 text-center text-caption text-muted">
-              출처와 기준 시각은 브리핑에서 함께 보여드려요.
-            </p>
-          )}
+          <p className="mt-6 mb-4 text-center text-caption text-muted">
+            출처와 기준 시각은 브리핑에서 함께 보여드려요.
+          </p>
         </div>
       </Card>
     </AppLayout>
