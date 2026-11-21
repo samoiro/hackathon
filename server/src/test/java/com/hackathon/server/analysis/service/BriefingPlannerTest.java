@@ -156,6 +156,27 @@ class BriefingPlannerTest {
 	}
 
 	@Test
+	void briefingShowsWeatherThatSupplyCardUsesEvenWithSeasonEvents() {
+		var christmas = new SeasonEventResponse("H1", "CHRISTMAS", "크리스마스", TriggerType.HOLIDAY, LocalDate.of(2026, 12, 25),
+				LocalDate.of(2026, 12, 25));
+		var rain = new WeatherResponse("W1", "1120065000", List.of(WeatherImpact.RAIN_SNOW), List.of(),
+				List.of(new WeatherForecast(LocalDate.of(2026, 11, 18), DayPart.AM, "비", 4.0, null, 80)),
+				OffsetDateTime.parse("2026-11-17T06:50:00+09:00"),
+				List.of(new WeatherImpactStart(WeatherImpact.RAIN_SNOW, LocalDate.of(2026, 11, 18))));
+		var events = new EventEvidence(new EventSearch(7, ContractExample.BASE_DATE, 0, EventSource.SEASON), List.of(),
+				List.of(christmas), rain, List.of());
+		var bag = new SupplyEvidence(new SupplyTimingResponse("S1", 5, "배달 봉투", Demand.UP, LocalDate.of(2026, 11, 17), 1, "비", "W1"),
+				"SUPPLY", true);
+
+		var withTrigger = new BriefingPlanner(ContractExample.store(), events, empty(), List.of(bag), List.of()).briefing(List.of());
+		var withoutTrigger = new BriefingPlanner(ContractExample.store(), events, empty(), List.of(), List.of()).briefing(List.of());
+
+		assertThat(withTrigger.weather().evidenceId()).isEqualTo("W1");
+		assertThat(withoutTrigger.weather()).isNull();
+		assertThat(withoutTrigger.seasonEvents()).extracting(SeasonEventResponse::evidenceId).containsExactly("H1");
+	}
+
+	@Test
 	void noEvidenceMeansNoCards() {
 		var events = new EventEvidence(new EventSearch(7, ContractExample.BASE_DATE, 0, EventSource.NONE), List.of(), List.of(), null,
 				List.of());
