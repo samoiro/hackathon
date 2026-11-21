@@ -17,6 +17,9 @@ spring:
     properties:
       hibernate:
         format_sql: true
+  task:
+    scheduling:
+      thread-name-prefix: batch-
   docker:
     compose:
       lifecycle-management: start-only
@@ -24,6 +27,13 @@ spring:
     # 에러 응답을 RFC 9457 ProblemDetail(JSON) 형식으로 통일
     problemdetails:
       enabled: true
+
+batch:
+  # 최초 실행을 제외한 최대 재시도 횟수 (총 실행 최대 4회)
+  max-retry-times: 3
+  ingredient-price:
+    # 매일 10시(KST). aT는 조사일 다음 날 가격을 공개한다. "-"면 끈다
+    cron: ${INGREDIENT_PRICE_CRON:0 0 10 * * *}
 
 app:
   cors:
@@ -40,6 +50,27 @@ data-go-kr:
     base-url: ${DATA_GO_KR_API_BASE_URL:https://apis.data.go.kr}
     # 공공데이터포털 "일반 인증키(Decoding)" 값
     key: ${DATA_GO_KR_API_KEY:}
+
+kweather:
+  api:
+    base-url: ${KWEATHER_API_BASE_URL:https://apigw.kweather.co.kr}
+    # api.kweather.co.kr → 내 계정 에서 발급
+    key: ${KWEATHER_API_KEY:}
+
+kakao:
+  api:
+    base-url: ${KAKAO_API_BASE_URL:https://dapi.kakao.com}
+    # 카카오 디벨로퍼스 → 내 애플리케이션 → 앱 키의 "REST API 키" (JavaScript 키는 frontend/.env.local)
+    key: ${KAKAO_REST_API_KEY:}
+
+# Python ai-server (LLM 추천 생성). 계약: ai-server/docs/API_CONTRACT_DRAFT.md
+ai:
+  server:
+    base-url: ${AI_SERVER_URL:http://localhost:8000}
+    # ai-server가 공개 URL이라 두 서버가 같은 값을 X-Internal-Token 헤더로 주고받는다
+    token: ${AI_SERVER_TOKEN:}
+    # LLM 40초 + Render 무료 인스턴스가 깨어나는 시간
+    read-timeout: 60s
 
 springdoc:
   swagger-ui:

@@ -21,6 +21,39 @@ services:
         sync: false
       - key: DATA_GO_KR_API_KEY
         sync: false
+      - key: KWEATHER_API_KEY
+        sync: false
+      - key: KAKAO_REST_API_KEY
+        sync: false
       # 예: https://<프로젝트>.pages.dev,https://*.<프로젝트>.pages.dev
       - key: CORS_ALLOWED_ORIGINS
+        sync: false
+      # 무료 인스턴스는 내부망으로 요청을 받을 수 없어 ai-server의 공개 주소를 넣는다. 예: https://hackathon-ai-server.onrender.com
+      - key: AI_SERVER_URL
+        sync: false
+      - key: AI_SERVER_TOKEN
+        fromService:
+          type: web
+          name: hackathon-ai-server
+          envVarKey: AI_SERVER_TOKEN
+
+  # Python FastAPI (LLM 추천 생성). Java 서버만 호출한다
+  - type: web
+    name: hackathon-ai-server
+    runtime: docker
+    rootDir: ai-server
+    dockerfilePath: ./ai-server/Dockerfile
+    dockerContext: ./ai-server
+    region: singapore
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      # Dockerfile의 uvicorn이 8000번에서 뜬다
+      - key: PORT
+        value: "8000"
+      - key: AI_SERVER_TOKEN
+        generateValue: true
+      - key: LLM_API_KEY
+        sync: false
+      - key: LLM_MODEL
         sync: false

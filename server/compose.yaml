@@ -1,7 +1,9 @@
-# 로컬 개발용 Postgres. `./gradlew bootRun` 시 Spring Boot가 자동으로 띄우고 연결합니다.
+# 로컬 개발용 PostgreSQL + PostGIS. `./gradlew bootRun` 시 자동으로 띄우고 연결합니다.
 services:
   postgres:
-    image: 'postgres:17-alpine'
+    image: 'postgis/postgis:17-3.5'
+    labels:
+      org.springframework.boot.service-connection: postgres
     environment:
       - 'POSTGRES_DB=hackathon'
       - 'POSTGRES_USER=hackathon'
