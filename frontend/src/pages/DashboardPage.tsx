@@ -1,6 +1,6 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Alert, App, Button, Card, Spin } from 'antd'
-import { LuMapPin, LuPencil, LuRefreshCw, LuStore } from 'react-icons/lu'
+import { LuMapPin, LuRefreshCw, LuStore } from 'react-icons/lu'
 import { useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router'
 import AreaStatus from '@/components/dashboard/AreaStatus'
@@ -120,7 +120,7 @@ export default function DashboardPage() {
           />
         )
       }
-      // 헤더 가게 정보(피그마 BI-PC-03): 구분선 · 가게 아이콘 · 이름 · 위치와 업종, 그 옆에 수정 아이콘 버튼
+      // 헤더 가게 정보(피그마 BI-PC-03): 구분선 · 가게 아이콘 · 이름 · 위치와 업종, 그 옆에 가게 정보 수정 버튼
       headerContext={
         store && (
           <div className="flex min-w-0 items-center gap-2 lg:gap-5">
@@ -129,7 +129,10 @@ export default function DashboardPage() {
               className="h-6 w-px shrink-0 bg-divider max-lg:hidden"
             />
             <p className="flex min-w-0 items-center gap-2">
-              <LuStore aria-hidden className="size-[18px] shrink-0" />
+              <LuStore
+                aria-hidden
+                className="size-[18px] shrink-0 max-sm:hidden"
+              />
               {/* 좁은 화면 + 큰 글자에서는 말줄임. 전체 이름은 마우스를 올리면 보인다 */}
               <span
                 title={store.name}
@@ -158,13 +161,13 @@ export default function DashboardPage() {
             />
             <Button
               size="small"
-              aria-label="가게 정보 수정"
               aria-haspopup="dialog"
-              title="가게 정보 수정"
-              icon={<LuPencil aria-hidden />}
               className="shrink-0"
               onClick={() => setResetOpen(true)}
-            />
+            >
+              <span className="max-lg:hidden">가게 정보 수정</span>
+              <span className="lg:hidden">수정</span>
+            </Button>
           </div>
         )
       }
