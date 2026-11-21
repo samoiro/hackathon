@@ -56,6 +56,8 @@ class EventEvidenceServiceTest {
 	@BeforeEach
 	void setUp() {
 		jdbc = JdbcClient.create(dataSource);
+		// V34 시연용 성수 임의 행사가 결과에 섞이지 않게 비운다. 테스트 transaction이라 끝나면 되돌아간다
+		jdbc.sql("delete from cultural_event").update();
 		repository = new CulturalEventRepository(jdbc, new NamedParameterJdbcTemplate(dataSource));
 		service = new EventEvidenceService(repository, new SeasonEventRepository(jdbc), weather);
 	}

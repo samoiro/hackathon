@@ -1,18 +1,36 @@
 import {
-  Circle,
   CustomOverlayMap,
   Map as KakaoMap,
   MapMarker,
+  Polygon,
   useKakaoLoader,
 } from 'react-kakao-maps-sdk'
 import { LuStore } from 'react-icons/lu'
-import { nearbyEventRadiusKm } from '@/lib/api/analysis'
 import { kakaoOptions } from '@/lib/kakao/maps'
 import type { Address } from '@/types/search'
 import type { AreaResponse } from '@/lib/api/generated'
 
 const mapHeight = 'h-72'
 const statusClassName = `grid ${mapHeight} place-items-center bg-canvas px-4 text-center text-caption text-muted`
+
+type LatLng = { lat: number; lng: number }
+
+// 장소 영역 경계(GeoJSON MultiPolygon, [경도, 위도]) → 카카오 폴리곤 경로(폴리곤마다 [바깥 고리, 구멍...]).
+// 생성 타입은 string이지만 서버는 객체로 보내서 둘 다 받는다. 모양이 다르면 그리지 않는다
+function toPolygons(boundary?: unknown): LatLng[][][] {
+  const geo: unknown =
+    typeof boundary === 'string' ? JSON.parse(boundary) : boundary
+  if (
+    !geo ||
+    typeof geo !== 'object' ||
+    !('coordinates' in geo) ||
+    !Array.isArray(geo.coordinates)
+  )
+    return []
+  return geo.coordinates.map((polygon: number[][][]) =>
+    polygon.map((ring) => ring.map(([lng, lat]) => ({ lat, lng }))),
+  )
+}
 
 type MapEvent = { title: string; latitude: number; longitude: number }
 type MapProps = {
@@ -24,9 +42,10 @@ type MapProps = {
 function KakaoAreaMap({
   options,
   address,
+  area,
   center,
   events,
-}: Pick<MapProps, 'address' | 'events'> & {
+}: MapProps & {
   options: NonNullable<typeof kakaoOptions>
   center: { lat: number; lng: number }
 }) {
@@ -52,18 +71,19 @@ function KakaoAreaMap({
       scrollwheel={false}
       tabIndex={0}
     >
+      {toPolygons(area?.boundary).map((path, index) => (
+        <Polygon
+          key={index}
+          path={path}
+          strokeWeight={2}
+          strokeColor="#d47d00"
+          strokeOpacity={1}
+          fillColor="#ffe8b8"
+          fillOpacity={0.45}
+        />
+      ))}
       {address && (
         <>
-          <Circle
-            center={center}
-            radius={nearbyEventRadiusKm * 1000}
-            strokeWeight={3}
-            strokeColor="#64594b"
-            strokeOpacity={1}
-            strokeStyle="dash"
-            fillColor="#ffe8b8"
-            fillOpacity={0.16}
-          />
           <CustomOverlayMap
             position={center}
             xAnchor={0.5}
@@ -106,6 +126,7 @@ export default function AreaMap({ address, area, events }: MapProps) {
         <KakaoAreaMap
           options={kakaoOptions}
           address={address}
+          area={area}
           center={{ lat: point.latitude, lng: point.longitude }}
           events={[...uniqueEvents.values()]}
         />
@@ -117,7 +138,7 @@ export default function AreaMap({ address, area, events }: MapProps) {
         className="bg-surface px-3 py-1 text-tag text-muted"
       >
         카카오맵 · {address?.road ?? area?.name}
-        {address && ` · 가게 기준 반경 ${nearbyEventRadiusKm}km`}
+        {address && area && ` · 칠한 곳은 ${area.name} 집계 영역`}
       </figcaption>
     </figure>
   )

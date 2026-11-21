@@ -220,6 +220,13 @@
   outline: none;
 }
 
+/* 이번 주 중요한 변화·섹션 탭 같은 #앵커 이동을 부드럽게 스크롤한다. 동작 줄이기 설정이면 바로 이동한다 */
+@media (prefers-reduced-motion: no-preference) {
+  html {
+    scroll-behavior: smooth;
+  }
+}
+
 /* 브리핑 실패 화면의 우는 강아지 눈물. 동작 줄이기 설정이면 흐르지 않고 제자리에 둔다 */
 @media (prefers-reduced-motion: no-preference) {
   .mascot-tear {
