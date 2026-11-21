@@ -5,7 +5,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -14,6 +13,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.hackathon.server.analysis.dto.SupplyTimingResponse;
 import com.hackathon.server.analysis.dto.WeatherImpact;
+import com.hackathon.server.analysis.dto.WeatherImpactStart;
+import com.hackathon.server.analysis.dto.WeatherResponse;
 import com.hackathon.server.analysis.evidence.EventCandidate;
 import com.hackathon.server.analysis.evidence.EventEvidence;
 import com.hackathon.server.analysis.evidence.StoreContext;
@@ -99,10 +100,15 @@ public class SupplyEvidenceService implements SupplyEvidenceCollector {
 			events.seasonEvents().forEach(season -> triggers.merge(season.code(), new Trigger(season.startDate(), season.evidenceId()),
 					SupplyEvidenceService::earlier));
 		}
-		if (events.weather() != null && events.weather().impacts() != null) {
-			// shortcut: impacts에 날짜가 없어 기준일에 시작한다고 본다(날씨 규칙은 D-1~3이라 마감은 늘 기준일), 날씨 근거에 시작일이 생기면 그 날로 바꾼다
-			events.weather().impacts().stream().map(WEATHER_TRIGGERS::get).filter(Objects::nonNull)
-					.forEach(code -> triggers.putIfAbsent(code, new Trigger(baseDate, events.weather().evidenceId())));
+		WeatherResponse weather = events.weather();
+		if (weather != null && weather.impacts() != null) {
+			Map<WeatherImpact, LocalDate> starts = weather.impactStarts() == null ? Map.of() : weather.impactStarts().stream()
+					.collect(Collectors.toMap(WeatherImpactStart::impact, WeatherImpactStart::date, (a, b) -> a.isBefore(b) ? a : b));
+			for (WeatherImpact impact : weather.impacts()) {
+				String code = WEATHER_TRIGGERS.get(impact);
+				// 시작일을 모르면 기준일로 본다: 준비가 늦어지는 쪽으로 틀리지 않게
+				if (code != null) triggers.putIfAbsent(code, new Trigger(starts.getOrDefault(impact, baseDate), weather.evidenceId()));
+			}
 		}
 		return triggers;
 	}

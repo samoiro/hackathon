@@ -23,6 +23,7 @@ import com.hackathon.server.analysis.dto.EventTrigger;
 import com.hackathon.server.analysis.dto.SeasonEventResponse;
 import com.hackathon.server.analysis.dto.SupplyTimingResponse;
 import com.hackathon.server.analysis.dto.WeatherImpact;
+import com.hackathon.server.analysis.dto.WeatherImpactStart;
 import com.hackathon.server.analysis.dto.WeatherResponse;
 import com.hackathon.server.analysis.evidence.EventCandidate;
 import com.hackathon.server.analysis.evidence.EventEvidence;
@@ -78,6 +79,18 @@ class SupplyEvidenceServiceTest {
 				new SupplyTimingResponse("S2", id("supply", "배달 봉투"), "배달 봉투", Demand.UP, BASE, 1, "비", "W1"));
 		assertThat(result).extracting(SupplyEvidence::kind, SupplyEvidence::forecast)
 				.containsOnly(tuple("SUPPLY", true));
+	}
+
+	@Test
+	void weatherDeadlineCountsFromImpactStart() {
+		// 한파는 5일 뒤 시작이라 3일 전(2일 뒤)까지, 비는 시작일을 몰라 기준일까지
+		WeatherResponse weather = new WeatherResponse("W1", "1120011400", List.of(WeatherImpact.COLD_WAVE, WeatherImpact.RAIN_SNOW),
+				List.of(), List.of(), OffsetDateTime.parse("2026-11-21T08:00:00+09:00"),
+				List.of(new WeatherImpactStart(WeatherImpact.COLD_WAVE, BASE.plusDays(5))));
+
+		List<SupplyEvidence> result = collect("한식·국밥", List.of("국물 포장 용기", "배달 봉투"), evidence(List.of(), List.of(), weather));
+
+		assertThat(result).extracting(e -> e.timing().prepareBy()).containsExactly(BASE.plusDays(2), BASE);
 	}
 
 	@Test
