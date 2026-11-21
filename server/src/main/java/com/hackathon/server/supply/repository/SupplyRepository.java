@@ -10,6 +10,7 @@ import com.hackathon.server.supply.entity.Supply;
 
 public interface SupplyRepository extends JpaRepository<Supply, Long> {
 
+	List<Supply> findByNameContaining(String name);
 	/** 업종 규칙 중 고른 물품이 든 것. 물품 하나가 규칙 여러 개에 들면 여러 줄이다. */
 	@Query(nativeQuery = true, value = """
 			select i.supply_id as "supplyId", i.kind as "kind", r.trigger_code as "triggerCode", t.label as "triggerLabel",
