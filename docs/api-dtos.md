@@ -187,8 +187,8 @@ GET /api/analysis/{id}. 분석 중에는 steps만, 끝나면 briefing 또는 fai
 | 필드 | 타입 | 값 | 설명 |
 | --- | --- | --- | --- |
 | `events` | `List<EventResponse>` | 필수 | 주변 행사 (순서도 3·4). 0건이면 시즌 행사·날씨로 넘어감 |
-| `seasonEvents` | `List<SeasonEventResponse>` | 필수 | 시즌 행사 (순서도 5). 주변 행사가 없을 때만 채움 |
-| `weather` | `WeatherResponse` | null 가능 | 날씨 (순서도 3-1). 주변 행사·시즌 행사가 모두 없을 때만 채움 |
+| `seasonEvents` | `List<SeasonEventResponse>` | 필수 | 시즌 행사 (순서도 5). 주변 행사가 없을 때, 또는 부자재 카드의 근거일 때 채움 |
+| `weather` | `WeatherResponse` | null 가능 | 날씨 (순서도 3-1). 주변 행사·시즌 행사가 모두 없을 때, 또는 부자재 카드의 근거일 때 채움 |
 | `ingredients` | `List<IngredientPriceResponse>` | 필수 | 고른 원자재 전부의 가격 (가격 자료 없는 품목 포함, 순서도 7) |
 | `supplies` | `List<SupplyTimingResponse>` | 필수 | 고른 부자재 전부의 준비 시점 (부자재 정보 없음 포함, 순서도 9) |
 | `suggestions` | `List<SuggestionResponse>` | 필수 | 추천 카드 (순서도 17~19). 강추가 하나도 없으면 빈 상태 문구 |
