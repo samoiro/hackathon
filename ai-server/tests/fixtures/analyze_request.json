@@ -8,7 +8,7 @@
     "industry_name": "한식",
     "operation_type": "BOTH"
   },
-  "event_search": { "radius_m": 1000, "days": 7 },
+  "event_search": { "radius_m": 1500, "days": 7 },
   "events": [
     {
       "evidence_id": "E1",
