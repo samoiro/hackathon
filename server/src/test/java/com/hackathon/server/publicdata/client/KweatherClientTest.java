@@ -12,10 +12,11 @@ import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.client.MockRestServiceServer;
-import org.springframework.web.ErrorResponseException;
 import org.springframework.web.client.RestClient;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
+import com.hackathon.server.common.exception.BusinessException;
+import com.hackathon.server.common.exception.ErrorCode;
 
 class KweatherClientTest {
 
@@ -63,16 +64,16 @@ class KweatherClientTest {
 				.andRespond(withBadRequest().contentType(MediaType.APPLICATION_JSON).body("""
 						{"message":"{\\"message\\":\\"Request is not valid according to constraint rules\\",\\"constraints\\":[\\"없는 코드입니다. 코드표에서 확인해 주세요.\\"]}","http_status_code":400}"""));
 
-		var error = assertThrows(ErrorResponseException.class, () -> client.get("kw-warning1", "0000000000"));
+		var error = assertThrows(BusinessException.class, () -> client.get("kw-warning1", "0000000000"));
 
-		assertThat(error.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+		assertThat(error.getErrorCode()).isEqualTo(ErrorCode.PUBLIC_API_BAD_REQUEST);
 		assertThat(error.getBody().getDetail()).contains("없는 코드입니다");
 	}
 
 	@Test
 	void missingKeyIsServiceUnavailable() {
 		var noKey = new KweatherClient(builder.build(), JsonMapper.builder().build(), BASE, "");
-		var error = assertThrows(ErrorResponseException.class, () -> noKey.get("kw-fct-wl1", "1111051500"));
-		assertThat(error.getStatusCode()).isEqualTo(HttpStatus.SERVICE_UNAVAILABLE);
+		var error = assertThrows(BusinessException.class, () -> noKey.get("kw-fct-wl1", "1111051500"));
+		assertThat(error.getErrorCode()).isEqualTo(ErrorCode.PUBLIC_API_KEY_MISSING);
 	}
 }
