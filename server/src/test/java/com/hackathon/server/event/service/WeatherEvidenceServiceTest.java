@@ -1,6 +1,7 @@
 package com.hackathon.server.event.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.entry;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
@@ -18,8 +19,11 @@ import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 
 import com.hackathon.server.analysis.dto.DayPart;
+import com.hackathon.server.analysis.dto.WeatherForecast;
 import com.hackathon.server.analysis.dto.WeatherImpact;
+import com.hackathon.server.analysis.dto.WeatherImpactStart;
 import com.hackathon.server.analysis.dto.WeatherResponse;
+import com.hackathon.server.analysis.dto.WeatherWarning;
 import com.hackathon.server.analysis.evidence.StoreContext;
 import com.hackathon.server.common.exception.BusinessException;
 import com.hackathon.server.common.exception.ErrorCode;
@@ -29,6 +33,7 @@ import com.hackathon.server.publicdata.client.KweatherClient;
 class WeatherEvidenceServiceTest {
 
 	private static final String DONG = "1120065000";
+	private static final LocalDate BASE = LocalDate.of(2026, 11, 21);
 	private static final JsonMapper JSON = JsonMapper.builder().build();
 	private final KweatherClient kweather = mock(KweatherClient.class);
 	private final WeatherEvidenceService service = new WeatherEvidenceService(kweather);
@@ -67,6 +72,8 @@ class WeatherEvidenceServiceTest {
 		});
 		assertThat(weather.forecasts().getLast().date()).isEqualTo(LocalDate.of(2026, 11, 27));
 		assertThat(weather.impacts()).containsExactly(WeatherImpact.RAIN_SNOW);
+		// 단기예보 5번째 칸(23일 오전) "흐리고 비"(60%)가 첫 비 예보
+		assertThat(weather.impactStarts()).containsExactly(new WeatherImpactStart(WeatherImpact.RAIN_SNOW, LocalDate.of(2026, 11, 23)));
 	}
 
 	@Test
@@ -79,9 +86,27 @@ class WeatherEvidenceServiceTest {
 		var parsed = WeatherEvidenceService.warnings(warnings.path(DONG).path("data"), OffsetDateTime.parse("2026-11-21T10:00:00+09:00"));
 
 		assertThat(parsed).extracting(w -> w.kind() + w.level()).containsExactly("건조주의보", "한파경보"); // 대설은 이미 해제
-		assertThat(WeatherEvidenceService.impacts(parsed, List.of()))
+		assertThat(WeatherEvidenceService.impactStarts(parsed, List.of(), BASE).keySet())
 				.containsExactly(WeatherImpact.COLD_WAVE, WeatherImpact.WARNING);
-		assertThat(WeatherEvidenceService.impacts(parsed.subList(0, 1), List.of())).isEmpty();
+		assertThat(WeatherEvidenceService.impactStarts(parsed.subList(0, 1), List.of(), BASE)).isEmpty();
+	}
+
+	@Test
+	void recordsFirstDayOfEachImpact() {
+		OffsetDateTime now = OffsetDateTime.parse("2026-11-21T10:00:00+09:00");
+		List<WeatherWarning> warnings = List.of(
+				new WeatherWarning("한파", "주의보", now.minusHours(4), null),            // 발효 중 → 기준일
+				new WeatherWarning("강풍", "주의보", now.plusDays(2).withHour(21), null)); // 11-23 21시 발효 예정
+		List<WeatherForecast> forecasts = List.of(
+				new WeatherForecast(LocalDate.of(2026, 11, 22), DayPart.AM, "맑음", -13.0, null, 0),
+				new WeatherForecast(LocalDate.of(2026, 11, 24), DayPart.PM, "흐리고 눈", null, 1.0, 40),
+				new WeatherForecast(LocalDate.of(2026, 11, 26), DayPart.PM, "흐리고 비", null, 5.0, 70));
+
+		assertThat(WeatherEvidenceService.impactStarts(warnings, forecasts, BASE)).containsExactly(
+				entry(WeatherImpact.RAIN_SNOW, LocalDate.of(2026, 11, 24)),
+				entry(WeatherImpact.COLD_WAVE, BASE), // 특보(기준일)가 예보(-13℃, 22일)보다 이르다
+				entry(WeatherImpact.STRONG_WIND, LocalDate.of(2026, 11, 23)),
+				entry(WeatherImpact.WARNING, BASE));
 	}
 
 	@Test

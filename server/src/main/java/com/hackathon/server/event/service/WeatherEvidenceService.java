@@ -8,7 +8,7 @@ import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.Comparator;
-import java.util.EnumSet;
+import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -23,6 +23,7 @@ import tools.jackson.databind.JsonNode;
 import com.hackathon.server.analysis.dto.DayPart;
 import com.hackathon.server.analysis.dto.WeatherForecast;
 import com.hackathon.server.analysis.dto.WeatherImpact;
+import com.hackathon.server.analysis.dto.WeatherImpactStart;
 import com.hackathon.server.analysis.dto.WeatherResponse;
 import com.hackathon.server.analysis.dto.WeatherWarning;
 import com.hackathon.server.analysis.evidence.StoreContext;
@@ -63,7 +64,9 @@ public class WeatherEvidenceService {
 			List<WeatherWarning> warnings = warnings(kweather.get("kw-warning1", code).path(code).path("data"), store.baseTime());
 			List<WeatherForecast> forecasts = forecasts(kweather.get("kw-fct-dl1", code).path(code),
 					kweather.get("kw-fct-wl1", code).path(code), store.baseDate());
-			return new WeatherResponse("W1", code, impacts(warnings, forecasts), warnings, forecasts, store.baseTime());
+			Map<WeatherImpact, LocalDate> starts = impactStarts(warnings, forecasts, store.baseDate());
+			return new WeatherResponse("W1", code, List.copyOf(starts.keySet()), warnings, forecasts, store.baseTime(),
+					starts.entrySet().stream().map(e -> new WeatherImpactStart(e.getKey(), e.getValue())).toList());
 		}
 		catch (RuntimeException e) {
 			log.warn("날씨 근거를 받지 못해 비워 둡니다 (행정동 {}): {}", code, e.getMessage());
@@ -127,21 +130,37 @@ public class WeatherEvidenceService {
 				.toList();
 	}
 
-	static List<WeatherImpact> impacts(List<WeatherWarning> warnings, List<WeatherForecast> forecasts) {
-		Set<WeatherImpact> impacts = EnumSet.noneOf(WeatherImpact.class);
+	/**
+	 * 영향마다 처음 나타나는 날(부자재 준비 기한을 이 날부터 거꾸로 센다). 예보는 기준을 처음 넘는 날,
+	 * 특보는 발효 중이면 기준일, 앞으로 발효면 발효일. 영향 순서는 WeatherImpact 순.
+	 */
+	static Map<WeatherImpact, LocalDate> impactStarts(List<WeatherWarning> warnings, List<WeatherForecast> forecasts, LocalDate baseDate) {
+		Map<WeatherImpact, LocalDate> starts = new EnumMap<>(WeatherImpact.class);
 		for (WeatherWarning warning : warnings) {
 			if (NO_IMPACT_WARNINGS.contains(warning.kind())) continue;
-			impacts.add(WeatherImpact.WARNING);
+			LocalDate start = warning.startTime().atZoneSameInstant(SEOUL).toLocalDate();
+			LocalDate date = start.isAfter(baseDate) ? start : baseDate;
+			starts.merge(WeatherImpact.WARNING, date, WeatherEvidenceService::earlier);
 			WeatherImpact impact = WARNING_IMPACTS.get(warning.kind());
-			if (impact != null) impacts.add(impact);
+			if (impact != null) starts.merge(impact, date, WeatherEvidenceService::earlier);
 		}
 		for (WeatherForecast f : forecasts) {
 			if (f.sky().contains("비") || f.sky().contains("눈") || f.sky().contains("소나기")
-					|| (f.precipitationChance() != null && f.precipitationChance() >= RAIN_CHANCE)) impacts.add(WeatherImpact.RAIN_SNOW);
-			if (f.minTemperature() != null && f.minTemperature() <= COLD_WAVE_MIN) impacts.add(WeatherImpact.COLD_WAVE);
-			if (f.maxTemperature() != null && f.maxTemperature() >= HEATWAVE_MAX) impacts.add(WeatherImpact.HEATWAVE);
+					|| (f.precipitationChance() != null && f.precipitationChance() >= RAIN_CHANCE)) {
+				starts.merge(WeatherImpact.RAIN_SNOW, f.date(), WeatherEvidenceService::earlier);
+			}
+			if (f.minTemperature() != null && f.minTemperature() <= COLD_WAVE_MIN) {
+				starts.merge(WeatherImpact.COLD_WAVE, f.date(), WeatherEvidenceService::earlier);
+			}
+			if (f.maxTemperature() != null && f.maxTemperature() >= HEATWAVE_MAX) {
+				starts.merge(WeatherImpact.HEATWAVE, f.date(), WeatherEvidenceService::earlier);
+			}
 		}
-		return List.copyOf(impacts);
+		return starts;
+	}
+
+	private static LocalDate earlier(LocalDate a, LocalDate b) {
+		return a.isBefore(b) ? a : b;
 	}
 
 	/** "202611211000" (KST) */
