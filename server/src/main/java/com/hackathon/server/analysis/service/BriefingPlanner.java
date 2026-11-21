@@ -45,8 +45,8 @@ import com.hackathon.server.analysis.dto.SuggestionCategory;
 import com.hackathon.server.analysis.dto.SuggestionResponse;
 import com.hackathon.server.analysis.dto.SupplyTimingResponse;
 import com.hackathon.server.analysis.dto.TaskType;
-import com.hackathon.server.analysis.dto.WeatherForecast;
 import com.hackathon.server.analysis.dto.WeatherImpact;
+import com.hackathon.server.analysis.dto.WeatherImpactStart;
 import com.hackathon.server.analysis.dto.WeatherResponse;
 import com.hackathon.server.analysis.dto.WeatherWarning;
 import com.hackathon.server.analysis.evidence.EventCandidate;
@@ -86,11 +86,6 @@ final class BriefingPlanner {
 	private static final Map<String, String> HOLIDAY_LABELS = Map.of("KIMJANG", "김장철", "SEOLLAL", "설", "CHUSEOK", "추석");
 	private static final Set<WeatherImpact> DELIVERY_WEATHER = Set.of(WeatherImpact.RAIN_SNOW, WeatherImpact.HEAVY_SNOW,
 			WeatherImpact.COLD_WAVE, WeatherImpact.FINE_DUST);
-	// 날씨 영향 판정 기준: event/service/WeatherEvidenceService와 같다 (기상청 한파·폭염주의보, 강수확률 60%)
-	private static final Set<String> NO_IMPACT_WARNINGS = Set.of("건조", "풍랑");
-	private static final double COLD_WAVE_MIN = -12;
-	private static final double HEATWAVE_MAX = 33;
-	private static final int RAIN_CHANCE = 60;
 	private static final ZoneId KST = ZoneId.of("Asia/Seoul");
 
 	/** 근거 하나의 점수 (evidence_snapshot 한 줄). deadline은 행동 마감 = 카드의 준비 기한, 원자재는 null */
@@ -219,43 +214,21 @@ final class BriefingPlanner {
 	}
 
 	/**
-	 * 영향이 시작되는 날과 그날의 영향. 특보는 발효일(지났으면 기준일), 예보는 영향 판정에 걸린 첫 칸의 날짜.
-	 * 판정 기준은 event/service/WeatherEvidenceService.impacts와 같게 둔다. 걸린 칸이 없으면 기준일
+	 * 영향이 시작되는 날과 그날의 영향. 날짜는 수집기가 준 impactStarts 중 가장 이른 날(지났으면 기준일), 없으면 기준일.
+	 * 판정 기준은 event/service/WeatherEvidenceService 한 곳에 있다. 그날 특보가 시작되면 사유에 그 특보를 쓴다
 	 */
 	private WeatherStart weatherStart(WeatherResponse w) {
-		WeatherStart first = null;
-		for (WeatherWarning warning : w.warnings()) {
-			if (!NO_IMPACT_WARNINGS.contains(warning.kind())) {
-				first = earlier(first, new WeatherStart(notBefore(warning.startTime().atZoneSameInstant(KST).toLocalDate()),
-						WeatherImpact.WARNING, warning));
-			}
-		}
-		for (WeatherForecast f : w.forecasts()) {
-			WeatherImpact impact = forecastImpact(f);
-			if (impact != null) {
-				first = earlier(first, new WeatherStart(notBefore(f.date()), impact, null));
-			}
-		}
-		return first != null ? first
-				: new WeatherStart(store.baseDate(), w.impacts().isEmpty() ? WeatherImpact.WARNING : w.impacts().get(0), null);
-	}
-
-	private static WeatherStart earlier(WeatherStart current, WeatherStart candidate) {
-		return current == null || candidate.date().isBefore(current.date()) ? candidate : current;
-	}
-
-	private static WeatherImpact forecastImpact(WeatherForecast f) {
-		if (f.sky().contains("비") || f.sky().contains("눈") || f.sky().contains("소나기")
-				|| (f.precipitationChance() != null && f.precipitationChance() >= RAIN_CHANCE)) {
-			return WeatherImpact.RAIN_SNOW;
-		}
-		if (f.minTemperature() != null && f.minTemperature() <= COLD_WAVE_MIN) {
-			return WeatherImpact.COLD_WAVE;
-		}
-		if (f.maxTemperature() != null && f.maxTemperature() >= HEATWAVE_MAX) {
-			return WeatherImpact.HEATWAVE;
-		}
-		return null;
+		List<WeatherImpactStart> starts = w.impactStarts();
+		LocalDate date = starts.stream().map(x -> notBefore(x.date())).min(naturalOrder()).orElse(store.baseDate());
+		boolean warningThatDay = starts.isEmpty() ? warned(w)
+				: starts.stream().anyMatch(x -> x.impact() == WeatherImpact.WARNING && notBefore(x.date()).equals(date));
+		WeatherWarning warning = !warningThatDay || w.warnings().isEmpty() ? null
+				: w.warnings().stream().filter(x -> notBefore(x.startTime().atZoneSameInstant(KST).toLocalDate()).equals(date))
+						.findFirst().orElse(w.warnings().get(0));
+		WeatherImpact impact = starts.stream()
+				.filter(x -> x.impact() != WeatherImpact.WARNING && notBefore(x.date()).equals(date)).map(WeatherImpactStart::impact)
+				.findFirst().orElse(w.impacts().isEmpty() ? WeatherImpact.WARNING : w.impacts().get(0));
+		return new WeatherStart(date, impact, warning);
 	}
 
 	/** 원자재 신호 = 걸린 규칙 demand 합: STRONG_UP +2, UP +1, DOWN −1, STRONG_DOWN −2 */

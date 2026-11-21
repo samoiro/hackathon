@@ -20,6 +20,7 @@ import com.hackathon.server.analysis.dto.SupplyTimingResponse;
 import com.hackathon.server.analysis.dto.TaskType;
 import com.hackathon.server.analysis.dto.WeatherForecast;
 import com.hackathon.server.analysis.dto.WeatherImpact;
+import com.hackathon.server.analysis.dto.WeatherImpactStart;
 import com.hackathon.server.analysis.dto.WeatherResponse;
 import com.hackathon.server.analysis.dto.WeatherWarning;
 import com.hackathon.server.analysis.dto.DayPart;
@@ -103,6 +104,7 @@ class BriefingPlannerTest {
 				"SUPPLY:DISPLAY:8");
 	}
 
+	/** impactStarts가 없는 날씨(예전 수집기)는 기준일과 발효 중인 특보로 본다 */
 	@Test
 	void weatherWarningOpensHoursAndFacility() {
 		var warning = new WeatherWarning("한파", "주의보", OffsetDateTime.parse("2026-11-17T05:00:00+09:00"), null);
@@ -125,7 +127,8 @@ class BriefingPlannerTest {
 				List.of(new WeatherForecast(LocalDate.of(2026, 11, 17), DayPart.AM, "맑음", 2.0, null, 10),
 						new WeatherForecast(LocalDate.of(2026, 11, 18), DayPart.PM, "구름많음", null, 9.0, 30),
 						new WeatherForecast(LocalDate.of(2026, 11, 19), DayPart.AM, "흐리고 비", 4.0, null, 80)),
-				OffsetDateTime.parse("2026-11-17T06:50:00+09:00"));
+				OffsetDateTime.parse("2026-11-17T06:50:00+09:00"),
+				List.of(new WeatherImpactStart(WeatherImpact.RAIN_SNOW, LocalDate.of(2026, 11, 19))));
 		var events = new EventEvidence(new EventSearch(7, ContractExample.BASE_DATE, 0, EventSource.WEATHER), List.of(), List.of(),
 				weather, List.of());
 
