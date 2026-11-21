@@ -11,8 +11,8 @@ API 구현(컨트롤러·서비스)은 본선에서 합니다. Python ai-server�
 | --- | --- | --- | --- | --- |
 | 가게 정보 선택 | `GET /api/industries` | — | `List<IndustryResponse>` | 전체 업종 28개 |
 | 가게 정보 선택 | `GET /api/industries/{industryId}/recommended-items` | — | `RecommendedItemsResponse` | 업종 기본 원자재 최대 3 · 부자재 최대 2 ("한 번에 담기") |
-| 가게 정보 선택 | `GET /api/ingredients?query=` | — | `List<IngredientResponse>` | 원자재 검색, 최대 20개 |
-| 가게 정보 선택 | `GET /api/supplies?query=` | — | `List<SupplyResponse>` | 부자재 검색, 최대 20개 |
+| 가게 정보 선택 | `GET /api/ingredients?query=` | — | `List<IngredientResponse>` | 원자재 검색, 이름순 전부 |
+| 가게 정보 선택 | `GET /api/supplies?query=` | — | `List<SupplyResponse>` | 부자재 검색, 이름순 전부 |
 | 가게 정보 선택 | `POST /api/locations/validate` | `LocationValidateRequest` | `LocationValidateResponse` | 주소 검색은 프론트(카카오 지도). 쓸 수 없는 주소도 200 + `valid=false`, 요청 형식이 틀리면 400 |
 | 분석 중 | `POST /api/analysis` | `AnalysisRequest` | `AnalysisCreatedResponse` (202) | 약 1분 걸려 번호만 바로 돌려줌. 서울 밖 422, 품목 개수 초과 400 |
 | 분석 중 · 대시보드 | `GET /api/analysis/{id}` | — | `AnalysisResponse` | 1~2초마다 다시 물음. `SUCCEEDED`면 `briefing`, `FAILED`면 `failure` |
