@@ -1,10 +1,11 @@
-import { keepPreviousData, useQuery } from '@tanstack/react-query'
+import { keepPreviousData, useMutation, useQuery } from '@tanstack/react-query'
 import { Alert, Button, Input, Radio, Spin, Tag } from 'antd'
 import { useState } from 'react'
 import { LuInfo, LuSearch, LuStore } from 'react-icons/lu'
 import EmptyState from '@/components/common/EmptyState'
 import ResponsiveDialog from '@/components/common/ResponsiveDialog'
 import { useDebouncedValue } from '@/hooks/useDebouncedValue'
+import { validate } from '@/lib/api/generated'
 import { searchAddresses } from '@/lib/kakao/maps'
 import type { StoreLocation } from '@/types/search'
 
@@ -38,11 +39,38 @@ export default function LocationSearchModal({
   const outsideSeoul = Boolean(
     selected && !/^서울(?:특별시)?\s/.test(selected.road),
   )
+  const validation = useMutation({
+    mutationFn: async ({ address }: StoreLocation) => {
+      const { data } = await validate({
+        body: {
+          roadAddress: address.road,
+          latitude: address.latitude,
+          longitude: address.longitude,
+        },
+        throwOnError: true,
+      })
+      if (typeof data?.valid !== 'boolean') {
+        throw new Error('주소 검증 응답을 확인할 수 없어요.')
+      }
+      return data
+    },
+  })
+  const validationMessage = validation.isError
+    ? '주소를 확인하지 못했어요. 다시 시도해 주세요.'
+    : validation.data?.valid === false
+      ? validation.data.message ||
+        '이 주소는 사용할 수 없어요. 다른 주소를 골라 주세요.'
+      : null
+
+  function close() {
+    validation.reset()
+    onClose()
+  }
 
   return (
     <ResponsiveDialog
       open={open}
-      onClose={onClose}
+      onClose={close}
       afterOpenChange={(visible) => {
         if (visible) return
         setKeyword(location?.address.road ?? '')
@@ -54,14 +82,26 @@ export default function LocationSearchModal({
       height="42.3125rem" // 기본 글자 크기에서 검색 결과 두 건이 들어가는 팝업 높이
       footer={
         <>
-          <Button className="max-lg:hidden" onClick={onClose}>
+          <Button className="max-lg:hidden" onClick={close}>
             취소
           </Button>
           <Button
             type="primary"
+            loading={validation.isPending}
             disabled={!selected || !name.trim() || outsideSeoul}
             onClick={() => {
-              if (selected) onSelect({ name: name.trim(), address: selected })
+              if (!selected || validation.isPending) return
+              validation.mutate(
+                { name: name.trim(), address: selected },
+                {
+                  onSuccess: (result, value) => {
+                    if (result.valid) {
+                      validation.reset()
+                      onSelect(value)
+                    }
+                  },
+                },
+              )
             }}
           >
             이 주소로 변경
@@ -84,6 +124,7 @@ export default function LocationSearchModal({
           <Input
             id="location-search"
             allowClear
+            disabled={validation.isPending}
             value={keyword}
             onChange={(event) => setKeyword(event.target.value)}
             suffix={isFetching ? <Spin size="small" /> : null}
@@ -108,19 +149,21 @@ export default function LocationSearchModal({
               />
             )}
           <Radio.Group
+            disabled={validation.isPending}
             value={
               selected
                 ? `${selected.latitude}:${selected.longitude}`
                 : undefined
             }
-            onChange={(event) =>
+            onChange={(event) => {
+              validation.reset()
               setSelected(
                 results.find(
                   (row) =>
                     `${row.latitude}:${row.longitude}` === event.target.value,
                 ),
               )
-            }
+            }}
             className="flex max-h-[calc(10.25rem+4px)] w-full flex-col gap-2 overflow-y-auto"
             aria-label="검색 결과"
           >
@@ -144,6 +187,13 @@ export default function LocationSearchModal({
               showIcon
               title="서울 밖 주소는 아직 지원하지 않아요. 서울 안의 가게 주소를 골라 주세요."
             />
+          ) : validationMessage ? (
+            <Alert
+              className="mt-3"
+              type="error"
+              showIcon
+              title={validationMessage}
+            />
           ) : (
             <p className="mt-3 flex items-center gap-2 rounded-xl bg-canvas p-4 text-caption text-muted">
               <LuInfo aria-hidden />
@@ -161,6 +211,7 @@ export default function LocationSearchModal({
           </div>
           <Input
             id="store-name"
+            disabled={validation.isPending}
             value={name}
             onChange={(event) => setName(event.target.value)}
             prefix={<LuStore aria-hidden />}

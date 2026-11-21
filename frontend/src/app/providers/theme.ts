@@ -141,6 +141,9 @@ export function getAppTheme(
         colorWhite: dark ? '#241a0d' : '#ffffff',
       },
       Switch: { colorPrimary: '#d47d00', colorPrimaryHover: '#d47d00' },
+      // 입력·선택칸 활성 테두리: 대표색(흰 바탕 2.1:1)보다 한 단계 진한 primary-700(3.1:1). 전역 포커스 링 대신 이것으로 포커스를 보여준다
+      Input: { activeBorderColor: '#d47d00', hoverBorderColor: '#d47d00' },
+      Select: { activeBorderColor: '#d47d00', hoverBorderColor: '#d47d00' },
       // 토스트(BI-PC-05): 화면 아래, 진한 면(hero)에 흰 글자, 너비 400
       Notification: {
         width: 400,
