@@ -240,7 +240,7 @@ export default function AreaStatus({
                 : forecast?.precipitationChance) == null
                 ? null
                 : `강수 확률 ${weatherSummary ? cityWeather?.rainChance : forecast?.precipitationChance}%`,
-              weatherSummary ? null : '케이웨더',
+              weatherSummary ? null : '기상청',
             ]
               .filter(Boolean)
               .join(' · ')}
