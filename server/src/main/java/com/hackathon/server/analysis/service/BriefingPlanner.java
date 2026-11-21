@@ -9,6 +9,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
@@ -44,6 +45,7 @@ import com.hackathon.server.analysis.dto.SuggestionCategory;
 import com.hackathon.server.analysis.dto.SuggestionResponse;
 import com.hackathon.server.analysis.dto.SupplyTimingResponse;
 import com.hackathon.server.analysis.dto.TaskType;
+import com.hackathon.server.analysis.dto.WeatherForecast;
 import com.hackathon.server.analysis.dto.WeatherImpact;
 import com.hackathon.server.analysis.dto.WeatherResponse;
 import com.hackathon.server.analysis.dto.WeatherWarning;
@@ -84,6 +86,12 @@ final class BriefingPlanner {
 	private static final Map<String, String> HOLIDAY_LABELS = Map.of("KIMJANG", "김장철", "SEOLLAL", "설", "CHUSEOK", "추석");
 	private static final Set<WeatherImpact> DELIVERY_WEATHER = Set.of(WeatherImpact.RAIN_SNOW, WeatherImpact.HEAVY_SNOW,
 			WeatherImpact.COLD_WAVE, WeatherImpact.FINE_DUST);
+	// 날씨 영향 판정 기준: event/service/WeatherEvidenceService와 같다 (기상청 한파·폭염주의보, 강수확률 60%)
+	private static final Set<String> NO_IMPACT_WARNINGS = Set.of("건조", "풍랑");
+	private static final double COLD_WAVE_MIN = -12;
+	private static final double HEATWAVE_MAX = 33;
+	private static final int RAIN_CHANCE = 60;
+	private static final ZoneId KST = ZoneId.of("Asia/Seoul");
 
 	/** 근거 하나의 점수 (evidence_snapshot 한 줄). deadline은 행동 마감 = 카드의 준비 기한, 원자재는 null */
 	record Score(String evidenceId, LocalDate deadline, int urgency, int impact, int certainty, int total) {
@@ -103,6 +111,10 @@ final class BriefingPlanner {
 	}
 
 	private record Times(LocalTime start, LocalTime end) {
+	}
+
+	/** warning은 impact가 WARNING일 때 그 특보 */
+	private record WeatherStart(LocalDate date, WeatherImpact impact, WeatherWarning warning) {
 	}
 
 	private final StoreContext store;
@@ -159,8 +171,8 @@ final class BriefingPlanner {
 		}
 		WeatherResponse w = events.weather();
 		if (w != null) {
-			LocalDate deadline = weatherStart(w);
-			put(w.evidenceId(), deadline, urgency(deadline), !w.warnings().isEmpty() ? 3 : w.impacts().isEmpty() ? 0 : 2, 2);
+			LocalDate deadline = weatherStart(w).date();
+			put(w.evidenceId(), deadline, urgency(deadline), warned(w) ? 3 : w.impacts().isEmpty() ? 0 : 2, 2);
 		}
 		for (IngredientEvidence r : ingredients.items()) {
 			int signal = signal(r);
@@ -201,13 +213,49 @@ final class BriefingPlanner {
 		return date.isBefore(store.baseDate()) ? store.baseDate() : date;
 	}
 
-	/** shortcut: WeatherResponse에 영향 시작일이 없어 특보면 기준일, 아니면 첫 예보일로 본다. 수집기가 영향일을 주면 그 값으로 바꾼다 */
-	private LocalDate weatherStart(WeatherResponse w) {
-		if (!w.warnings().isEmpty()) {
-			return store.baseDate();
+	/** 특보 중 영업에 영향 주는 것(건조·풍랑 제외)이 있는지. 수집기가 이때만 impacts에 WARNING을 넣는다 */
+	private static boolean warned(WeatherResponse w) {
+		return w.impacts().contains(WeatherImpact.WARNING);
+	}
+
+	/**
+	 * 영향이 시작되는 날과 그날의 영향. 특보는 발효일(지났으면 기준일), 예보는 영향 판정에 걸린 첫 칸의 날짜.
+	 * 판정 기준은 event/service/WeatherEvidenceService.impacts와 같게 둔다. 걸린 칸이 없으면 기준일
+	 */
+	private WeatherStart weatherStart(WeatherResponse w) {
+		WeatherStart first = null;
+		for (WeatherWarning warning : w.warnings()) {
+			if (!NO_IMPACT_WARNINGS.contains(warning.kind())) {
+				first = earlier(first, new WeatherStart(notBefore(warning.startTime().atZoneSameInstant(KST).toLocalDate()),
+						WeatherImpact.WARNING, warning));
+			}
 		}
-		return w.forecasts().stream().map(f -> f.date()).filter(d -> !d.isBefore(store.baseDate())).min(naturalOrder())
-				.orElse(store.baseDate());
+		for (WeatherForecast f : w.forecasts()) {
+			WeatherImpact impact = forecastImpact(f);
+			if (impact != null) {
+				first = earlier(first, new WeatherStart(notBefore(f.date()), impact, null));
+			}
+		}
+		return first != null ? first
+				: new WeatherStart(store.baseDate(), w.impacts().isEmpty() ? WeatherImpact.WARNING : w.impacts().get(0), null);
+	}
+
+	private static WeatherStart earlier(WeatherStart current, WeatherStart candidate) {
+		return current == null || candidate.date().isBefore(current.date()) ? candidate : current;
+	}
+
+	private static WeatherImpact forecastImpact(WeatherForecast f) {
+		if (f.sky().contains("비") || f.sky().contains("눈") || f.sky().contains("소나기")
+				|| (f.precipitationChance() != null && f.precipitationChance() >= RAIN_CHANCE)) {
+			return WeatherImpact.RAIN_SNOW;
+		}
+		if (f.minTemperature() != null && f.minTemperature() <= COLD_WAVE_MIN) {
+			return WeatherImpact.COLD_WAVE;
+		}
+		if (f.maxTemperature() != null && f.maxTemperature() >= HEATWAVE_MAX) {
+			return WeatherImpact.HEATWAVE;
+		}
+		return null;
 	}
 
 	/** 원자재 신호 = 걸린 규칙 demand 합: STRONG_UP +2, UP +1, DOWN −1, STRONG_DOWN −2 */
@@ -320,7 +368,7 @@ final class BriefingPlanner {
 				&& w.impacts().stream().anyMatch(DELIVERY_WEATHER::contains)) {
 			types.add(TaskType.STAFFING);
 		}
-		if (!w.warnings().isEmpty()) {
+		if (warned(w)) {
 			types.add(TaskType.HOURS);
 		}
 		if (service()) {
@@ -436,12 +484,12 @@ final class BriefingPlanner {
 		if (season != null) {
 			return untilReason(season.label(), season.startDate());
 		}
-		WeatherResponse w = events.weather();
-		if (!w.warnings().isEmpty()) {
-			WeatherWarning warning = w.warnings().get(0);
-			return warning.kind() + josa(warning.level(), "이", "가") + " 발효 중이에요.";
+		WeatherStart start = weatherStart(events.weather());
+		if (start.warning() != null) {
+			String head = start.warning().kind() + josa(start.warning().level(), "이", "가");
+			return start.date().equals(store.baseDate()) ? head + " 발효 중이에요." : DATE_LABEL.format(start.date()) + " " + head + " 내려져요.";
 		}
-		return DATE_LABEL.format(weatherStart(w)) + " " + impactLabel(w.impacts().get(0)) + " 예보가 있어요.";
+		return DATE_LABEL.format(start.date()) + " " + impactLabel(start.impact()) + " 예보가 있어요.";
 	}
 
 	private String untilReason(String label, LocalDate start) {
@@ -530,7 +578,7 @@ final class BriefingPlanner {
 		AiAnalyzeRequest.Weather weather = w != null && (source == EventSource.WEATHER || triggers.contains(w.evidenceId()))
 				? new AiAnalyzeRequest.Weather(w.evidenceId(), w.impacts(),
 						w.warnings().stream().map(x -> new AiAnalyzeRequest.Warning(x.kind(), x.level())).toList(),
-						DATE_LABEL.format(weatherStart(w)))
+						DATE_LABEL.format(weatherStart(w).date()))
 				: null;
 		int radius = events.events().stream().anyMatch(c -> c.event().distanceM() > 1000) ? 1500 : 1000;
 		return new AiAnalyzeRequest(

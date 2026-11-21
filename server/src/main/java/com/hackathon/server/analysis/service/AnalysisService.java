@@ -101,8 +101,9 @@ public class AnalysisService {
 		if (dong == null || !SEOUL.equals(dong.sido())) {
 			throw new BusinessException(ErrorCode.ANALYSIS_OUTSIDE_SEOUL);
 		}
-		// shortcut: 생활권 이름은 행정동 이름으로 둔다, 장소(city_data_area) 이름을 붙이려면 가까운 장소를 찾아 바꾼다
-		StoreSummary store = new StoreSummary(request.storeName(), request.roadAddress(), dong.sigungu(), dong.dong(), industry,
+		String areaLabel = catalog.nearestAreaName(request.latitude(), request.longitude())
+				.map(area -> shortDong(dong.dong()) + " · " + area + " 인근").orElse(shortDong(dong.dong()));
+		StoreSummary store = new StoreSummary(request.storeName(), request.roadAddress(), dong.sigungu(), areaLabel, industry,
 				request.operationType(), ingredients, supplies);
 		AnalysisJob job = new AnalysisJob(UUID.randomUUID(), OffsetDateTime.now(KST).truncatedTo(ChronoUnit.SECONDS),
 				json(new AnalysisInput(request, store, dong.code())), json(steps(new EnumMap<>(StepCode.class))));
@@ -111,18 +112,23 @@ public class AnalysisService {
 		return new AnalysisCreatedResponse(job.getId(), AnalysisStatus.PENDING);
 	}
 
+	/** 화면용 동 이름: 성수1가1동 → 성수동, 상계3·4동 → 상계동. 숫자가 없으면 그대로 */
+	static String shortDong(String dong) {
+		return dong.replaceFirst("^([가-힣]+?)\\d.*동$", "$1동");
+	}
+
 	/** 고른 품목이 모두 있고 겹치지 않는지 확인하고, 고른 순서대로 이름을 붙인다. */
 	private static <T> List<T> items(List<Long> ids, Function<List<Long>, List<T>> lookup, Function<T, Long> idOf, String label) {
 		if (ids == null || ids.isEmpty()) {
 			return List.of();
 		}
 		if (new HashSet<>(ids).size() != ids.size()) {
-			throw new BusinessException(ErrorCode.BAD_REQUEST, label + "을 같은 것으로 두 번 골랐습니다.");
+			throw new BusinessException(ErrorCode.BAD_REQUEST, "같은 " + label + "를 두 번 골랐습니다.");
 		}
 		Map<Long, T> found = new HashMap<>();
 		lookup.apply(ids).forEach(item -> found.put(idOf.apply(item), item));
 		if (!found.keySet().containsAll(ids)) {
-			throw new BusinessException(ErrorCode.BAD_REQUEST, "없는 " + label + "이 있습니다.");
+			throw new BusinessException(ErrorCode.BAD_REQUEST, "없는 " + label + "가 있습니다.");
 		}
 		return ids.stream().map(found::get).toList();
 	}
@@ -130,7 +136,7 @@ public class AnalysisService {
 	public AnalysisResponse get(UUID id) {
 		AnalysisJob job = find(id);
 		AnalysisInput input = read(job.getInputSnapshot(), AnalysisInput.class);
-		return new AnalysisResponse(job.getId(), job.getStatus(), job.getBaseTime(), input.store(),
+		return new AnalysisResponse(job.getId(), job.getStatus(), kst(job), input.store(),
 				List.of(read(job.getSteps(), AnalysisStep[].class)), read(job.getEventSearch(), EventSearch.class),
 				read(job.getFailure(), AnalysisFailure.class), read(job.getFinalResult(), BriefingResponse.class));
 	}
@@ -202,10 +208,15 @@ public class AnalysisService {
 	private StoreContext storeContext(AnalysisJob job, AnalysisInput input) {
 		AnalysisRequest r = input.request();
 		StoreSummary s = input.store();
-		return new StoreContext(job.getId(), job.getBaseTime(), job.getBaseTime().atZoneSameInstant(KST).toLocalDate(), r.latitude(),
+		return new StoreContext(job.getId(), kst(job), kst(job).toLocalDate(), r.latitude(),
 				r.longitude(), s.gu(), input.adminDongCode(), s.industry().id(), s.industry().category(), s.industry().name(),
 				r.operationType(), s.ingredients().stream().map(IngredientResponse::id).toList(),
 				s.supplies().stream().map(SupplyResponse::id).toList());
+	}
+
+	/** DB에서 읽은 시각은 UTC로 오므로 화면·Python에 넘길 때 한국 시각으로 바꾼다 */
+	private static OffsetDateTime kst(AnalysisJob job) {
+		return job.getBaseTime().atZoneSameInstant(KST).toOffsetDateTime();
 	}
 
 	private void start(AnalysisJob job, Map<StepCode, StepStatus> steps, StepCode step) {

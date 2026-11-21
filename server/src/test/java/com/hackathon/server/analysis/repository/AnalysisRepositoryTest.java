@@ -80,6 +80,20 @@ class AnalysisRepositoryTest {
 	}
 
 	@Test
+	void nearestAreaWithinOneKilometer() {
+		// 가게(127.0446, 37.5446)에서 동쪽 약 400m, 3km 떨어진 두 장소
+		jdbc.sql("""
+				insert into city_data_area (code, name, category, boundary) values
+				('T1', '테스트숲', '공원', ST_GeogFromText('MULTIPOLYGON(((127.049 37.544, 127.052 37.544, 127.052 37.546, 127.049 37.546, 127.049 37.544)))')),
+				('T2', '먼곳', '공원', ST_GeogFromText('MULTIPOLYGON(((127.078 37.544, 127.080 37.544, 127.080 37.546, 127.078 37.546, 127.078 37.544)))'))
+				""").update();
+
+		assertThat(catalog.nearestAreaName(37.5446, 127.0446)).contains("테스트숲");
+		assertThat(catalog.nearestAreaName(37.5446, 127.0790)).contains("먼곳");
+		assertThat(catalog.nearestAreaName(37.60, 126.90)).isEmpty();
+	}
+
+	@Test
 	void feedbackUpsertKeepsOneVotePerCard() {
 		jobRepository.saveAndFlush(new AnalysisJob(ID, OffsetDateTime.parse("2026-11-17T07:00:00+09:00"), "{}", "[]"));
 		long industry = jdbc.sql("select id from industry where name = '한식·국밥'").query(Long.class).single();

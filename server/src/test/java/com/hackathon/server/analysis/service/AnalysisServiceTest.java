@@ -67,7 +67,7 @@ import com.hackathon.server.supply.dto.SupplyResponse;
 class AnalysisServiceTest {
 
 	private static final IndustryResponse KOREAN = new IndustryResponse(9, "음식점", "한식·국밥");
-	private static final StoreSummary STORE = new StoreSummary("성수동 한식당", "서울 성동구 서울숲2길 32", "성동구", "성수1가1동", KOREAN,
+	private static final StoreSummary STORE = new StoreSummary("성수동 한식당", "서울 성동구 서울숲2길 32", "성동구", "성수동 · 서울숲공원 인근", KOREAN,
 			OperationType.BOTH, List.of(new IngredientResponse(12, "배추"), new IngredientResponse(15, "돼지고기"),
 					new IngredientResponse(7, "쌀")),
 			List.of(new SupplyResponse(3, "포장 용기"), new SupplyResponse(5, "일회용 수저")));
@@ -102,10 +102,10 @@ class AnalysisServiceTest {
 				jsonMapper, queued::add);
 	}
 
-	/** 기준 시각을 고정하려고 POST를 거치지 않고 PENDING 작업을 바로 넣는다. */
+	/** 기준 시각을 고정하려고 POST를 거치지 않고 PENDING 작업을 바로 넣는다. DB에서 읽은 것처럼 기준 시각은 UTC로 둔다. */
 	private UUID pending() {
 		UUID id = ContractExample.ANALYSIS_ID;
-		jobs.put(id, new AnalysisJob(id, ContractExample.BASE_TIME, jsonMapper.writeValueAsString(new AnalysisInput(REQUEST, STORE,
+		jobs.put(id, new AnalysisJob(id, ContractExample.BASE_TIME.withOffsetSameInstant(java.time.ZoneOffset.UTC), jsonMapper.writeValueAsString(new AnalysisInput(REQUEST, STORE,
 				SEONGSU.code())), "[]"));
 		return id;
 	}
@@ -124,7 +124,7 @@ class AnalysisServiceTest {
 				.andExpect(header("X-Internal-Token", "t"))
 				.andExpect(jsonPath("$.request_id").value(ContractExample.ANALYSIS_ID.toString()))
 				.andExpect(jsonPath("$.base_time").value("2026-11-17T07:00:00+09:00"))
-				.andExpect(jsonPath("$.store.area_label").value("성수1가1동"))
+				.andExpect(jsonPath("$.store.area_label").value("성수동 · 서울숲공원 인근"))
 				.andExpect(jsonPath("$.event_search.radius_m").value(1000))
 				.andExpect(jsonPath("$.events[0].date_label").value("11.21(토)"))
 				.andExpect(jsonPath("$.events[0].peak_label").value("15~20시"))
@@ -142,6 +142,7 @@ class AnalysisServiceTest {
 		ai.verify();
 		AnalysisResponse response = service().get(id);
 		assertThat(response.status()).isEqualTo(AnalysisStatus.SUCCEEDED);
+		assertThat(response.baseTime()).isEqualTo(ContractExample.BASE_TIME); // +09:00으로 돌려준다
 		assertThat(response.steps()).extracting(AnalysisStep::status).containsOnly(StepStatus.DONE);
 		assertThat(response.eventSearch().source()).isEqualTo(EventSource.CULTURAL_EVENT);
 		List<SuggestionResponse> suggestions = response.briefing().suggestions();
@@ -308,8 +309,16 @@ class AnalysisServiceTest {
 		assertThat(error.getErrorCode()).isEqualTo(ErrorCode.NOT_FOUND);
 	}
 
+	@Test
+	void shortDongDropsNumbers() {
+		assertThat(AnalysisService.shortDong("성수1가1동")).isEqualTo("성수동");
+		assertThat(AnalysisService.shortDong("상계3·4동")).isEqualTo("상계동");
+		assertThat(AnalysisService.shortDong("청운효자동")).isEqualTo("청운효자동");
+	}
+
 	private void stubCatalog() {
 		when(catalog.industry(9L)).thenReturn(Optional.of(KOREAN));
+		when(catalog.nearestAreaName(37.5446, 127.0446)).thenReturn(Optional.of("서울숲공원"));
 		when(catalog.ingredients(anyList())).thenReturn(List.of(new IngredientResponse(7, "쌀"), new IngredientResponse(12, "배추"),
 				new IngredientResponse(15, "돼지고기")));
 		when(catalog.supplies(anyList())).thenReturn(List.of(new SupplyResponse(5, "일회용 수저"), new SupplyResponse(3, "포장 용기")));

@@ -106,7 +106,7 @@ class BriefingPlannerTest {
 	@Test
 	void weatherWarningOpensHoursAndFacility() {
 		var warning = new WeatherWarning("한파", "주의보", OffsetDateTime.parse("2026-11-17T05:00:00+09:00"), null);
-		var weather = new WeatherResponse("W1", "1120065000", List.of(WeatherImpact.COLD_WAVE), List.of(warning),
+		var weather = new WeatherResponse("W1", "1120065000", List.of(WeatherImpact.COLD_WAVE, WeatherImpact.WARNING), List.of(warning),
 				List.of(new WeatherForecast(LocalDate.of(2026, 11, 17), DayPart.AM, "맑음", -8.0, -1.0, 0)),
 				OffsetDateTime.parse("2026-11-17T06:50:00+09:00"));
 		var events = new EventEvidence(new EventSearch(7, ContractExample.BASE_DATE, 0, EventSource.WEATHER), List.of(), List.of(),
@@ -117,6 +117,25 @@ class BriefingPlannerTest {
 		assertThat(cards).extracting(c -> c.taskType(), c -> c.reason(), c -> c.dueDate()).containsExactly(
 				tuple(TaskType.HOURS, "한파주의보가 발효 중이에요.", ContractExample.BASE_DATE),
 				tuple(TaskType.FACILITY, "한파주의보가 발효 중이에요.", ContractExample.BASE_DATE));
+	}
+
+	@Test
+	void rainForecastStartsOnFirstRainyDay() {
+		var weather = new WeatherResponse("W1", "1120065000", List.of(WeatherImpact.RAIN_SNOW), List.of(),
+				List.of(new WeatherForecast(LocalDate.of(2026, 11, 17), DayPart.AM, "맑음", 2.0, null, 10),
+						new WeatherForecast(LocalDate.of(2026, 11, 18), DayPart.PM, "구름많음", null, 9.0, 30),
+						new WeatherForecast(LocalDate.of(2026, 11, 19), DayPart.AM, "흐리고 비", 4.0, null, 80)),
+				OffsetDateTime.parse("2026-11-17T06:50:00+09:00"));
+		var events = new EventEvidence(new EventSearch(7, ContractExample.BASE_DATE, 0, EventSource.WEATHER), List.of(), List.of(),
+				weather, List.of());
+
+		var planner = new BriefingPlanner(ContractExample.store(), events, empty(), List.of(), List.of());
+
+		// 음식점·BOTH라 배달 근무(STAFFING)와 매장 정비(FACILITY). 특보가 없어 영업시간 칸은 없다
+		assertThat(planner.cards()).extracting(c -> c.taskType(), c -> c.reason(), c -> c.dueDate()).containsExactly(
+				tuple(TaskType.STAFFING, "11.19(목) 비·눈 예보가 있어요.", LocalDate.of(2026, 11, 19)),
+				tuple(TaskType.FACILITY, "11.19(목) 비·눈 예보가 있어요.", LocalDate.of(2026, 11, 19)));
+		assertThat(planner.scores()).extracting(s -> s.urgency(), s -> s.impact(), s -> s.certainty()).containsExactly(tuple(2, 2, 2));
 	}
 
 	@Test

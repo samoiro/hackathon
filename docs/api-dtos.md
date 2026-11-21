@@ -305,7 +305,7 @@ GET /api/analysis/{id}. 분석 중에는 steps만, 끝나면 briefing 또는 fai
 | `itemId` | `long` | 필수 | 부자재 id |
 | `name` | `String` | 필수 | 품목 이름 (예: 포장 용기) |
 | `demand` | `Demand` | null 가능 | 수요 변화 (수요 높음 배지) |
-| `prepareBy` | `LocalDate` | null 가능 | 이날까지 준비 (11.18(화)) |
+| `prepareBy` | `LocalDate` | null 가능 | 이날까지 준비 (11.18(수)) |
 | `leadDays` | `Integer` | null 가능 | 며칠 전 준비 (supply_rule.lead_days_max) (예: 3) |
 | `triggerLabel` | `String` | null 가능 | 준비 이유 (예: 공연) |
 | `triggerEvidenceId` | `String` | null 가능 | 연결된 행사·시즌·날씨 근거 id. 없으면 null (예: E1) |
