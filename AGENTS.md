@@ -39,4 +39,5 @@ Never cut: validation at trust boundaries, error handling that prevents data los
 - 커밋 본문, PR 제목과 본문도 한글로 씁니다. 종류·범위와 코드·파일 이름은 영문 그대로 둡니다.
 - 훅이 실패하면 `--no-verify`로 우회하지 않고 이름이나 메시지를 고칩니다.
 - 커밋과 push는 사용자가 요청했을 때만 합니다.
+- `server/`에서 예외를 던지거나 에러 코드를 추가할 때는 [`server/docs/exception-guide.md`](server/docs/exception-guide.md)를 따릅니다.
 - `server/` 테스트를 작성하거나 고칠 때는 [`server/.claude/skills/backend-testing`](server/.claude/skills/backend-testing/SKILL.md) skill을 따릅니다.

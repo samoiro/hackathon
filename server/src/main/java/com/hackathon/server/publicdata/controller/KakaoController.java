@@ -6,13 +6,13 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.constraints.DecimalMax;
 import jakarta.validation.constraints.DecimalMin;
 
-import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.hackathon.server.common.exception.PublicApiErrors;
+import com.hackathon.server.common.exception.BusinessException;
+import com.hackathon.server.common.exception.ErrorCode;
 import com.hackathon.server.publicdata.client.KakaoLocalClient;
 import com.hackathon.server.publicdata.dto.AdminDong;
 
@@ -34,7 +34,7 @@ public class KakaoController {
 			@Parameter(description = "경도", example = "127.0446") @RequestParam @DecimalMin("-180") @DecimalMax("180") double longitude) {
 		AdminDong dong = kakao.adminDong(latitude, longitude);
 		if (dong == null) {
-			throw PublicApiErrors.of(HttpStatus.NOT_FOUND, "이 좌표에 해당하는 행정동이 없습니다.");
+			throw new BusinessException(ErrorCode.NOT_FOUND, "이 좌표에 해당하는 행정동이 없습니다.");
 		}
 		return dong;
 	}

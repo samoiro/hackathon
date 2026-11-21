@@ -5,7 +5,6 @@ import java.util.HashMap;
 import java.util.Map;
 
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 import org.springframework.web.client.RestClient;
@@ -15,7 +14,8 @@ import org.springframework.web.util.UriComponentsBuilder;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 
-import com.hackathon.server.common.exception.PublicApiErrors;
+import com.hackathon.server.common.exception.BusinessException;
+import com.hackathon.server.common.exception.ErrorCode;
 import com.hackathon.server.publicdata.dto.ListResponse;
 
 /** 공공데이터포털(apis.data.go.kr) 목록 API 공통 호출. 응답의 response.body.items.item을 목록으로 돌려준다. */
@@ -38,7 +38,7 @@ public class DataGoKrClient {
 	/** query: 파라미터 이름 → 값 (serviceKey 제외). 비어 있는 값은 보내지 않는다. */
 	public ListResponse list(String path, Map<String, String> query) {
 		if (!StringUtils.hasText(apiKey)) {
-			throw PublicApiErrors.of(HttpStatus.SERVICE_UNAVAILABLE, "DATA_GO_KR_API_KEY가 설정되지 않았습니다.");
+			throw new BusinessException(ErrorCode.PUBLIC_API_KEY_MISSING, "DATA_GO_KR_API_KEY가 설정되지 않았습니다.");
 		}
 		// 인증키에 +, /, = 가 들어 있어 값은 템플릿 변수로 넘겨 엄격하게 인코딩
 		UriComponentsBuilder builder = UriComponentsBuilder.fromUriString(baseUrl + path)
@@ -59,16 +59,16 @@ public class DataGoKrClient {
 			root = jsonMapper.readTree(restClient.get().uri(uri).retrieve().body(String.class));
 		}
 		catch (RestClientResponseException e) {
-			throw PublicApiErrors.of(HttpStatus.BAD_GATEWAY, "공공데이터포털 API 오류: " + gatewayMessage(e.getResponseBodyAsString()));
+			throw new BusinessException(ErrorCode.PUBLIC_API_ERROR, "공공데이터포털 API 오류: " + gatewayMessage(e.getResponseBodyAsString()));
 		}
 		catch (RestClientException e) {
-			throw PublicApiErrors.of(HttpStatus.BAD_GATEWAY, "공공데이터포털 API 호출 실패: " + e.getMostSpecificCause().getMessage());
+			throw new BusinessException(ErrorCode.PUBLIC_API_CONNECTION_FAILED, "공공데이터포털 API 호출 실패: " + e.getMostSpecificCause().getMessage());
 		}
 
 		JsonNode response = root.has("response") ? root.get("response") : root;
 		JsonNode body = response.path("body");
 		if (body.isMissingNode()) {
-			throw PublicApiErrors.of(HttpStatus.BAD_GATEWAY, "공공데이터포털 API 오류: " + gatewayMessage(root.toString()));
+			throw new BusinessException(ErrorCode.PUBLIC_API_ERROR, "공공데이터포털 API 오류: " + gatewayMessage(root.toString()));
 		}
 		JsonNode item = body.path("items").path("item");
 		// 결과가 1건이면 배열이 아니라 객체로 오는 경우가 있음

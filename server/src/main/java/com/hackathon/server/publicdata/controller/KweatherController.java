@@ -8,14 +8,14 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.constraints.Pattern;
 
-import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import tools.jackson.databind.JsonNode;
 
-import com.hackathon.server.common.exception.PublicApiErrors;
+import com.hackathon.server.common.exception.BusinessException;
+import com.hackathon.server.common.exception.ErrorCode;
 import com.hackathon.server.publicdata.client.KweatherClient;
 
 @Tag(name = "Kweather", description = "케이웨더 날씨 API (응답 필드명은 원본 API 그대로)")
@@ -47,7 +47,7 @@ public class KweatherController {
 			@Parameter(description = "조회 단위 (DONG: 읍면동, SIGUNGU: 시군구)") @RequestParam(defaultValue = "DONG") Level level,
 			@Parameter(description = CODE_DESC, example = "1111051500") @RequestParam(required = false) @Pattern(regexp = "\\d{10}") String code) {
 		if (level == Level.SIDO) {
-			throw PublicApiErrors.of(HttpStatus.BAD_REQUEST, "기상특보는 DONG, SIGUNGU 단위만 지원합니다.");
+			throw new BusinessException(ErrorCode.BAD_REQUEST, "기상특보는 DONG, SIGUNGU 단위만 지원합니다.");
 		}
 		return kweather.get("kw-warning" + level.number(), code);
 	}

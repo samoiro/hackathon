@@ -16,6 +16,7 @@ import com.hackathon.server.batch.entity.BatchJobHistory;
 import com.hackathon.server.batch.entity.BatchStatus;
 import com.hackathon.server.batch.repository.BatchJobHistoryRepository;
 import com.hackathon.server.batch.repository.BatchJobRepository;
+import com.hackathon.server.common.exception.BusinessException;
 
 /** 배치 회차(batch_job)와 시도 이력(batch_job_history)을 남기며 작업을 실행한다. 실패하면 batch.max-retry-times까지 다시 시도한다. */
 @Service
@@ -50,7 +51,7 @@ public class BatchJobService {
 				return save(job, history);
 			}
 			catch (RuntimeException e) {
-				history.fail(e.getClass().getSimpleName(), errorMessage(e));
+				history.fail(e instanceof BusinessException b ? b.getErrorCode().name() : e.getClass().getSimpleName(), errorMessage(e));
 				boolean last = retry >= maxRetryTimes;
 				if (last) job.finish(BatchStatus.FAILED);
 				log.warn("{} 실패 (재시도 {}/{})", jobName, retry, maxRetryTimes, e);

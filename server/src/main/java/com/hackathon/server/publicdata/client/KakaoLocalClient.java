@@ -1,7 +1,6 @@
 package com.hackathon.server.publicdata.client;
 
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 import org.springframework.web.client.RestClient;
@@ -10,7 +9,8 @@ import org.springframework.web.client.RestClientResponseException;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 
-import com.hackathon.server.common.exception.PublicApiErrors;
+import com.hackathon.server.common.exception.BusinessException;
+import com.hackathon.server.common.exception.ErrorCode;
 import com.hackathon.server.publicdata.dto.AdminDong;
 
 /** 카카오 로컬 API. 인증키는 "Authorization: KakaoAK {REST API 키}" 헤더로 보낸다. */
@@ -33,7 +33,7 @@ public class KakaoLocalClient {
 	/** 좌표 → 행정동. 바다·국외처럼 행정구역이 없는 좌표면 null. */
 	public AdminDong adminDong(double latitude, double longitude) {
 		if (!StringUtils.hasText(apiKey)) {
-			throw PublicApiErrors.of(HttpStatus.SERVICE_UNAVAILABLE, "KAKAO_REST_API_KEY가 설정되지 않았습니다.");
+			throw new BusinessException(ErrorCode.PUBLIC_API_KEY_MISSING, "KAKAO_REST_API_KEY가 설정되지 않았습니다.");
 		}
 		String body;
 		try {
@@ -46,15 +46,15 @@ public class KakaoLocalClient {
 		}
 		catch (RestClientResponseException e) {
 			// 400: 좌표 형식 오류, 401·403: 키·권한 문제(서버 설정 문제라 502)
-			HttpStatus status = e.getStatusCode().value() == 400 ? HttpStatus.BAD_REQUEST : HttpStatus.BAD_GATEWAY;
-			throw PublicApiErrors.of(status, "카카오 API 오류 (HTTP " + e.getStatusCode().value() + "): "
+			ErrorCode errorCode = e.getStatusCode().value() == 400 ? ErrorCode.PUBLIC_API_BAD_REQUEST : ErrorCode.PUBLIC_API_ERROR;
+			throw new BusinessException(errorCode, "카카오 API 오류 (HTTP " + e.getStatusCode().value() + "): "
 					+ errorMessage(e.getResponseBodyAsString()));
 		}
 		catch (RestClientException e) {
-			throw PublicApiErrors.of(HttpStatus.BAD_GATEWAY, "카카오 API 호출 실패: " + e.getMostSpecificCause().getMessage());
+			throw new BusinessException(ErrorCode.PUBLIC_API_CONNECTION_FAILED, "카카오 API 호출 실패: " + e.getMostSpecificCause().getMessage());
 		}
 		if (body == null || body.isBlank()) {
-			throw PublicApiErrors.of(HttpStatus.BAD_GATEWAY, "카카오 API 응답이 비어 있습니다.");
+			throw new BusinessException(ErrorCode.PUBLIC_API_INVALID_RESPONSE, "카카오 API 응답이 비어 있습니다.");
 		}
 		for (JsonNode doc : jsonMapper.readTree(body).path("documents")) {
 			if ("H".equals(doc.path("region_type").asString(""))) {
