@@ -12,6 +12,6 @@ public record SupportProgramResponse(
 		@Schema(description = "기업마당 원문 링크 (pblancUrl)", requiredMode = Schema.RequiredMode.REQUIRED) String url,
 		@Schema(description = "소관기관 (jrsdInsttNm)", example = "중소벤처기업부", requiredMode = Schema.RequiredMode.REQUIRED) String agency,
 		@Schema(description = "지원 분야 (pldirSportRealmLclasCodeNm). 모르면 null", example = "경영") String field,
-		@Schema(description = "마감일. '예산 소진시까지'·'상시 접수'처럼 날짜가 없으면 null", example = "2026-11-25") LocalDate deadline,
-		@Schema(description = "신청 기간 원문 (reqstBeginEndDe). 마감일이 없을 때 화면에 그대로 보여준다", example = "예산 소진시까지", requiredMode = Schema.RequiredMode.REQUIRED) String applicationPeriod) {
+		@Schema(description = "마감일 (오늘이거나 그 뒤)", example = "2026-11-25", requiredMode = Schema.RequiredMode.REQUIRED) LocalDate deadline,
+		@Schema(description = "신청 기간 원문 (reqstBeginEndDe)", example = "2026-11-19 ~ 2026-11-25", requiredMode = Schema.RequiredMode.REQUIRED) String applicationPeriod) {
 }

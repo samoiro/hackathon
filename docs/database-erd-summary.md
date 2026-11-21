@@ -194,6 +194,20 @@
 | 생성 시각 | created_datetime |
 | 변경 시각 | updated_datetime |
 
+### 지원사업 공고 — support_program
+
+| 한글명 | 영문 필드명 |
+| --- | --- |
+| 공고 ID (pblancId) | id |
+| 공고명 | title |
+| 공고 URL | url |
+| 소관기관명 | agency_name |
+| 지원 분야 / 지원 대상 | field_name / target_name |
+| 해시태그 | hashtags |
+| 신청 기간 원문 / 마감일 | application_period / deadline |
+| 등록 일시 | registered_datetime |
+| 수집 일시 | created_datetime |
+
 ## 현재 관리 테이블
 
 ### 작업·재시도 관리 — batch_job

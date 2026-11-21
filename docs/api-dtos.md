@@ -19,7 +19,7 @@ API 구현(컨트롤러·서비스)은 본선에서 합니다. Python ai-server�
 | 대시보드 | `POST /api/analysis/{id}/feedback` | `SuggestionFeedbackRequest` | 204 | 카드 1장에 1표, 다시 보내면 표를 바꿈 |
 | 대시보드 | `GET /api/areas` | — | `List<AreaResponse>` | "지금 이 지역은" 장소 목록 |
 | 대시보드 | `GET /api/seoul/city-data/{area}` | — | `CityDataResponse` | 지금은 원본 CITYDATA를 그대로 줌. 이 DTO로 바꿀 예정 |
-| 대시보드 | `GET /api/support-programs` | — | `SupportProgramListResponse` | 마감 임박 지원사업. 원본이 하루 1번 갱신되고 느려서 서버가 모아 두고 내줌 |
+| 대시보드 | `GET /api/support-programs` | — | `SupportProgramListResponse` | 마감 임박 지원사업. 오늘 이후 마감, 임박 순 최대 5개. 원본이 하루 1번 갱신되고 느려서 서버가 매일 6시에 모아 두고 내줌. 한 번도 모으지 못했으면 503 |
 
 - 오류는 모두 Spring `ProblemDetail`(RFC 9457) 형식입니다.
 - 할 일(오늘 확인할 일)은 로그인이 없어 브라우저 localStorage `todos:{analysisId}`에 둡니다. 서버 API가 없습니다. 강추 카드의 `subTasks`를 처음 열 때 담습니다(항목 `{ id, text, cardKey, done }`, 직접 추가한 할 일은 `cardKey`가 `null`).
@@ -419,11 +419,11 @@ GET /api/seoul/city-data/{area}를 화면용으로 줄인 응답 ("지금 이 �
 
 ### SupportProgramListResponse
 
-GET /api/support-programs. 대시보드 "마감 임박 지원사업" 카드. 기업마당 지원사업 공고(공공데이터포털 15157820) 중 서울·전국 소상공인 대상이고 7일 안에 마감되거나 마감일이 따로 없는 공고. 원본은 하루 한 번 갱신되고 한 번 받는 데 몇 초 걸려서 서버가 모아 두고 내준다.
+GET /api/support-programs. 대시보드 "마감 임박 지원사업" 카드. 기업마당 지원사업 공고(공공데이터포털 15157820) 중 서울·전국 소상공인 대상이고 오늘 이후에 마감되는 공고. 원본은 하루 한 번 갱신되고 한 번 받는 데 몇 초 걸려서 서버가 모아 두고 내준다.
 
 | 필드 | 타입 | 값 | 설명 |
 | --- | --- | --- | --- |
-| `items` | `List<SupportProgramResponse>` | 필수 | 공고 (마감일 빠른 순 → 마감일 없는 공고는 최근 등록 순, 최대 3개) |
+| `items` | `List<SupportProgramResponse>` | 필수 | 공고 (마감일 빠른 순, 최대 5개). '예산 소진시까지'처럼 마감일이 없는 공고는 뺀다 |
 | `checkedAt` | `OffsetDateTime` | 필수 | 원본을 확인한 시각 (출처 표시) |
 
 ### SupportProgramResponse
@@ -437,8 +437,8 @@ GET /api/support-programs. 대시보드 "마감 임박 지원사업" 카드. 기
 | `url` | `String` | 필수 | 기업마당 원문 링크 (pblancUrl) |
 | `agency` | `String` | 필수 | 소관기관 (jrsdInsttNm) (예: 중소벤처기업부) |
 | `field` | `String` | null 가능 | 지원 분야 (pldirSportRealmLclasCodeNm). 모르면 null (예: 경영) |
-| `deadline` | `LocalDate` | null 가능 | 마감일. '예산 소진시까지'·'상시 접수'처럼 날짜가 없으면 null (예: 2026-11-25) |
-| `applicationPeriod` | `String` | 필수 | 신청 기간 원문 (reqstBeginEndDe). 마감일이 없을 때 화면에 그대로 보여준다 (예: 예산 소진시까지) |
+| `deadline` | `LocalDate` | 필수 | 마감일 (오늘이거나 그 뒤) (예: 2026-11-25) |
+| `applicationPeriod` | `String` | 필수 | 신청 기간 원문 (reqstBeginEndDe) (예: 2026-11-19 ~ 2026-11-25) |
 
 ## 값 목록 (enum)
 

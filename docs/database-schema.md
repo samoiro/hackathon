@@ -269,6 +269,52 @@ server의 IngredientPriceBatch가 매일 10시(KST, batch.ingredient-price.cron)
 
 V23__industry_recommendation_names.sql에서 기존 연결의 이름을 채웠습니다. 이름은 NOT NULL이며 ID·이름 쌍의 복합 외래 키로 원본과의 일치를 보장합니다. 원본 업종명·원자재명·부자재명을 변경하면 ON UPDATE CASCADE로 연결 테이블의 이름도 갱신됩니다. 이를 위해 industry(id, name), ingredient(id, item_name), supply(id, name)에 복합 UNIQUE 제약을 추가했습니다. 새 연결을 입력할 때도 ID와 일치하는 이름을 함께 넣습니다.
 
+### support_program — 지원사업 공고 (V30)
+
+기업마당 지원사업 API(`1421000/bizinfo/pblancBsnsService`, 공공데이터포털 15157820)의 접수 중인 공고 중 서울 소상공인 대상 공고. `GET /api/support-programs`(마감 임박 지원사업 카드)가 읽습니다.
+
+| 컬럼 | 타입·제약 | 설명 / API 필드 |
+| --- | --- | --- |
+| id | text PK, `PBLN_` + 숫자 | pblancId |
+| title | text, 공백 불가 | pblancNm. 공공누리 제3유형(변경금지)이라 앞뒤 공백도 원문 그대로 |
+| url | text, `https://www.bizinfo.go.kr/`로 시작 | pblancUrl |
+| agency_name | text, 공백 불가 | jrsdInsttNm 소관기관 |
+| field_name | text, NULL 허용 | pldirSportRealmLclasCodeNm 분야 (경영·금융·기술·인력·수출·내수·창업·기타) |
+| target_name | text, 공백 불가 | trgetNm 지원 대상. 공고마다 하나 (중소기업·소상공인·창업벤처 등) |
+| hashtags | text[] | hashtags를 쉼표로 나누고 앞뒤 공백·빈 태그를 뺀 것 |
+| application_period | text, 공백 불가 | reqstBeginEndDe 원문 |
+| deadline | date, NULL 허용 | 신청 기간이 `YYYY-MM-DD ~ YYYY-MM-DD`(점 구분 포함)일 때 뒤 날짜. 그 밖에는 NULL |
+| registered_datetime | timestamptz(0) | creatPnttm (KST) |
+| created_datetime | timestamptz(0), 기본값 CURRENT_TIMESTAMP(0) | 수집 시각. 응답의 `checkedAt`은 가장 최근 값 |
+
+2026-11-21 실제 API를 전부 받아(1,000건씩 2번, 약 8초) 정한 것입니다.
+
+- API는 접수 중인 공고만 줍니다. 1,303건 중 마감이 지난 공고는 0건이었습니다. 그래서 이력을 두지 않고 일배치가 한 트랜잭션에서 지우고 다시 넣습니다. 받은 건수가 `totalCount`와 다르거나 0건이면 바꾸지 않습니다.
+- 신청 기간은 날짜 범위가 381건, 날짜가 없는 문구가 922건(예산 소진시까지 645 · 상시 접수 137 · 선착순 접수 35 · 모집 완료시 31 · 세부사업별 상이 20 등 30여 종)입니다. `매월 10일 18:00까지`처럼 날짜 범위가 아닌 것도 NULL입니다. 시작일이 오늘 이후인 공고도 있습니다.
+- API에는 지역 코드 파라미터가 없습니다. 걸리는 조건은 분야(`searchLclasId`)와 해시태그뿐이고, `jrsdInsttNm`·`areaCd` 등을 넣어도 1,303건 그대로입니다.
+- 서울 소상공인 대상 공고만 저장합니다(1,303건 중 40건). 일배치가 아래 넷을 모두 만족하는 공고만 넣습니다(`SupportProgramService.isTarget`). 조회는 파생 쿼리만 쓰도록 배열 조건을 저장할 때 겁니다.
+  - `서울` 태그가 있음: 전국 공고는 `전국` 대신 17개 시도 태그를 모두 답니다(`전국` 태그 2건). 서울특별시 소관 38건은 모두 `서울` 태그가 있습니다. 384건.
+  - 소관기관이 서울 밖 지자체가 아님: 이름이 `도`·`시`로 끝나는 15곳이 모두 광역 지자체이고, 중앙부처 20곳은 `부`·`처`·`청`·`회`로 끝납니다. 이름을 나열하지 않아 `전남광주통합특별시`처럼 바뀐 이름도 걸립니다.
+  - 제목 맨 앞 `[..]`이 없거나 거기에 서울이 있음: 31종 모두 지역 표시입니다(`[경북]`, `[충남ㆍ충북ㆍ대전ㆍ세종]`, `[비수도권]` 등). `[서울ㆍ인천ㆍ경기ㆍ강원]`은 남깁니다.
+  - 소상공인 대상: `소상공인` 태그(194건)와 target_name(179건)이 서로 빠뜨리는 공고가 있어 둘 중 하나면 됩니다(224건). API의 `hashtags=소상공인` 검색(207건)은 `소상공인시장진흥공단` 같은 태그도 걸고 target_name만 소상공인인 26건을 빠뜨려 쓰지 않습니다.
+- 서울 조건 셋으로 308건이 남고, `서울` 태그가 있는데 뒤의 두 조건으로 빠지는 공고가 76건입니다(경상북도 14, 전남광주통합특별시 11, 충청남도 7 등). 서울·소상공인으로는 43건 중 3건(경상북도 경북 특별관, 경기도 과천시 육성자금, `[광주]` SNS 홍보지원)입니다.
+- 제목 중간의 지역명은 보지 않습니다. `환경기업`에 `경기`가 들어 있는 식으로 잘못 걸려서입니다. 그래서 중소벤처기업부의 `소담스퀘어 in 광주` 같은 지역 센터 공고는 남습니다.
+- 사업 개요(bsnsSumryCn, HTML 최대 11KB)·첨부파일·문의처·조회수는 화면에서 쓰지 않아 저장하지 않습니다. 행이 적어 인덱스는 두지 않습니다.
+
+카드 조회는 `SupportProgramRepository.findTop5ByDeadlineGreaterThanEqualOrderByDeadlineAsc(오늘)`입니다. 오늘 이후 마감인 공고를 임박한 순으로 5개 주고, 마감일이 없는 공고는 나오지 않습니다. 오늘은 KST로 넘깁니다. `checkedAt`은 `findFirstByOrderByCreatedDatetimeDesc()`의 수집 시각입니다.
+
+2026-11-21에는 40건 중 마감일이 있는 공고가 11건이고, 가장 이른 마감은 11-30입니다. V30은 로컬 DB(Homebrew PostgreSQL 18)에 적용했고 Neon에는 아직 적용하지 않았습니다. V30 파일 첫 줄 주석의 "서울·소상공인 조건은 조회할 때 건다"는 이 변경 전 설계입니다(로컬에 이미 적용돼 파일을 고치지 않음).
+
+### 지원사업 일배치 (SUPPORT_PROGRAM_DAILY)
+
+server의 SupportProgramBatch가 매일 6시(KST, batch.support-program.cron)에 돕니다. 기업마당은 낮에 공고를 올려서 아침에 전날 공고까지 받습니다.
+
+1. 필터 없이 500건씩 `totalCount`까지 받습니다. 1,000건씩 받으면 한 번에 6~11초 걸려 공공 API 응답 제한 15초를 넘길 때가 있습니다(500건은 4~5초). 공고 ID·제목·URL·소관기관·지원 대상·신청 기간·등록 일시 중 하나라도 위 제약에 맞지 않는 공고는 건너뜁니다.
+2. 받은 건수가 `totalCount`와 다르거나, 같은 공고가 두 번 왔거나(받는 사이 새 공고가 올라와 페이지가 밀림), 0건이면 실패합니다. 테이블은 건드리지 않고 다시 시도합니다.
+3. 서울 소상공인 대상 공고만 남기고, 한 트랜잭션에서 support_program을 모두 지우고 넣습니다.
+
+실행마다 batch_job 1행, 시도마다 batch_job_history 1행을 남깁니다(read = API 전체 건수, write = 넣은 공고, skip = 필수 값이 없거나 서울 소상공인 대상이 아니어서 뺀 공고). 한 번도 성공하지 않아 테이블이 비어 있으면 `GET /api/support-programs`는 503(`SERVICE_UNAVAILABLE`)을 돌려줍니다.
+
 ## 현재 생성된 관리 테이블
 
 ### batch_job — 작업·재시도 관리
