@@ -1,12 +1,14 @@
 import { Button, Card, Tag } from 'antd'
 import { useEffect, useRef, useState } from 'react'
 import {
+  LuCalendar,
   LuChevronLeft,
   LuChevronRight,
   LuExternalLink,
   LuPause,
   LuPlay,
 } from 'react-icons/lu'
+import EmptyState from '@/components/common/EmptyState'
 import { usePrefersReducedMotion } from '@/hooks/usePrefersReducedMotion'
 
 // 마감이 가까운 순서. 기준일 11.17(월)에서 센 D-day
@@ -52,14 +54,19 @@ function scrollListTo(
   })
 }
 
-export default function SupportPrograms() {
+// empty: 이번 주 마감 공고가 없을 때(BI-PC-05). 넘김 버튼과 목록 대신 빈 상태를 보여준다
+export default function SupportPrograms({
+  empty = false,
+}: {
+  empty?: boolean
+}) {
   const listRef = useRef<HTMLUListElement>(null)
   const [index, setIndex] = useState(0)
   const reduceMotion = usePrefersReducedMotion()
   const [playing, setPlaying] = useState(!reduceMotion)
   const [hovered, setHovered] = useState(false)
   const [focused, setFocused] = useState(false)
-  const rotating = playing && !hovered && !focused
+  const rotating = !empty && playing && !hovered && !focused
 
   const cards = () => [...(listRef.current?.querySelectorAll('li') ?? [])]
 
@@ -109,81 +116,116 @@ export default function SupportPrograms() {
           >
             마감 임박 지원사업
           </h2>
-          {/* 자동으로 돌 때는 위치를 읽지 않는다. 멈췄을 때만 넘길 때마다 알려준다 */}
-          <span
-            aria-live={rotating ? 'off' : 'polite'}
-            className="text-caption text-muted"
-          >
-            <span className="sr-only">공고 </span>
-            {index + 1} / {PROGRAMS.length}
-          </span>
-          <Button
-            size="small"
-            aria-label={playing ? '자동 넘김 멈추기' : '자동 넘김 켜기'}
-            icon={playing ? <LuPause aria-hidden /> : <LuPlay aria-hidden />}
-            onClick={() => setPlaying((value) => !value)}
-          />
-          <Button
-            size="small"
-            aria-label="이전 공고"
-            icon={<LuChevronLeft aria-hidden />}
-            onClick={() => step(-1)}
-          />
-          <Button
-            size="small"
-            aria-label="다음 공고"
-            icon={<LuChevronRight aria-hidden />}
-            onClick={() => step(1)}
-          />
+          {!empty && (
+            <>
+              {/* 자동으로 돌 때는 위치를 읽지 않는다. 멈췄을 때만 넘길 때마다 알려준다 */}
+              <span
+                aria-live={rotating ? 'off' : 'polite'}
+                className="text-caption text-muted"
+              >
+                <span className="sr-only">공고 </span>
+                {index + 1} / {PROGRAMS.length}
+              </span>
+              <Button
+                size="small"
+                aria-label={playing ? '자동 넘김 멈추기' : '자동 넘김 켜기'}
+                icon={
+                  playing ? <LuPause aria-hidden /> : <LuPlay aria-hidden />
+                }
+                onClick={() => setPlaying((value) => !value)}
+              />
+              <Button
+                size="small"
+                aria-label="이전 공고"
+                icon={<LuChevronLeft aria-hidden />}
+                onClick={() => step(-1)}
+              />
+              <Button
+                size="small"
+                aria-label="다음 공고"
+                icon={<LuChevronRight aria-hidden />}
+                onClick={() => step(1)}
+              />
+            </>
+          )}
         </div>
         <p className="mt-1 text-caption text-muted">
-          서울 · 일반 음식점 조건에 맞는 공고 {PROGRAMS.length}건
+          {empty
+            ? '서울 · 소상공인 대상 공고 0건'
+            : `서울 · 일반 음식점 조건에 맞는 공고 ${PROGRAMS.length}건`}
         </p>
-        <ul
-          ref={listRef}
-          onScroll={syncIndex}
-          className="mt-4 flex snap-x snap-mandatory gap-3 overflow-x-auto [scrollbar-width:none]"
-        >
-          {PROGRAMS.map((program, position) => (
-            <li
-              key={program.title}
-              aria-label={`${PROGRAMS.length}개 중 ${position + 1}번째`}
-              className="w-[85%] shrink-0 snap-start rounded-xl bg-canvas p-4"
+        {empty ? (
+          <div className="mt-4">
+            <EmptyState
+              icon={LuCalendar}
+              title="이번 주에 마감되는 지원사업이 없어요."
+              description="새 공고는 매일 확인해서 여기에 보여드릴게요."
+              actions={
+                <a
+                  href="https://www.bizinfo.go.kr"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-1 text-caption font-semibold text-brand-text underline"
+                >
+                  기업마당에서 전체 공고 보기
+                  <LuExternalLink aria-hidden />
+                  <span className="sr-only">(새 창)</span>
+                </a>
+              }
+            />
+          </div>
+        ) : (
+          <>
+            <ul
+              ref={listRef}
+              onScroll={syncIndex}
+              className="mt-4 flex snap-x snap-mandatory gap-3 overflow-x-auto [scrollbar-width:none]"
             >
-              <span className="flex gap-1">
-                <Tag color="warning">{program.dDay}</Tag>
-                <Tag>{program.kind}</Tag>
-              </span>
-              <p className="mt-2 text-body-strong">{program.title}</p>
-              <p className="mt-1 text-caption text-muted">{program.detail}</p>
-              <a
-                href="/"
-                className="mt-3 inline-flex items-center gap-1 text-caption font-semibold underline"
-              >
-                공고 보기 <LuExternalLink aria-hidden />
-              </a>
-            </li>
-          ))}
-        </ul>
-        <div className="mt-3 flex justify-center gap-1">
-          {PROGRAMS.map((program, position) => (
-            <button
-              key={program.title}
-              type="button"
-              aria-label={`${position + 1}번째 공고 보기`}
-              aria-current={position === index}
-              onClick={() => goTo(position)}
-              className="flex size-6 items-center justify-center"
-            >
-              <span
-                className={`size-2 rounded-full ${position === index ? 'bg-fg' : 'bg-line-strong'}`}
-              />
-            </button>
-          ))}
-        </div>
+              {PROGRAMS.map((program, position) => (
+                <li
+                  key={program.title}
+                  aria-label={`${PROGRAMS.length}개 중 ${position + 1}번째`}
+                  className="w-[85%] shrink-0 snap-start rounded-xl bg-canvas p-4"
+                >
+                  <span className="flex gap-1">
+                    <Tag color="warning">{program.dDay}</Tag>
+                    <Tag>{program.kind}</Tag>
+                  </span>
+                  <p className="mt-2 text-body-strong">{program.title}</p>
+                  <p className="mt-1 text-caption text-muted">
+                    {program.detail}
+                  </p>
+                  <a
+                    href="/"
+                    className="mt-3 inline-flex items-center gap-1 text-caption font-semibold underline"
+                  >
+                    공고 보기 <LuExternalLink aria-hidden />
+                  </a>
+                </li>
+              ))}
+            </ul>
+            <div className="mt-3 flex justify-center gap-1">
+              {PROGRAMS.map((program, position) => (
+                <button
+                  key={program.title}
+                  type="button"
+                  aria-label={`${position + 1}번째 공고 보기`}
+                  aria-current={position === index}
+                  onClick={() => goTo(position)}
+                  className="flex size-6 items-center justify-center"
+                >
+                  <span
+                    className={`size-2 rounded-full ${position === index ? 'bg-fg' : 'bg-line-strong'}`}
+                  />
+                </button>
+              ))}
+            </div>
+          </>
+        )}
         <p className="mt-4 text-caption text-muted">
-          마감 7일 이내 공고만 보여드려요. 주 1회 갱신 · 중소벤처기업부 지원사업
-          공고
+          7일 안에 마감되거나 마감일이 따로 없는 공고예요.
+          <br />
+          매일 갱신 · 출처: 기업마당(중소벤처기업부)
         </p>
       </section>
     </Card>

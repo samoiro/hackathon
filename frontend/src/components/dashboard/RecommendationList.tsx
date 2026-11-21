@@ -1,4 +1,4 @@
-import { Button, Tag } from 'antd'
+import { App, Button, Tag } from 'antd'
 import { useEffect, useRef, useState } from 'react'
 import { LuBan, LuCheck, LuPlus, LuThumbsUp } from 'react-icons/lu'
 import { TODO_LIMIT, useTodos } from '@/lib/dashboard/todos'
@@ -31,6 +31,7 @@ function RecommendationItem({
   const undoRef = useRef<HTMLButtonElement>(null)
   const dismissRef = useRef<HTMLButtonElement>(null)
   const returnFocus = useRef(false)
+  const { notification } = App.useApp()
 
   // 누른 버튼이 사라지므로 포커스를 이어지는 버튼으로 옮긴다 (해당 없어요 ↔ 되돌리기)
   useEffect(() => {
@@ -43,19 +44,39 @@ function RecommendationItem({
   const changeFeedback = (next: Feedback) => {
     returnFocus.current = next === 'dismissed' || feedback === 'dismissed'
     setFeedback(next)
+    // 피드백을 남겼을 때만 토스트(5초 뒤 사라짐). 되돌리기·도움돼요 끄기는 조용히
+    if (next)
+      notification.open({
+        role: 'status',
+        icon: <LuCheck aria-hidden className="text-primary-300" />,
+        title: (
+          <span className="text-body-strong">
+            {next === 'helpful' ? '의견 고마워요!' : '알려 주셔서 고마워요'}
+          </span>
+        ),
+        description: (
+          <span className="text-caption">
+            사장님 의견을 반영해 다음 추천을 더 잘 맞춰 드릴게요.
+          </span>
+        ),
+        duration: 5,
+        closable: false,
+      })
   }
 
   if (feedback === 'dismissed') {
     return (
-      <li className="rounded-xl border border-divider bg-canvas p-4">
-        <p className="text-body-strong text-muted line-through">{item.title}</p>
-        <p className="mt-1 text-caption text-muted">
-          해당 없어요로 표시했어요. 다음 브리핑부터 이런 추천은 줄일게요.
+      <li className="rounded-xl border border-divider bg-surface p-4">
+        <p className="text-body-strong text-muted">{item.title}</p>
+        <p className="mt-2 text-caption text-muted">
+          해당 없어요로 표시했어요.
+          <br />
+          다음 브리핑부터 이 할 일은 빼 드릴게요.
         </p>
         <Button
           ref={undoRef}
           type="link"
-          className="mt-2 h-auto p-0"
+          className="mt-3 h-auto p-0 font-semibold underline"
           onClick={() => changeFeedback(null)}
         >
           되돌리기

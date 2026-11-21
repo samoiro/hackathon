@@ -64,12 +64,29 @@ export default function TodayChecklist({ sheet = false }: { sheet?: boolean }) {
                 <Tag>{todo.tag}</Tag>
               </span>
             </Checkbox>
+            {/* 삭제 확인(BI-PC-05): 아이콘 없이 제목·설명, 같은 너비의 아니요 / 예, 삭제해요(빨강) */}
             <Popconfirm
-              title="정말 삭제할까요?"
-              description={`'${todo.title}'이 오늘 확인할 일에서 빠져요. 추천 할 일에서 다시 담을 수 있어요.`}
+              icon={null}
+              placement="topRight"
+              title={<span className="text-item">정말 삭제할까요?</span>}
+              description={
+                <span className="text-caption text-muted">
+                  ‘{todo.title}’이 오늘 확인할 일에서 빠져요. 추천 할 일에서
+                  다시 담을 수 있어요.
+                </span>
+              }
               okText="예, 삭제해요"
               cancelText="아니요"
-              okButtonProps={{ danger: true }}
+              classNames={{ root: 'w-100 max-w-[calc(100vw-32px)]' }}
+              okButtonProps={{
+                danger: true,
+                size: 'middle',
+                className: 'w-[calc(50%-4px)]',
+              }}
+              cancelButtonProps={{
+                size: 'middle',
+                className: 'w-[calc(50%-4px)]',
+              }}
               onConfirm={() => remove(todo.title)}
             >
               <Button

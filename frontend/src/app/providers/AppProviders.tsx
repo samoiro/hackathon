@@ -1,6 +1,6 @@
 import { StyleProvider } from '@ant-design/cssinjs'
 import { QueryClientProvider } from '@tanstack/react-query'
-import { ConfigProvider } from 'antd'
+import { App as AntApp, ConfigProvider } from 'antd'
 import koKR from 'antd/locale/ko_KR'
 import dayjs from 'dayjs'
 import 'dayjs/locale/ko'
@@ -61,7 +61,14 @@ export default function AppProviders({ children }: PropsWithChildren) {
       <StyleProvider layer>
         <ConfigProvider locale={koKR} theme={appTheme}>
           <DisplaySettingsContext value={displayContext}>
-            <BrowserRouter>{children}</BrowserRouter>
+            {/* App.useApp()의 notification이 테마를 따르게 한다. 토스트는 모두 화면 아래.
+                모바일은 화면 아래 고정 줄(브리핑 받기·오늘 확인할 일, 약 76px)을 가리지 않게 그 위로 올린다 */}
+            <AntApp
+              component={false}
+              notification={{ placement: 'bottom', bottom: mobile ? 92 : 24 }}
+            >
+              <BrowserRouter>{children}</BrowserRouter>
+            </AntApp>
           </DisplaySettingsContext>
         </ConfigProvider>
       </StyleProvider>

@@ -49,7 +49,7 @@ export default function DashboardPage() {
               <TodayChecklist />
             </div>
             <AreaStatus />
-            <SupportPrograms />
+            <SupportPrograms empty={empty} />
           </div>
         </div>
 
