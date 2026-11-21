@@ -28,7 +28,7 @@ public class IndustryController {
 	@Operation(summary = "업종 목록", description = "전체 업종 28개")
 	@GetMapping
 	public List<IndustryResponse> industries() {
-		throw new UnsupportedOperationException("TODO: 업종 목록");
+		return service.industries();
 	}
 
 	@Operation(summary = "업종 추천 품목", description = "업종 기본 원자재 최대 3 · 부자재 최대 2 (\"한 번에 담기\"). 없는 업종은 404")

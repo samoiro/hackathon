@@ -1,10 +1,14 @@
 package com.hackathon.server.industry.service;
 
+import java.util.List;
+
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.hackathon.server.common.exception.BusinessException;
 import com.hackathon.server.common.exception.ErrorCode;
+import com.hackathon.server.industry.dto.IndustryResponse;
 import com.hackathon.server.industry.dto.RecommendedItemsResponse;
 import com.hackathon.server.industry.repository.IndustryIngredientRepository;
 import com.hackathon.server.industry.repository.IndustryRepository;
@@ -24,6 +28,13 @@ public class IndustryService {
 		this.industryRepository = industryRepository;
 		this.ingredientRepository = ingredientRepository;
 		this.supplyRepository = supplyRepository;
+	}
+
+	@Transactional(readOnly = true)
+	public List<IndustryResponse> industries() {
+		return industryRepository.findAll(Sort.by("id")).stream()
+				.map(i -> new IndustryResponse(i.getId(), i.getCategory(), i.getName()))
+				.toList();
 	}
 
 	/** 추천 품목이 없는 업종(꽃집 등의 원자재)은 빈 목록, 없는 업종은 404. */

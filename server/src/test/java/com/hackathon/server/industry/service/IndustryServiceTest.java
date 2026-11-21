@@ -12,6 +12,7 @@ import org.springframework.context.annotation.Import;
 import com.hackathon.server.TestcontainersConfiguration;
 import com.hackathon.server.common.exception.BusinessException;
 import com.hackathon.server.common.exception.ErrorCode;
+import com.hackathon.server.industry.dto.IndustryResponse;
 import com.hackathon.server.industry.repository.IndustryRepository;
 import com.hackathon.server.ingredient.dto.IngredientResponse;
 import com.hackathon.server.supply.dto.SupplyResponse;
@@ -27,6 +28,14 @@ class IndustryServiceTest {
 
 	private long idOf(String name) {
 		return industryRepository.findAll().stream().filter(i -> i.getName().equals(name)).findFirst().orElseThrow().getId();
+	}
+
+	@Test
+	void listsAllIndustriesInIdOrder() {
+		var industries = service.industries();
+
+		assertThat(industries).hasSize(28);
+		assertThat(industries).extracting(IndustryResponse::id).isSorted();
 	}
 
 	@Test
