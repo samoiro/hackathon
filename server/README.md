@@ -30,6 +30,14 @@ export TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE=/var/run/docker.sock
 - OpenAPI JSON: http://localhost:8080/v3/api-docs
 - 헬스체크: http://localhost:8080/actuator/health
 
+## 패키지 구조
+
+도메인 패키지(`ingredient`, `batch`, `analysis`, `publicdata` 등) 안에 계층별 폴더를 따로 둡니다. 생긴 계층만 만듭니다.
+
+- `entity` JPA 엔티티와 엔티티가 쓰는 enum · `repository` Spring Data 리포지토리 · `service` 업무 로직과 트랜잭션
+- `controller` REST API · `dto` 요청·응답 record · `client` 외부 API 호출 · `scheduler` `@Scheduled` 진입점
+- 여러 도메인이 같이 쓰는 것은 `common`(`controller`, `exception`), 설정은 `config`에 둡니다.
+
 ## 공공데이터 API
 
 응답 필드명은 원본 API 그대로입니다. 자세한 파라미터는 Swagger UI 참고.
