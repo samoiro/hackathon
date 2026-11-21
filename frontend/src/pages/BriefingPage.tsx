@@ -101,14 +101,13 @@ export default function BriefingPage() {
   return (
     <AppLayout
       title={failed ? '브리핑 실패' : '브리핑 준비 중'}
-      width="max-w-[720px]"
       headerContext={
         <div className="mx-auto">
           <StepIndicator current={2} />
         </div>
       }
     >
-      <Card>
+      <Card className="mx-auto w-full max-w-[720px]">
         <div className="flex flex-col items-center pt-4 text-center lg:px-4">
           <img
             src="/images/mascot-face.png"
