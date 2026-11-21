@@ -141,6 +141,14 @@ export function getAppTheme(
         colorWhite: dark ? '#241a0d' : '#ffffff',
       },
       Switch: { colorPrimary: '#d47d00', colorPrimaryHover: '#d47d00' },
+      // 토스트(BI-PC-05): 화면 아래, 진한 면(hero)에 흰 글자, 너비 400
+      Notification: {
+        width: 400,
+        colorBgElevated: dark ? '#3a3a3f' : '#241a0d',
+        colorText: '#ffffff',
+        colorTextHeading: '#ffffff',
+        borderRadiusLG: 12,
+      },
     },
   }
 }

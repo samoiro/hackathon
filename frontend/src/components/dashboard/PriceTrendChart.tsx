@@ -11,9 +11,10 @@ import {
 } from 'recharts'
 import { usePrefersReducedMotion } from '@/hooks/usePrefersReducedMotion'
 
-type TrendPoint = { week: string; price: number }
+type TrendPoint = { week: string; price: number | null }
 
-const won = (value: unknown) => `${Number(value).toLocaleString()}원`
+const won = (value: unknown) =>
+  typeof value === 'number' ? `${value.toLocaleString()}원` : '자료 없음'
 
 // 4주 가격 추이. 점마다 값을 적어 두고(리뷰 F-08), 마우스·키보드(화살표)로 고르면 말풍선이 뜬다.
 // 화면 낭독기에는 같은 값을 목록으로 읽어 준다

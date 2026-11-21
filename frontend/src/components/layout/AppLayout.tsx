@@ -3,7 +3,6 @@ import { LuClock3, LuDatabase, LuType } from 'react-icons/lu'
 import { useNavigationType } from 'react-router'
 import AppHeader from '@/components/layout/AppHeader'
 
-// 모든 화면의 뼈대: 본문 바로가기 · 헤더 · 본문 · 푸터.
 // 화면이 바뀌면 문서 제목을 바꾸고, 앱 안에서 이동했을 때는 본문으로 포커스를 옮긴다 (첫 진입·뒤로 가기는 그대로)
 export default function AppLayout({
   title,
@@ -35,6 +34,7 @@ export default function AppLayout({
 
   return (
     <>
+      {/* 본문 바로가기(WCAG 2.4.1): 평소엔 숨어 있고 Tab으로 처음 들어올 때만 왼쪽 위에 보인다 */}
       <a
         href="#main"
         className="sr-only z-50 rounded-xl bg-surface px-4 py-3 font-semibold focus:not-sr-only focus:fixed focus:top-3 focus:left-3"

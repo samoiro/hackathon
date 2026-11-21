@@ -64,6 +64,7 @@
 
 ## 5. 데이터와 상태
 
+- **API 호출**: 타입과 SDK 함수는 서버 OpenAPI로 만든 `src/lib/api/generated`(`npm run api`)를 씁니다. 화면용 훅은 `src/lib/api/{도메인}.ts`에 두고, 화면에서 axios나 생성 함수를 직접 부르지 않습니다.
 - **서버 데이터**: `useQuery`로 읽고 `useMutation`으로 바꿉니다. 바꾼 뒤에는 관련 `queryKey`를 `invalidateQueries`로 무효화합니다. 서버 데이터를 `useState`에 복사하지 않습니다.
 - **검색 입력**: `SearchSelect`를 씁니다. `useDebouncedValue`(300ms)로 기다린 뒤 조회하고, `keepPreviousData`로 깜빡임을 막습니다. 옵션을 화면에서 다시 거르지 않습니다(`filterOption={false}`).
 - **파생 값은 계산합니다**: 개수, 완료 수, 담김 여부, 증감 문구 등은 state로 따로 두지 않고 원본에서 계산합니다.
@@ -75,7 +76,6 @@
 
 ### 공통 `components/common`
 
-<<<<<<< HEAD
 | 컴포넌트           | 하는 일                                                                  | 주요 props                                                         |
 | ------------------ | ------------------------------------------------------------------------ | ------------------------------------------------------------------ |
 | `SearchSelect`     | 300ms 디바운스 서버 검색 Select                                          | `queryKey`, `fetcher(keyword)`, antd Select props                  |
@@ -85,16 +85,6 @@
 | `EmptyState`       | 빈 상태: 아이콘, 무엇이 없는지, 다음 동작                                | `icon`, `title`, `description`, `actions`                          |
 | `WaveProgress`     | antd Progress + 차오름 + 물결. 동작 줄이기면 멈춤                        | antd Progress props                                                |
 | `OfflineNotice`    | 오프라인 동안 상단 안내                                                  | 없음                                                               |
-=======
-| 컴포넌트        | 하는 일                                                                  | 주요 props                                                         |
-| --------------- | ------------------------------------------------------------------------ | ------------------------------------------------------------------ |
-| `SearchSelect`  | 300ms 디바운스 서버 검색 Select                                          | `queryKey`, `fetcher(keyword)`, antd Select props                  |
-| `ChoiceChips`   | 하나만 고르는 칩(필터). 네이티브 라디오이고 색, 체크, 굵기로 선택을 표시 | `label`, `options`, `value`, `onChange`, `block`(가득 찬 세그먼트) |
-| `RemovableChip` | 고른 항목 칩. 빼기는 진짜 버튼(`{label} 빼기`)                           | `label`, `onRemove`                                                |
-| `EmptyState`    | 빈 상태: 아이콘, 무엇이 없는지, 다음 동작                                | `icon`, `title`, `description`, `actions`                          |
-| `WaveProgress`  | antd Progress + 차오름 + 물결. 동작 줄이기면 멈춤                        | antd Progress props                                                |
-| `OfflineNotice` | 오프라인 동안 상단 안내                                                  | 없음                                                               |
->>>>>>> origin/main
 
 ### 뼈대 `components/layout`
 
@@ -117,22 +107,16 @@
 | `dashboard/RecommendationList`               | 추천 할 일. 담기·담김 토글, 피드백, 숨기기와 되돌리기, 전체 추가                                                       |
 | `dashboard/PriceSection` / `PriceTrendChart` | 관심 품목 가격 타일과 4주 추이 차트(recharts). 증감색이 선, 점, 그라디언트를 따름                                      |
 | `dashboard/AreaStatus` / `AreaMap`           | 지역 자동완성 선택, 혼잡도, 연령대                                                                                     |
-<<<<<<< HEAD
 | `dashboard/TodayChecklistBar`                | 모바일 화면 아래 '오늘 확인할 일' 줄과 시트                                                                            |
-=======
->>>>>>> origin/main
-| `dashboard/TodayChecklist` + `TodoProvider`  | 오늘 확인할 일. 체크하면 취소선, 모든 항목 삭제 확인, 최대 12개                                                        |
-| `dashboard/SupportPrograms`                  | 마감 임박 지원사업 캐러셀. 3초 자동 넘김, 멈춤, 이전·다음, 점                                                          |
+| `dashboard/TodayChecklist` + `TodoProvider`  | 오늘 확인할 일. 강추(따로 API, 삭제 불가) + 담은 할 일(삭제 확인 뒤 삭제). 체크하면 취소선, 최대 12개                  |
+| `dashboard/SupportPrograms`                  | 마감 임박 지원사업 캐러셀. 3초 자동 넘김(마우스·포커스가 있으면 잠시 멈춤), 이전·다음, 점                              |
 | `dashboard/EvidenceSection`                  | 근거 데이터 출처와 갱신 주기                                                                                           |
 
 ### 훅과 모듈
 
 | 위치                            | 하는 일                                                |
 | ------------------------------- | ------------------------------------------------------ |
-<<<<<<< HEAD
 | `hooks/useIsMobile`             | 1024px 미만인지 구독 (Tailwind `lg`와 같은 경계)       |
-=======
->>>>>>> origin/main
 | `hooks/useDebouncedValue`       | 값이 멈춘 뒤 지연 반영(기본 300ms)                     |
 | `hooks/usePrefersReducedMotion` | 동작 줄이기 설정 구독                                  |
 | `lib/display/displaySettings`   | 화면 설정 Context, 저장소 읽기·쓰기(`samoiro:display`) |

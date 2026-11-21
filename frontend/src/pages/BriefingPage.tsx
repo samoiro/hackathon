@@ -1,6 +1,13 @@
 import { Alert, Button, Card, Tag } from 'antd'
 import { LuCheck, LuRotateCw, LuX } from 'react-icons/lu'
-import { useEffect, useState } from 'react'
+import { useEffect } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
+import {
+  readExcludedCards,
+  useAnalysis,
+  useStartAnalysis,
+} from '@/lib/api/analysis'
+import type { AnalysisRequest, AnalysisStep } from '@/lib/api/generated'
 import { useNavigate, useSearchParams } from 'react-router'
 import AppLayout from '@/components/layout/AppLayout'
 import StepIndicator from '@/components/layout/StepIndicator'
@@ -8,16 +15,18 @@ import WaveProgress from '@/components/common/WaveProgress'
 
 type StepState = 'done' | 'active' | 'failed' | 'waiting'
 
-const STEPS = [
-  { title: '가게 정보 확인', detail: '서울 성동구 · 일반 음식점' },
-  { title: '주변 행사 조회', detail: '1km 안 · 향후 7일 · 2건 확인' },
-  {
-    title: '품목 가격 조회',
-    detail: '한국농수산식품유통공사 가격 추이 확인 중',
-    failedDetail: '가격 자료를 불러오지 못했어요',
-  },
-  { title: '준비할 일 정리' },
+const STEPS: { code: AnalysisStep['code']; title: string }[] = [
+  { code: 'STORE_CHECK', title: '가게 정보 확인' },
+  { code: 'EVENT_SEARCH', title: '주변 행사 조회' },
+  { code: 'PRICE_LOOKUP', title: '품목 가격 조회' },
+  { code: 'TASK_GENERATION', title: '준비할 일 정리' },
 ]
+const statusToState: Record<AnalysisStep['status'], StepState> = {
+  DONE: 'done',
+  RUNNING: 'active',
+  FAILED: 'failed',
+  WAITING: 'waiting',
+}
 
 const STATE_TAG = {
   done: (
@@ -67,48 +76,64 @@ function StepMarker({ state, index }: { state: StepState; index: number }) {
   )
 }
 
-// 단계 하나에 0.7초, 4단계를 3초 안에 끝내고 대시보드로 넘어간다
-const STEP_MS = 700
-// 실패 화면에서 멈춘 단계(품목 가격 조회)
-const FAILED_AT = 2
-
-// shortcut: API 연결 전이라 단계를 시간으로 넘기고, ?status=error 로 실패 화면을 본다. 기능 구현 때 브리핑 생성 API 진행 상태로 바꾼다
 export default function BriefingPage() {
   const navigate = useNavigate()
-  const [searchParams, setSearchParams] = useSearchParams()
-  const failed = searchParams.get('status') === 'error'
-  const [doneCount, setDoneCount] = useState(0)
+  const [params] = useSearchParams()
+  const id = params.get('id') ?? ''
+  const query = useAnalysis(id, true)
+  const analysis = query.data
+  const client = useQueryClient()
+  const start = useStartAnalysis()
+  const original = client.getQueryData<AnalysisRequest>(['analysis-input', id])
+  const failed =
+    !id ||
+    query.isError ||
+    analysis?.status === 'FAILED' ||
+    (analysis?.status === 'SUCCEEDED' && !analysis.briefing)
+  const doneCount =
+    analysis?.steps.filter(({ status }) => status === 'DONE').length ?? 0
+  const store = analysis?.store
+  const chips = store
+    ? [
+        [store.areaLabel, store.industry.name].filter(Boolean).join(' · '),
+        store.ingredients.map(({ name }) => name).join(' · '),
+        store.supplies.map(({ name }) => name).join(' · '),
+      ].filter(Boolean)
+    : []
 
   useEffect(() => {
-    if (failed) return
-    if (doneCount >= STEPS.length) {
-      navigate('/dashboard', { replace: true })
-      return
+    if (analysis?.status === 'SUCCEEDED' && analysis.briefing) {
+      client.setQueryData(['last-briefing'], id)
+      navigate(`/dashboard?id=${encodeURIComponent(id)}`, { replace: true })
     }
-    const timer = setTimeout(() => setDoneCount((count) => count + 1), STEP_MS)
-    return () => clearTimeout(timer)
-  }, [doneCount, failed, navigate])
+  }, [analysis, client, id, navigate])
 
-  const stepState = (index: number): StepState => {
-    if (failed) {
-      if (index < FAILED_AT) return 'done'
-      return index === FAILED_AT ? 'failed' : 'waiting'
-    }
-    if (index < doneCount) return 'done'
-    return index === doneCount ? 'active' : 'waiting'
+  function retry() {
+    if (query.isError && id) {
+      void query.refetch()
+    } else if (original) {
+      start.mutate(
+        { ...original, excludedKeys: readExcludedCards() },
+        {
+          onSuccess: ({ analysisId }) =>
+            navigate(`/briefing?id=${encodeURIComponent(analysisId)}`, {
+              replace: true,
+            }),
+        },
+      )
+    } else navigate('/')
   }
 
   return (
     <AppLayout
       title={failed ? '브리핑 실패' : '브리핑 준비 중'}
-      width="max-w-[720px]"
       headerContext={
         <div className="mx-auto">
           <StepIndicator current={2} />
         </div>
       }
     >
-      <Card>
+      <Card className="mx-auto w-full max-w-[720px]">
         <div className="flex flex-col items-center pt-4 text-center lg:px-4">
           <img
             src="/images/mascot-face.png"
@@ -123,16 +148,14 @@ export default function BriefingPage() {
               : '이번 주의 기회와 주의할 신호를 찾고 있어요'}
           </h1>
           <ul className="mt-4 flex flex-wrap justify-center gap-2">
-            {['성수동 · 일반 음식점', '쌀 · 돼지고기 · 배추', '포장 용기'].map(
-              (chip) => (
-                <li
-                  key={chip}
-                  className="rounded-full border border-divider px-3 py-1 text-caption"
-                >
-                  {chip}
-                </li>
-              ),
-            )}
+            {chips.map((chip) => (
+              <li
+                key={chip}
+                className="rounded-full border border-divider px-3 py-1 text-caption"
+              >
+                {chip}
+              </li>
+            ))}
           </ul>
         </div>
 
@@ -140,7 +163,7 @@ export default function BriefingPage() {
           <div className="flex flex-wrap justify-between gap-x-3 text-caption">
             <span className="font-semibold">
               {failed
-                ? `${FAILED_AT} / ${STEPS.length} 단계에서 멈췄어요`
+                ? `${doneCount} / ${STEPS.length} 단계에서 멈췄어요`
                 : `${doneCount} / ${STEPS.length} 단계 완료`}
             </span>
             <span className="text-muted">
@@ -148,7 +171,7 @@ export default function BriefingPage() {
             </span>
           </div>
           <WaveProgress
-            percent={((failed ? FAILED_AT : doneCount) / STEPS.length) * 100}
+            percent={(doneCount / STEPS.length) * 100}
             showInfo={false}
             strokeColor={
               failed ? 'var(--color-muted)' : 'var(--color-primary-500)'
@@ -158,7 +181,20 @@ export default function BriefingPage() {
 
           <ol className="mt-4 flex flex-col gap-1">
             {STEPS.map((step, index) => {
-              const state = stepState(index)
+              const serverStep = analysis?.steps.find(
+                ({ code }) => code === step.code,
+              )
+              const state = serverStep
+                ? statusToState[serverStep.status]
+                : 'waiting'
+              const detail =
+                state === 'failed'
+                  ? analysis?.failure?.message
+                  : step.code === 'STORE_CHECK' && store
+                    ? `${store.gu} · ${store.industry.name}`
+                    : step.code === 'EVENT_SEARCH' && analysis?.eventSearch
+                      ? `향후 ${analysis.eventSearch.days}일 · ${analysis.eventSearch.count}건`
+                      : undefined
               return (
                 <li
                   key={step.title}
@@ -173,10 +209,8 @@ export default function BriefingPage() {
                     >
                       {step.title}
                     </p>
-                    {step.detail && state !== 'waiting' && (
-                      <p className="text-caption text-muted">
-                        {state === 'failed' ? step.failedDetail : step.detail}
-                      </p>
+                    {detail && state !== 'waiting' && (
+                      <p className="text-caption text-muted">{detail}</p>
                     )}
                   </div>
                   {STATE_TAG[state]}
@@ -192,19 +226,26 @@ export default function BriefingPage() {
                 showIcon
                 title={
                   <span className="text-caption text-danger">
-                    지금은 브리핑을 만들 수 없어요. 잠시 후 다시 시도해 주세요.
-                    입력한 정보는 그대로 남아 있어요.
+                    {analysis?.failure?.message ??
+                      (id
+                        ? '분석 상태를 불러오지 못했어요. 다시 시도해 주세요.'
+                        : '가게 정보를 입력하고 브리핑을 시작해 주세요.')}
                   </span>
                 }
               />
+              {start.isError && (
+                <Alert
+                  type="error"
+                  showIcon
+                  title="새 분석을 시작하지 못했어요."
+                />
+              )}
               <div className="grid gap-3 lg:grid-cols-2">
                 <Button
                   type="primary"
                   icon={<LuRotateCw aria-hidden />}
-                  onClick={() => {
-                    setDoneCount(0)
-                    setSearchParams({})
-                  }}
+                  loading={start.isPending}
+                  onClick={retry}
                 >
                   다시 시도
                 </Button>

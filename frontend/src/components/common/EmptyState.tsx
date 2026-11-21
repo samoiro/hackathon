@@ -22,7 +22,11 @@ export default function EmptyState({
       )}
       <p className="text-body-strong">{title}</p>
       <p className="mt-2 text-caption text-muted">{description}</p>
-      {actions && <div className="mt-4 flex items-center gap-4">{actions}</div>}
+      {actions && (
+        <div className="mt-4 flex flex-wrap items-center justify-center gap-x-4 gap-y-2">
+          {actions}
+        </div>
+      )}
     </div>
   )
 }

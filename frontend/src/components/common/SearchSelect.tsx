@@ -12,21 +12,22 @@ export default function SearchSelect({
   ...selectProps
 }: {
   queryKey: string
-  fetcher: (keyword: string) => Promise<SearchOption[]>
+  fetcher: (keyword: string, signal: AbortSignal) => Promise<SearchOption[]>
 } & Omit<
-  SelectProps,
+  SelectProps<string, SearchOption>,
   'options' | 'showSearch' | 'filterOption' | 'onSearch' | 'loading'
 >) {
   const [keyword, setKeyword] = useState('')
   const debouncedKeyword = useDebouncedValue(keyword)
-  const { data, isFetching } = useQuery({
+  const { data, isError, isFetching } = useQuery({
     queryKey: ['search', queryKey, debouncedKeyword],
-    queryFn: () => fetcher(debouncedKeyword),
+    queryFn: ({ signal }) => fetcher(debouncedKeyword, signal),
     placeholderData: keepPreviousData,
+    retry: false,
   })
 
   return (
-    <Select
+    <Select<string, SearchOption>
       {...selectProps}
       showSearch
       filterOption={false}
@@ -34,7 +35,13 @@ export default function SearchSelect({
       loading={isFetching}
       options={data}
       notFoundContent={
-        isFetching ? <Spin size="small" /> : '검색 결과가 없어요'
+        isFetching ? (
+          <Spin size="small" />
+        ) : isError ? (
+          '검색 결과를 불러오지 못했어요. 검색어를 다시 입력해 주세요.'
+        ) : (
+          '검색 결과가 없어요'
+        )
       }
     />
   )

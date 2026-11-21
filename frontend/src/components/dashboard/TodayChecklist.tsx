@@ -44,10 +44,10 @@ export default function TodayChecklist({ sheet = false }: { sheet?: boolean }) {
       />
       <ul className="mt-2 flex flex-col divide-y divide-divider">
         {todos.map((todo) => (
-          <li key={todo.title} className="flex items-start gap-3 py-3">
+          <li key={todo.id} className="flex items-start gap-3 py-3">
             <Checkbox
               checked={Boolean(todo.done)}
-              onChange={() => toggleDone(todo.title)}
+              onChange={() => toggleDone(todo.id)}
               className="flex-1"
             >
               <span
@@ -64,27 +64,49 @@ export default function TodayChecklist({ sheet = false }: { sheet?: boolean }) {
                 <Tag>{todo.tag}</Tag>
               </span>
             </Checkbox>
-            <Popconfirm
-              title="정말 삭제할까요?"
-              description={`'${todo.title}'이 오늘 확인할 일에서 빠져요. 추천 할 일에서 다시 담을 수 있어요.`}
-              okText="예, 삭제해요"
-              cancelText="아니요"
-              okButtonProps={{ danger: true }}
-              onConfirm={() => remove(todo.title)}
-            >
-              <Button
-                type="text"
-                size="small"
-                aria-label={`${todo.title} 지우기`}
-                icon={<LuX aria-hidden />}
-              />
-            </Popconfirm>
+            {/* 강추는 분석 결과로 받아온 할 일이라 지울 수 없다 */}
+            {!todo.strong && (
+              <>
+                {/* 삭제 확인(BI-PC-05): 아이콘 없이 제목·설명, 같은 너비의 아니요 / 예, 삭제해요(빨강) */}
+                <Popconfirm
+                  icon={null}
+                  placement="topRight"
+                  title={<span className="text-item">정말 삭제할까요?</span>}
+                  description={
+                    <span className="text-caption text-muted">
+                      ‘{todo.title}’이 오늘 확인할 일에서 빠져요. 추천 할 일에서
+                      다시 담을 수 있어요.
+                    </span>
+                  }
+                  okText="예, 삭제해요"
+                  cancelText="아니요"
+                  classNames={{ root: 'w-100 max-w-[calc(100vw-32px)]' }}
+                  okButtonProps={{
+                    danger: true,
+                    size: 'middle',
+                    className: 'w-[calc(50%-4px)]',
+                  }}
+                  cancelButtonProps={{
+                    size: 'middle',
+                    className: 'w-[calc(50%-4px)]',
+                  }}
+                  onConfirm={() => remove(todo.id)}
+                >
+                  <Button
+                    type="text"
+                    size="small"
+                    aria-label={`${todo.title} 지우기`}
+                    icon={<LuX aria-hidden />}
+                  />
+                </Popconfirm>
+              </>
+            )}
           </li>
         ))}
       </ul>
       <p className="mt-2 text-caption text-muted">
-        강추는 AI가 처음에 담아 둔 할 일이에요. 모두 {TODO_LIMIT}개까지 담을 수
-        있어요.
+        강추는 급하고 중요한 일을 골라 처음에 담아 둔 할 일이에요. 지워지지
+        않고, 모두 {TODO_LIMIT}개까지 담을 수 있어요.
       </p>
     </>
   )

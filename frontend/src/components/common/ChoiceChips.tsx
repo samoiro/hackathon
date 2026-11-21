@@ -11,7 +11,7 @@ export default function ChoiceChips<T extends string>({
 }: {
   label: string
   options: { value: T; label: string }[]
-  value: T
+  value?: T
   onChange: (value: T) => void
   // 칸을 꽉 채우는 세그먼트 모양 (운영 형태 등)
   block?: boolean

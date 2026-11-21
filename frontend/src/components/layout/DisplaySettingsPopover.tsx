@@ -271,25 +271,24 @@ export default function DisplaySettingsPopover({
         </Popover>
       )}
 
+      {/* 첫 방문 안내: 대표색 면 + 본문색 글자(8.1:1). 흰 글자는 대비가 부족해 쓰지 않는다 */}
       {coachVisible && (
         <div
           id={coachId}
-          className="absolute top-full right-0 z-10 mt-3 flex w-72 flex-col gap-2 rounded-xl bg-hero p-4 text-on-hero"
+          className="absolute top-full right-0 z-10 mt-3 flex w-72 flex-col gap-2 rounded-xl bg-primary-500 p-4 text-on-primary"
         >
           <span
             aria-hidden
-            className="absolute -top-1 right-3 size-2.5 rotate-45 bg-hero"
+            className="absolute -top-1 right-3 size-2.5 rotate-45 bg-primary-500"
           />
           <p className="text-body-strong">
             글자가 작게 느껴지면 여기서 키울 수 있어요
           </p>
-          <p className="text-caption opacity-90">
-            어두운 화면도 여기서 바꿔요.
-          </p>
+          <p className="text-caption">어두운 화면도 여기서 바꿔요.</p>
           <Button
             type="text"
             size="small"
-            className="self-end text-primary-300"
+            className="self-end font-semibold text-on-primary underline"
             onClick={dismissCoach}
           >
             알겠어요

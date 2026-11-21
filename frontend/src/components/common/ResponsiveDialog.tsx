@@ -10,6 +10,7 @@ export default function ResponsiveDialog({
   onClose,
   title,
   width,
+  height,
   footer,
   afterOpenChange,
   children,
@@ -18,12 +19,14 @@ export default function ResponsiveDialog({
   onClose: () => void
   title: ReactNode
   width?: number
+  height?: string
   // 모바일에서는 버튼이 줄을 꽉 채운다. PC에서만 보일 버튼은 className="max-lg:hidden"
   footer?: ReactNode
   afterOpenChange?: (open: boolean) => void
   children: ReactNode
 }) {
   const mobile = useIsMobile()
+  const dialogHeight = height ? `min(${height}, 90dvh)` : undefined
 
   if (!mobile)
     return (
@@ -34,6 +37,20 @@ export default function ResponsiveDialog({
         title={title}
         width={width}
         centered
+        styles={
+          dialogHeight
+            ? {
+                container: {
+                  display: 'flex',
+                  flexDirection: 'column',
+                  height: dialogHeight,
+                },
+                header: { flexShrink: 0 },
+                body: { flex: 1, minHeight: 0, overflowY: 'auto' },
+                footer: { flexShrink: 0 },
+              }
+            : undefined
+        }
         footer={
           footer ? <div className="flex justify-end gap-2">{footer}</div> : null
         }
@@ -67,7 +84,9 @@ export default function ResponsiveDialog({
           'rounded-t-[20px] before:mx-auto before:mt-3 before:block before:h-1 before:w-10 before:rounded-full before:bg-line-strong',
       }}
       styles={{
-        section: { maxHeight: '90dvh' },
+        section: dialogHeight
+          ? { height: dialogHeight }
+          : { maxHeight: '90dvh' },
         header: { padding: '12px 20px' },
         body: { padding: '20px' },
         footer: { padding: '12px 20px 20px' },

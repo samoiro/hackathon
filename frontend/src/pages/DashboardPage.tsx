@@ -1,5 +1,8 @@
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { Alert, Button, Card, Spin } from 'antd'
 import { LuPencil, LuStore } from 'react-icons/lu'
-import { Link, useSearchParams } from 'react-router'
+import { useState } from 'react'
+import { Link, useNavigate, useSearchParams } from 'react-router'
 import AreaStatus from '@/components/dashboard/AreaStatus'
 import DashboardHero from '@/components/dashboard/DashboardHero'
 import EventsSection from '@/components/dashboard/EventsSection'
@@ -10,11 +13,78 @@ import TodayChecklist from '@/components/dashboard/TodayChecklist'
 import TodayChecklistBar from '@/components/dashboard/TodayChecklistBar'
 import TodoProvider from '@/components/dashboard/TodoProvider'
 import AppLayout from '@/components/layout/AppLayout'
+import EmptyState from '@/components/common/EmptyState'
+import ResponsiveDialog from '@/components/common/ResponsiveDialog'
+import {
+  readExcludedCards,
+  useAnalysis,
+  useStartAnalysis,
+} from '@/lib/api/analysis'
+import type { AnalysisRequest, SuggestionResponse } from '@/lib/api/generated'
+import { searchAddresses } from '@/lib/kakao/maps'
+import type { InterestItems } from '@/types/search'
+import type { TodoTag } from '@/types/todo'
+
+const normalizeRoad = (value: string) => value.replace(/^서울특별시 /, '서울 ')
+
+const todoTags: Record<SuggestionResponse['category'], TodoTag> = {
+  EVENT: '행사',
+  INGREDIENT: '원자재',
+  SUPPLY: '부자재',
+}
 
 export default function DashboardPage() {
-  // shortcut: API 연결 전이라 ?state=empty 로 행사·품목이 없는 화면을 본다. 기능 구현 때 조회 결과로 바꾼다
-  const [searchParams] = useSearchParams()
-  const empty = searchParams.get('state') === 'empty'
+  const [params] = useSearchParams()
+  const navigate = useNavigate()
+  const client = useQueryClient()
+  const id =
+    params.get('id') ?? client.getQueryData<string>(['last-briefing']) ?? ''
+  const query = useAnalysis(id, true)
+  const [resetOpen, setResetOpen] = useState(false)
+  const analysis = query.data
+  const briefing = analysis?.briefing
+  const store = analysis?.store
+  const original = client.getQueryData<AnalysisRequest>(['analysis-input', id])
+  const road = store?.roadAddress ?? ''
+  const addressLookup = useQuery({
+    queryKey: ['search', 'kakao-address', road],
+    enabled: Boolean(briefing && road && !original),
+    queryFn: () => searchAddresses(road),
+    retry: false,
+  })
+  const address = original
+    ? {
+        road: original.roadAddress,
+        latitude: original.latitude,
+        longitude: original.longitude,
+        jibun: '',
+      }
+    : addressLookup.data?.find(
+        (item) => normalizeRoad(item.road) === normalizeRoad(road),
+      )
+  const start = useStartAnalysis()
+  const excluded = readExcludedCards()
+
+  function updateItems(items: InterestItems) {
+    if (!store || !address || start.isPending) return
+    start.mutate(
+      {
+        storeName: store.name,
+        roadAddress: store.roadAddress,
+        latitude: address.latitude,
+        longitude: address.longitude,
+        industryId: store.industry.id,
+        operationType: store.operationType ?? undefined,
+        ingredientIds: items.raw.map(({ id }) => id),
+        supplyIds: items.sub.map(({ id }) => id),
+        excludedKeys: readExcludedCards(),
+      },
+      {
+        onSuccess: ({ analysisId }) =>
+          navigate(`/briefing?id=${encodeURIComponent(analysisId)}`),
+      },
+    )
+  }
 
   return (
     <AppLayout
@@ -22,40 +92,159 @@ export default function DashboardPage() {
       wide
       className="flex flex-col gap-4 lg:gap-6"
       showSettingsCoach
+      // 헤더 가게 정보(피그마 BI-PC-03): 구분선 · 가게 아이콘 · 이름 · 위치와 업종, 그 옆에 수정 아이콘 버튼
       headerContext={
-        <Link
-          to="/"
-          aria-label="가게 정보 수정: 성수동 한식당, 일반 음식점"
-          className="inline-flex h-9 items-center gap-2 rounded-xl border border-line-strong px-3 text-caption whitespace-nowrap hover:bg-canvas"
-        >
-          <LuStore aria-hidden />
-          <span className="font-semibold">성수동 한식당</span>
-          <span className="text-muted">일반 음식점</span>
-          <LuPencil aria-hidden className="text-muted" />
-        </Link>
+        store && (
+          <div className="flex min-w-0 items-center gap-2 lg:gap-5">
+            <span
+              aria-hidden
+              className="h-6 w-px shrink-0 bg-divider max-lg:hidden"
+            />
+            <p className="flex min-w-0 items-center gap-2">
+              <LuStore aria-hidden className="size-[18px] shrink-0" />
+              {/* 좁은 화면 + 큰 글자에서는 말줄임. 전체 이름은 마우스를 올리면 보인다 */}
+              <span
+                title={store.name}
+                className="min-w-0 truncate text-body-strong"
+              >
+                {store.name}
+              </span>
+              <span className="truncate text-caption text-muted max-lg:hidden">
+                {[
+                  store.areaLabel,
+                  store.industry.name,
+                  `품목 ${store.ingredients.length + store.supplies.length}개`,
+                ]
+                  .filter(Boolean)
+                  .join(' · ')}
+              </span>
+            </p>
+            <Button
+              size="small"
+              aria-label="가게 정보 수정"
+              aria-haspopup="dialog"
+              title="가게 정보 수정"
+              icon={<LuPencil aria-hidden />}
+              className="shrink-0"
+              onClick={() => setResetOpen(true)}
+            />
+          </div>
+        )
       }
     >
-      <TodoProvider>
-        <DashboardHero empty={empty} />
-
-        <div className="grid grid-cols-[minmax(0,1fr)] items-start gap-4 lg:grid-cols-[minmax(0,855fr)_minmax(0,400fr)] lg:gap-6">
-          <div className="flex flex-col gap-4 lg:gap-6">
-            <EventsSection empty={empty} />
-            <PriceSection empty={empty} />
-          </div>
-          <div className="flex flex-col gap-4 lg:gap-6">
-            {/* 모바일은 화면 아래 고정 줄(TodayChecklistBar)에서 연다 */}
-            <div className="max-lg:hidden">
-              <TodayChecklist />
+      {/* 가게 정보를 바꾸면 지금 브리핑이 맞지 않게 되므로, 처음 화면으로 돌아가기 전에 한 번 묻는다 */}
+      <ResponsiveDialog
+        open={resetOpen}
+        onClose={() => setResetOpen(false)}
+        title="가게 정보를 수정할까요?"
+        width={440}
+        footer={
+          <>
+            <Button onClick={() => setResetOpen(false)}>아니요</Button>
+            <Button type="primary" onClick={() => navigate('/')}>
+              처음으로 돌아가기
+            </Button>
+          </>
+        }
+      >
+        <p className="text-body">
+          지금 보고 있는 브리핑 결과는 초기화되고, 가게 정보 입력 화면으로
+          돌아가요. 정보를 고친 뒤 브리핑을 다시 받을 수 있어요.
+        </p>
+      </ResponsiveDialog>
+      {analysis && briefing ? (
+        <TodoProvider
+          key={id}
+          initial={briefing.suggestions
+            .filter(
+              (item) => item.recommended && !excluded.includes(item.cardKey),
+            )
+            .map((item) => ({
+              id: item.cardKey,
+              title: item.title,
+              tag: todoTags[item.category],
+              strong: true,
+            }))}
+        >
+          <DashboardHero analysis={analysis} briefing={briefing} />
+          {/* 두 칸(855:400)은 1280px부터. 그보다 좁으면 오른쪽 칸이 너무 좁아져 한 줄로 쌓는다 */}
+          <div className="grid grid-cols-[minmax(0,1fr)] items-start gap-4 lg:gap-6 xl:grid-cols-[minmax(0,855fr)_minmax(0,400fr)]">
+            <div className="flex flex-col gap-4 lg:gap-6">
+              <EventsSection
+                id={id}
+                briefing={briefing}
+                eventSearch={analysis.eventSearch}
+              />
+              <PriceSection
+                analysis={analysis}
+                briefing={briefing}
+                onSave={updateItems}
+                saving={start.isPending || addressLookup.isFetching}
+                saveFailed={
+                  start.isError || (!address && !addressLookup.isFetching)
+                }
+              />
             </div>
-            <AreaStatus />
-            <SupportPrograms />
+            <div className="flex flex-col gap-4 lg:gap-6">
+              <div className="max-lg:hidden">
+                <TodayChecklist />
+              </div>
+              <AreaStatus
+                label={store?.areaLabel || store?.gu || ''}
+                address={address}
+                events={briefing.events}
+                weather={briefing.weather}
+              />
+              <SupportPrograms />
+            </div>
           </div>
-        </div>
-
-        <EvidenceSection />
-        <TodayChecklistBar />
-      </TodoProvider>
+          <EvidenceSection sources={briefing.sources} />
+          <TodayChecklistBar />
+        </TodoProvider>
+      ) : (
+        <>
+          <Card>
+            <h1 className="text-display">오늘의 1분 경영회의</h1>
+            {id && query.isPending ? (
+              <div className="mt-4">
+                <Spin /> 브리핑을 불러오고 있어요.
+              </div>
+            ) : query.isError ? (
+              <Alert
+                className="mt-4"
+                type="error"
+                showIcon
+                title="브리핑을 불러오지 못했어요."
+                action={
+                  <Button onClick={() => void query.refetch()}>
+                    다시 시도
+                  </Button>
+                }
+              />
+            ) : (
+              <div className="mt-4">
+                <EmptyState
+                  title={
+                    id
+                      ? '아직 완료된 브리핑이 없어요.'
+                      : '가게 정보로 브리핑을 시작해 보세요.'
+                  }
+                  description="분석이 끝나면 행사와 가격, 준비할 일을 보여드려요."
+                  actions={
+                    <Link
+                      className="text-brand-text underline"
+                      to={id ? `/briefing?id=${encodeURIComponent(id)}` : '/'}
+                    >
+                      {id ? '분석 상태 확인' : '가게 정보 입력'}
+                    </Link>
+                  }
+                />
+              </div>
+            )}
+          </Card>
+          <SupportPrograms />
+        </>
+      )}
     </AppLayout>
   )
 }

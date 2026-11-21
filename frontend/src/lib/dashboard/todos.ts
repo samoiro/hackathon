@@ -6,8 +6,8 @@ export const TODO_LIMIT = 12
 type TodoContextValue = {
   todos: Todo[]
   add: (todo: Todo) => void
-  remove: (title: string) => void
-  toggleDone: (title: string) => void
+  remove: (id: string) => void
+  toggleDone: (id: string) => void
 }
 
 export const TodoContext = createContext<TodoContextValue | null>(null)
