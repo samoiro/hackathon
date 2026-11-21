@@ -1,7 +1,6 @@
 import {
   CustomOverlayMap,
   Map as KakaoMap,
-  MapMarker,
   Polygon,
   useKakaoLoader,
 } from 'react-kakao-maps-sdk'
@@ -66,10 +65,6 @@ function KakaoAreaMap({
 }) {
   const [loading, error] = useKakaoLoader(options)
   const polygons = toPolygons(area?.boundary)
-  // 가게 핀 말고는 집계 영역 안의 행사만 핀으로 찍는다
-  const pins = events.filter((event) =>
-    inPolygons({ lat: event.latitude, lng: event.longitude }, polygons),
-  )
   if (error || loading)
     return (
       <p role="status" className={statusClassName}>
@@ -110,19 +105,28 @@ function KakaoAreaMap({
             yAnchor={0.5}
             zIndex={2}
           >
-            <span className="pointer-events-none flex items-center gap-2 rounded-full bg-fg px-3 py-2 text-caption font-semibold whitespace-nowrap text-surface shadow-sm">
+            <span className="pointer-events-none flex select-none items-center gap-2 rounded-full bg-fg px-3 py-2 text-caption font-semibold whitespace-nowrap text-surface shadow-sm">
               <LuStore aria-hidden className="size-4" />
               우리 가게
             </span>
           </CustomOverlayMap>
         </>
       )}
-      {pins.map((event) => (
-        <MapMarker
+      {/* 핀끼리 가까워 이름을 지도에 쓰면 겹친다. 번호만 찍고 이름은 지도 아래 목록에 둔다 */}
+      {events.map((event, index) => (
+        <CustomOverlayMap
           key={`${event.title}:${event.latitude}:${event.longitude}`}
-          title={event.title}
           position={{ lat: event.latitude, lng: event.longitude }}
-        />
+          yAnchor={1}
+          zIndex={1}
+        >
+          <span
+            title={event.title}
+            className="flex size-7 items-center justify-center rounded-full border-2 border-primary-700 bg-surface text-tag font-semibold text-fg shadow-sm"
+          >
+            {index + 1}
+          </span>
+        </CustomOverlayMap>
       ))}
     </KakaoMap>
   )
@@ -137,6 +141,11 @@ export default function AreaMap({ address, area, events }: MapProps) {
       event,
     ]),
   )
+  // 가게 핀 말고는 집계 영역 안의 행사만 핀으로 찍는다
+  const polygons = toPolygons(area?.boundary)
+  const pins = [...uniqueEvents.values()].filter((event) =>
+    inPolygons({ lat: event.latitude, lng: event.longitude }, polygons),
+  )
   return (
     <figure
       aria-labelledby="area-map-caption"
@@ -148,10 +157,31 @@ export default function AreaMap({ address, area, events }: MapProps) {
           address={address}
           area={area}
           center={{ lat: point.latitude, lng: point.longitude }}
-          events={[...uniqueEvents.values()]}
+          events={pins}
         />
       ) : (
         <p className={statusClassName}>지도 설정이 필요해요.</p>
+      )}
+      {pins.length > 0 && (
+        <ol
+          aria-label="지도에 표시한 행사"
+          className="flex flex-col gap-1 border-t border-divider bg-surface px-3 py-2 text-caption"
+        >
+          {pins.map((event, index) => (
+            <li
+              key={`${event.title}:${event.latitude}:${event.longitude}`}
+              className="flex items-start gap-2"
+            >
+              <span
+                aria-hidden
+                className="flex size-5 shrink-0 items-center justify-center rounded-full border border-primary-700 bg-surface text-tag font-semibold text-fg"
+              >
+                {index + 1}
+              </span>
+              {event.title}
+            </li>
+          ))}
+        </ol>
       )}
       <figcaption
         id="area-map-caption"
