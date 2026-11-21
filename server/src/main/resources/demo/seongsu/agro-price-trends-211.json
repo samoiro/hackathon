@@ -1,0 +1,93 @@
+{
+  "response": {
+    "body": {
+      "dataType": "JSON",
+      "items": {
+        "item": [
+          {
+            "ctgry_cd": "200",
+            "ctgry_nm": "채소류",
+            "exmn_dd_avg_prc": "8846",
+            "exmn_dd_cnvs_avg_prc": "8846",
+            "exmn_ymd": "20261120",
+            "grd_cd": "04",
+            "grd_nm": "상품",
+            "item_cd": "211",
+            "item_nm": "배추",
+            "se_cd": "02",
+            "se_nm": "중도매",
+            "unit": "kg(그물망 3포기)",
+            "unit_sz": "10",
+            "vrty_cd": "03",
+            "vrty_nm": "가을",
+            "ww1_bfr_avg_prc": "7856",
+            "ww1_bfr_cnvs_avg_prc": "7856",
+            "ww2_bfr_avg_prc": "8156",
+            "ww2_bfr_cnvs_avg_prc": "8156",
+            "ww3_bfr_avg_prc": "8338",
+            "ww3_bfr_cnvs_avg_prc": "8338",
+            "ww4_bfr_avg_prc": null,
+            "ww4_bfr_cnvs_avg_prc": null
+          },
+          {
+            "ctgry_cd": "200",
+            "ctgry_nm": "채소류",
+            "exmn_dd_avg_prc": "6764",
+            "exmn_dd_cnvs_avg_prc": "6764",
+            "exmn_ymd": "20261120",
+            "grd_cd": "05",
+            "grd_nm": "중품",
+            "item_cd": "211",
+            "item_nm": "배추",
+            "se_cd": "02",
+            "se_nm": "중도매",
+            "unit": "kg(그물망 3포기)",
+            "unit_sz": "10",
+            "vrty_cd": "03",
+            "vrty_nm": "가을",
+            "ww1_bfr_avg_prc": "5960",
+            "ww1_bfr_cnvs_avg_prc": "5960",
+            "ww2_bfr_avg_prc": "6040",
+            "ww2_bfr_cnvs_avg_prc": "6040",
+            "ww3_bfr_avg_prc": "6512",
+            "ww3_bfr_cnvs_avg_prc": "6512",
+            "ww4_bfr_avg_prc": null,
+            "ww4_bfr_cnvs_avg_prc": null
+          },
+          {
+            "ctgry_cd": "200",
+            "ctgry_nm": "채소류",
+            "exmn_dd_avg_prc": "2300",
+            "exmn_dd_cnvs_avg_prc": "2300",
+            "exmn_ymd": "20261120",
+            "grd_cd": "04",
+            "grd_nm": "상품",
+            "item_cd": "211",
+            "item_nm": "배추",
+            "se_cd": "01",
+            "se_nm": "소매",
+            "unit": "포기",
+            "unit_sz": "1",
+            "vrty_cd": "03",
+            "vrty_nm": "가을",
+            "ww1_bfr_avg_prc": "2469",
+            "ww1_bfr_cnvs_avg_prc": "2469",
+            "ww2_bfr_avg_prc": "2823",
+            "ww2_bfr_cnvs_avg_prc": "2823",
+            "ww3_bfr_avg_prc": "3775",
+            "ww3_bfr_cnvs_avg_prc": "3775",
+            "ww4_bfr_avg_prc": null,
+            "ww4_bfr_cnvs_avg_prc": null
+          }
+        ]
+      },
+      "numOfRows": 100,
+      "pageNo": 1,
+      "totalCount": 3
+    },
+    "header": {
+      "resultCode": "0",
+      "resultMsg": "정상"
+    }
+  }
+}
