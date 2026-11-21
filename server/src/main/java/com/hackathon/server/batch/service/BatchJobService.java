@@ -58,7 +58,12 @@ public class BatchJobService {
 	// shortcut: 서버 한 대 기준 synchronized로 중복 호출만 막는다. 서버를 여러 대 띄우면 DB 락으로 바꾼다
 	public synchronized List<BatchJob> retryFailed() {
 		return jobRepository.findByStatusAndRetryTimesLessThanOrderById(BatchStatus.FAILED, maxRetryTimes).stream()
-				.filter(job -> findTask(job.getJobName()).isPresent())
+				.filter(job -> {
+					// 작업명이 바뀌거나 빠지면 재시도가 영원히 안 돌아서 남긴다
+					boolean known = findTask(job.getJobName()).isPresent();
+					if (!known) log.warn("{} 재시도 건너뜀: 등록된 배치 작업이 없습니다 (batch_job {})", job.getJobName(), job.getId());
+					return known;
+				})
 				.map(this::retry)
 				.toList();
 	}
@@ -69,6 +74,7 @@ public class BatchJobService {
 	}
 
 	private BatchJob attempt(BatchJob job, BatchTask task) {
+		log.info("{} 시작 (기준일 {}, 재시도 {}/{})", job.getJobName(), job.getTargetDate(), job.getRetryTimes(), maxRetryTimes);
 		BatchJobHistory history = startAttempt(job);
 		try {
 			BatchCounts counts = task.execute(job.getTargetDate());
