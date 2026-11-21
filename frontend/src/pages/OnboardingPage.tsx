@@ -26,7 +26,11 @@ import {
 import type { SalesType } from '@/types/onboarding'
 import type { InterestItems } from '@/types/search'
 import { industries, recommendedItems } from '@/lib/api/generated'
-import { readExcludedCards, useStartAnalysis } from '@/lib/api/analysis'
+import {
+  nearbyEventRadiusKm,
+  readExcludedCards,
+  useStartAnalysis,
+} from '@/lib/api/analysis'
 
 const BENEFITS = [
   {
@@ -192,8 +196,8 @@ export default function OnboardingPage() {
                 </Button>
               </div>
               <p className="mt-3 text-caption text-muted">
-                주소를 기준으로 도보 15분(직선 1km) 안의 행사를 찾아요. 현재
-                서울 지역만 지원해요.
+                가게 주소에서 직선 반경 {nearbyEventRadiusKm}km 안의 행사를
+                찾아요. 현재 서울 지역만 지원해요.
               </p>
             </section>
 
