@@ -6,6 +6,7 @@ import AppHeader from '@/components/layout/AppHeader'
 // 탭 제목은 index.html의 서비스 이름으로 고정한다. 앱 안에서 이동했을 때는 본문으로 포커스를 옮긴다 (첫 진입·뒤로 가기는 그대로)
 export default function AppLayout({
   headerContext,
+  headerActions,
   showSettingsCoach,
   wide = false,
   width,
@@ -13,6 +14,7 @@ export default function AppLayout({
   children,
 }: {
   headerContext?: ReactNode
+  headerActions?: ReactNode
   showSettingsCoach?: boolean
   // 대시보드처럼 정보가 많은 화면은 헤더·본문·푸터를 1280(좌우 80 포함 1440)으로 넓힌다
   wide?: boolean
@@ -41,6 +43,7 @@ export default function AppLayout({
       </a>
       <AppHeader
         context={headerContext}
+        actions={headerActions}
         showSettingsCoach={showSettingsCoach}
         width={chromeWidth}
       />

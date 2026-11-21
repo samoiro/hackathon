@@ -4,10 +4,13 @@ import DisplaySettingsPopover from '@/components/layout/DisplaySettingsPopover'
 // 헤더 v3: 로고 · 상황 영역(화면마다 하나) · 글자·화면 설정. PC 높이 72·좌우 80, 모바일은 한 줄 56·좌우 16에 로고 글자를 빼고 심볼만 둔다
 export default function AppHeader({
   context,
+  actions,
   showSettingsCoach = false,
   width = 'max-w-[1280px]',
 }: {
   context?: ReactNode
+  // 오른쪽 글자·화면 설정 버튼 앞에 놓을 버튼 (대시보드의 갱신 등)
+  actions?: ReactNode
   showSettingsCoach?: boolean
   width?: string
 }) {
@@ -27,7 +30,10 @@ export default function AppHeader({
           </span>
         </div>
         <div className="flex min-w-0">{context}</div>
-        <DisplaySettingsPopover showCoach={showSettingsCoach} />
+        <div className="flex items-center gap-2">
+          {actions}
+          <DisplaySettingsPopover showCoach={showSettingsCoach} />
+        </div>
       </div>
     </header>
   )
