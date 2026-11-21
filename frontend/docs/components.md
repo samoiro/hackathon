@@ -64,7 +64,7 @@
 
 ## 5. 데이터와 상태
 
-- **API 호출**: DTO 타입은 `src/types/api/{도메인}.ts`, 호출 함수와 훅은 `src/service/{도메인}.ts`에 둡니다. 화면은 `useGetX`·`usePostX` 훅만 씁니다. 변경 훅의 `onSuccess`·`onError`는 화면에서 넘깁니다.
+- **API 호출**: 타입과 SDK 함수는 서버 OpenAPI로 만든 `src/lib/api/generated`(`npm run api`)를 씁니다. 화면용 훅은 `src/lib/api/{도메인}.ts`에 두고, 화면에서 axios나 생성 함수를 직접 부르지 않습니다.
 - **서버 데이터**: `useQuery`로 읽고 `useMutation`으로 바꿉니다. 바꾼 뒤에는 관련 `queryKey`를 `invalidateQueries`로 무효화합니다. 서버 데이터를 `useState`에 복사하지 않습니다.
 - **검색 입력**: `SearchSelect`를 씁니다. `useDebouncedValue`(300ms)로 기다린 뒤 조회하고, `keepPreviousData`로 깜빡임을 막습니다. 옵션을 화면에서 다시 거르지 않습니다(`filterOption={false}`).
 - **파생 값은 계산합니다**: 개수, 완료 수, 담김 여부, 증감 문구 등은 state로 따로 두지 않고 원본에서 계산합니다.

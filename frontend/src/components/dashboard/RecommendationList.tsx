@@ -171,7 +171,7 @@ function RecommendationItem({
           size="small"
           aria-pressed={added}
           // 12개가 차면 더 담을 수 없다. 강추는 오늘 확인할 일에서 뺄 수 없어 담김으로 고정한다
-          disabled={full || (added && item.strong)}
+          disabled={full || (added && item.recommended)}
           title={
             full ? `할 일은 ${TODO_LIMIT}개까지 담을 수 있어요` : undefined
           }
