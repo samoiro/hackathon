@@ -5,9 +5,11 @@ import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.not;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
+import static org.springframework.test.web.client.response.MockRestResponseCreators.withException;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withStatus;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
 
+import java.net.SocketTimeoutException;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
@@ -15,10 +17,11 @@ import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.client.MockRestServiceServer;
-import org.springframework.web.ErrorResponseException;
 import org.springframework.web.client.RestClient;
 import tools.jackson.databind.json.JsonMapper;
 
+import com.hackathon.server.common.exception.BusinessException;
+import com.hackathon.server.common.exception.ErrorCode;
 import com.hackathon.server.publicdata.dto.ListResponse;
 
 class DataGoKrClientTest {
@@ -79,23 +82,31 @@ class DataGoKrClientTest {
 				{"OpenAPI_ServiceResponse":{"cmmMsgHeader":{"errMsg":"NO_OPENAPI_SERVICE_ERROR","returnAuthMsg":"해당 오픈API 서비스가 없거나 폐기됨","returnReasonCode":"12"}}}""",
 				MediaType.APPLICATION_JSON));
 
-		var error = assertThrows(ErrorResponseException.class, () -> client.list(PATH, Map.of()));
+		var error = assertThrows(BusinessException.class, () -> client.list(PATH, Map.of()));
 
-		assertThat(error.getStatusCode()).isEqualTo(HttpStatus.BAD_GATEWAY);
+		assertThat(error.getErrorCode()).isEqualTo(ErrorCode.PUBLIC_API_ERROR);
 		assertThat(error.getBody().getDetail()).contains("NO_OPENAPI_SERVICE_ERROR");
 	}
 
 	@Test
 	void httpErrorIsBadGateway() {
 		server.expect(requestTo(containsString(PATH))).andRespond(withStatus(HttpStatus.INTERNAL_SERVER_ERROR));
-		var error = assertThrows(ErrorResponseException.class, () -> client.list(PATH, Map.of()));
-		assertThat(error.getStatusCode()).isEqualTo(HttpStatus.BAD_GATEWAY);
+		var error = assertThrows(BusinessException.class, () -> client.list(PATH, Map.of()));
+		assertThat(error.getErrorCode()).isEqualTo(ErrorCode.PUBLIC_API_ERROR);
+	}
+
+	@Test
+	void connectionFailureHidesKeyInUrl() {
+		server.expect(requestTo(containsString(PATH))).andRespond(withException(new SocketTimeoutException("Read timed out")));
+		var error = assertThrows(BusinessException.class, () -> client.list(PATH, Map.of()));
+		assertThat(error.getErrorCode()).isEqualTo(ErrorCode.PUBLIC_API_CONNECTION_FAILED);
+		assertThat(error.getBody().getDetail()).contains("Read timed out").doesNotContain("serviceKey");
 	}
 
 	@Test
 	void missingKeyIsServiceUnavailable() {
 		var noKey = new DataGoKrClient(builder.build(), JsonMapper.builder().build(), BASE, "");
-		var error = assertThrows(ErrorResponseException.class, () -> noKey.list(PATH, Map.of()));
-		assertThat(error.getStatusCode()).isEqualTo(HttpStatus.SERVICE_UNAVAILABLE);
+		var error = assertThrows(BusinessException.class, () -> noKey.list(PATH, Map.of()));
+		assertThat(error.getErrorCode()).isEqualTo(ErrorCode.PUBLIC_API_KEY_MISSING);
 	}
 }

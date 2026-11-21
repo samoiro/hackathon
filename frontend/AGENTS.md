@@ -35,3 +35,11 @@ src/
 ## 스킬
 
 `.claude/skills/`에 디자인·React 스킬이 있다. UI 품질 점검은 `impeccable`·`unslop`·`better-*`, React 패턴은 `vercel-react-best-practices`·`vercel-composition-patterns`를 쓴다.
+
+## 문서
+
+화면·컴포넌트 작업 전에 `docs/`를 읽는다.
+
+- `docs/design.md`: 색·글자·모양·움직임·문구 기준 (브랜드가이드 PDF, 디자인 리뷰 정리)
+- `docs/screen.md`: 화면 뼈대, 너비·그리드, 여백, 카드 구성, 상태 화면
+- `docs/components.md`: 컴포넌트 작성 규칙, 접근성, 지금 있는 컴포넌트 목록

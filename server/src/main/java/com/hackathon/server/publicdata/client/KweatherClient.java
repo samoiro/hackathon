@@ -1,7 +1,6 @@
 package com.hackathon.server.publicdata.client;
 
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 import org.springframework.web.client.RestClient;
@@ -10,7 +9,8 @@ import org.springframework.web.client.RestClientResponseException;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 
-import com.hackathon.server.common.exception.PublicApiErrors;
+import com.hackathon.server.common.exception.BusinessException;
+import com.hackathon.server.common.exception.ErrorCode;
 
 /**
  * 케이웨더 API 게이트웨이 호출. URL 형식: {base}/{api}/{행정구역코드 10자리, 생략하면 전체}
@@ -35,7 +35,7 @@ public class KweatherClient {
 	/** api: 게이트웨이 경로 (예: kw-warning1, kw-fct-wl2). 결과의 data 객체(코드 → 지역 데이터)를 돌려줍니다. */
 	public JsonNode get(String api, String code) {
 		if (!StringUtils.hasText(apiKey)) {
-			throw PublicApiErrors.of(HttpStatus.SERVICE_UNAVAILABLE, "KWEATHER_API_KEY가 설정되지 않았습니다.");
+			throw new BusinessException(ErrorCode.PUBLIC_API_KEY_MISSING, "KWEATHER_API_KEY가 설정되지 않았습니다.");
 		}
 		String body;
 		try {
@@ -47,15 +47,15 @@ public class KweatherClient {
 		}
 		catch (RestClientResponseException e) {
 			// 400: 없는 행정구역코드 (constraints에 사유), 401: 인증키 오류
-			HttpStatus status = e.getStatusCode().value() == 400 ? HttpStatus.BAD_REQUEST : HttpStatus.BAD_GATEWAY;
-			throw PublicApiErrors.of(status, "케이웨더 API 오류 (HTTP " + e.getStatusCode().value() + "): "
+			ErrorCode errorCode = e.getStatusCode().value() == 400 ? ErrorCode.PUBLIC_API_BAD_REQUEST : ErrorCode.PUBLIC_API_ERROR;
+			throw new BusinessException(errorCode, "케이웨더 API 오류 (HTTP " + e.getStatusCode().value() + "): "
 					+ gatewayMessage(e.getResponseBodyAsString()));
 		}
 		catch (RestClientException e) {
-			throw PublicApiErrors.of(HttpStatus.BAD_GATEWAY, "케이웨더 API 호출 실패: " + e.getMostSpecificCause().getMessage());
+			throw new BusinessException(ErrorCode.PUBLIC_API_CONNECTION_FAILED, "케이웨더 API 호출 실패: " + e.getMostSpecificCause().getMessage());
 		}
 		if (body == null || body.isBlank()) {
-			throw PublicApiErrors.of(HttpStatus.BAD_GATEWAY, "케이웨더 API 응답이 비어 있습니다.");
+			throw new BusinessException(ErrorCode.PUBLIC_API_INVALID_RESPONSE, "케이웨더 API 응답이 비어 있습니다.");
 		}
 		JsonNode root = jsonMapper.readTree(body);
 		String error = root.path("error").asString("");
@@ -64,7 +64,7 @@ public class KweatherClient {
 			return jsonMapper.createObjectNode();
 		}
 		if (!error.equals("0")) {
-			throw PublicApiErrors.of(HttpStatus.BAD_GATEWAY,
+			throw new BusinessException(ErrorCode.PUBLIC_API_ERROR,
 					"케이웨더 API 오류 [" + error + "] " + root.path("message").asString(""));
 		}
 		return root.path("data");

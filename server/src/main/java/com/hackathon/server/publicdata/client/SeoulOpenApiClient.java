@@ -6,17 +6,17 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
-import org.springframework.web.ErrorResponseException;
+import org.springframework.web.client.RestClientResponseException;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.util.UriUtils;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 
-import com.hackathon.server.common.exception.PublicApiErrors;
+import com.hackathon.server.common.exception.BusinessException;
+import com.hackathon.server.common.exception.ErrorCode;
 import com.hackathon.server.publicdata.dto.ListResponse;
 
 /**
@@ -57,23 +57,26 @@ public class SeoulOpenApiClient {
 
 	private JsonNode call(String service, int start, int end, String... params) {
 		if (!StringUtils.hasText(apiKey)) {
-			throw PublicApiErrors.of(HttpStatus.SERVICE_UNAVAILABLE, "SEOUL_API_KEY가 설정되지 않았습니다.");
+			throw new BusinessException(ErrorCode.PUBLIC_API_KEY_MISSING, "SEOUL_API_KEY가 설정되지 않았습니다.");
 		}
 		String body;
 		try {
 			body = restClient.get().uri(buildUri(service, start, end, params)).retrieve().body(String.class);
 		}
+		catch (RestClientResponseException e) {
+			throw new BusinessException(ErrorCode.PUBLIC_API_ERROR, "서울시 API 오류 (HTTP " + e.getStatusCode().value() + ")");
+		}
 		catch (RestClientException e) {
 			// 예외 메시지에 인증키가 든 URL이 포함되므로 원인만 노출
-			throw PublicApiErrors.of(HttpStatus.BAD_GATEWAY, "서울시 API 호출 실패: " + e.getMostSpecificCause().getMessage());
+			throw new BusinessException(ErrorCode.PUBLIC_API_CONNECTION_FAILED, "서울시 API 호출 실패: " + e.getMostSpecificCause().getMessage());
 		}
 		if (body == null || body.isBlank()) {
-			throw PublicApiErrors.of(HttpStatus.BAD_GATEWAY, "서울시 API 응답이 비어 있습니다.");
+			throw new BusinessException(ErrorCode.PUBLIC_API_INVALID_RESPONSE, "서울시 API 응답이 비어 있습니다.");
 		}
 		if (body.startsWith("<")) {
 			Matcher m = XML_CODE.matcher(body);
 			throw m.find() ? error(m.group(1), m.group(2).trim())
-					: PublicApiErrors.of(HttpStatus.BAD_GATEWAY, "서울시 API가 알 수 없는 형식으로 응답했습니다.");
+					: new BusinessException(ErrorCode.PUBLIC_API_INVALID_RESPONSE, "서울시 API가 알 수 없는 형식으로 응답했습니다.");
 		}
 		JsonNode root = jsonMapper.readTree(body);
 		JsonNode result = root.path(service).path("RESULT");
@@ -102,10 +105,10 @@ public class SeoulOpenApiClient {
 		return URI.create(path.toString());
 	}
 
-	private static ErrorResponseException error(String code, String message) {
+	private static BusinessException error(String code, String message) {
 		// ERROR-3xx는 요청 인자 문제, 나머지(인증키·서버 오류 등)는 서울시 쪽 문제
-		HttpStatus status = code.startsWith("ERROR-3") ? HttpStatus.BAD_REQUEST : HttpStatus.BAD_GATEWAY;
-		return PublicApiErrors.of(status, "서울시 API 오류 [" + code + "] " + message);
+		ErrorCode errorCode = code.startsWith("ERROR-3") ? ErrorCode.PUBLIC_API_BAD_REQUEST : ErrorCode.PUBLIC_API_ERROR;
+		return new BusinessException(errorCode, "서울시 API 오류 [" + code + "] " + message);
 	}
 
 	private static String firstText(JsonNode node, String... fields) {

@@ -12,10 +12,11 @@ import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.client.MockRestServiceServer;
-import org.springframework.web.ErrorResponseException;
 import org.springframework.web.client.RestClient;
 import tools.jackson.databind.json.JsonMapper;
 
+import com.hackathon.server.common.exception.BusinessException;
+import com.hackathon.server.common.exception.ErrorCode;
 import com.hackathon.server.publicdata.dto.AdminDong;
 
 class KakaoLocalClientTest {
@@ -61,9 +62,9 @@ class KakaoLocalClientTest {
 				.andRespond(withBadRequest().contentType(MediaType.APPLICATION_JSON)
 						.body("{\"errorType\": \"InvalidArgument\", \"message\": \"x is out of range\"}"));
 
-		var error = assertThrows(ErrorResponseException.class, () -> client.adminDong(37.5446, 127.0446));
+		var error = assertThrows(BusinessException.class, () -> client.adminDong(37.5446, 127.0446));
 
-		assertThat(error.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+		assertThat(error.getErrorCode()).isEqualTo(ErrorCode.PUBLIC_API_BAD_REQUEST);
 		assertThat(error.getBody().getDetail()).contains("x is out of range");
 	}
 
@@ -73,16 +74,16 @@ class KakaoLocalClientTest {
 				.andRespond(withStatus(HttpStatus.UNAUTHORIZED).contentType(MediaType.APPLICATION_JSON)
 						.body("{\"errorType\": \"AccessDeniedError\", \"message\": \"cannot find appKey\"}"));
 
-		var error = assertThrows(ErrorResponseException.class, () -> client.adminDong(37.5446, 127.0446));
+		var error = assertThrows(BusinessException.class, () -> client.adminDong(37.5446, 127.0446));
 
-		assertThat(error.getStatusCode()).isEqualTo(HttpStatus.BAD_GATEWAY);
+		assertThat(error.getErrorCode()).isEqualTo(ErrorCode.PUBLIC_API_ERROR);
 		assertThat(error.getBody().getDetail()).contains("cannot find appKey");
 	}
 
 	@Test
 	void missingKeyIsServiceUnavailable() {
 		var noKey = new KakaoLocalClient(builder.build(), JsonMapper.builder().build(), BASE, "");
-		var error = assertThrows(ErrorResponseException.class, () -> noKey.adminDong(37.5446, 127.0446));
-		assertThat(error.getStatusCode()).isEqualTo(HttpStatus.SERVICE_UNAVAILABLE);
+		var error = assertThrows(BusinessException.class, () -> noKey.adminDong(37.5446, 127.0446));
+		assertThat(error.getErrorCode()).isEqualTo(ErrorCode.PUBLIC_API_KEY_MISSING);
 	}
 }
