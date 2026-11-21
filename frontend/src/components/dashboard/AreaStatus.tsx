@@ -61,32 +61,21 @@ export default function AreaStatus({
   sheet?: boolean
 }) {
   const [selectedCode, setSelectedCode] = useState<string>()
+  // 가게 좌표(가게 정보 입력 때 저장한 값)를 보내면 서버가 가까운 순으로 준다. 첫 번째가 가게가 든 영역
+  const point = address
+    ? { latitude: address.latitude, longitude: address.longitude }
+    : undefined
   const catalog = useQuery({
-    queryKey: ['areas'],
+    queryKey: ['areas', point],
     queryFn: async ({ signal }) =>
-      (await areas({ signal, throwOnError: true })).data,
+      (await areas({ query: point, signal, throwOnError: true })).data,
     staleTime: 60 * 60 * 1000,
     retry: false,
   })
   const options = catalog.data ?? []
   const selected =
     options.find((area) => area.code === selectedCode) ??
-    options.find((area) => area.name === label) ??
-    (address
-      ? options.reduce<(typeof options)[number] | undefined>(
-          (nearest, area) => {
-            const distance = (point: typeof area) =>
-              (point.latitude - address.latitude) ** 2 +
-              ((point.longitude - address.longitude) *
-                Math.cos((address.latitude * Math.PI) / 180)) **
-                2
-            return !nearest || distance(area) < distance(nearest)
-              ? area
-              : nearest
-          },
-          undefined,
-        )
-      : undefined)
+    (address ? options[0] : options.find((area) => area.name === label))
   const city = useQuery({
     queryKey: ['city-data', selected?.name],
     queryFn: async ({ signal }) => {
