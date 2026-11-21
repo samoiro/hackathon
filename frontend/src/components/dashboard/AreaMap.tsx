@@ -1,64 +1,60 @@
-import { LuCalendar, LuStore } from 'react-icons/lu'
+import { Map, MapMarker, useKakaoLoader } from 'react-kakao-maps-sdk'
 
-const PINS = [
-  { label: '사진전 870m', className: 'top-[18%] right-[8%]' },
-  { label: '음악회 650m', className: 'bottom-[18%] left-[8%]' },
-]
+// shortcut: 서울숲 예시 좌표는 가게 위경도 API 연결 시 실제 좌표로 교체합니다.
+const center = { lat: 37.5444, lng: 127.0374 }
+const statusClassName =
+  'grid h-40 place-items-center bg-canvas px-4 text-center text-caption text-muted'
 
-// shortcut: 지도 API 연결 전이라 도로·공원·반경을 그린 정적 그림이다. 연동 때 지도 SDK로 바꾸고 출처 표기를 실제 값으로 넣는다
-export default function AreaMap() {
+function KakaoAreaMap({ appkey }: { appkey: string }) {
+  const [loading, error] = useKakaoLoader({
+    appkey,
+    url: 'https://dapi.kakao.com/v2/maps/sdk.js',
+  })
+
+  if (error || loading) {
+    return (
+      <p role="status" className={statusClassName}>
+        {error
+          ? '카카오 지도를 불러오지 못했어요. 연결 상태를 확인해 주세요.'
+          : '카카오 지도를 불러오고 있어요.'}
+      </p>
+    )
+  }
+
   return (
-    <div
-      role="img"
-      aria-label="가게 주변 지도. 반경 1km 안에 음악회 650m, 사진전 870m"
-      className="relative mt-3 h-40 overflow-hidden rounded-xl bg-divider/70"
+    <Map
+      aria-label="서울숲 카카오 지도"
+      center={center}
+      className="h-40 w-full"
+      keyboardShortcuts
+      level={4}
+      scrollwheel={false}
+      tabIndex={0}
     >
-      <svg
-        aria-hidden
-        className="absolute inset-0 size-full"
-        viewBox="0 0 300 160"
-        preserveAspectRatio="xMidYMid slice"
+      <MapMarker position={center} title="서울숲 예시 위치" />
+    </Map>
+  )
+}
+
+export default function AreaMap() {
+  const appkey = import.meta.env.VITE_KAKAO_MAP_JS_KEY?.trim()
+
+  return (
+    <figure
+      aria-labelledby="area-map-caption"
+      className="mt-3 overflow-hidden rounded-xl border border-divider"
+    >
+      {appkey ? (
+        <KakaoAreaMap appkey={appkey} />
+      ) : (
+        <p className={statusClassName}>지도 설정이 필요해요.</p>
+      )}
+      <figcaption
+        id="area-map-caption"
+        className="bg-surface px-3 py-1 text-tag text-muted"
       >
-        <rect
-          x="0"
-          y="95"
-          width="120"
-          height="65"
-          rx="12"
-          fill="var(--color-success-bg)"
-        />
-        <path
-          d="M0 70 L300 40 M150 0 L185 160 M230 0 L255 160"
-          stroke="var(--color-surface)"
-          strokeWidth="10"
-          fill="none"
-        />
-        <circle
-          cx="160"
-          cy="80"
-          r="58"
-          fill="none"
-          stroke="var(--color-fg)"
-          strokeWidth="1.2"
-          strokeDasharray="5 5"
-        />
-      </svg>
-      <span className="absolute top-1/2 left-1/2 flex -translate-1/2 items-center gap-1 rounded-full bg-hero px-2 py-1 text-tag text-on-hero">
-        <LuStore aria-hidden />
-        우리 가게
-      </span>
-      {PINS.map((pin) => (
-        <span
-          key={pin.label}
-          className={`absolute flex items-center gap-1 rounded-full border border-fg bg-surface px-2 py-1 text-tag ${pin.className}`}
-        >
-          <LuCalendar aria-hidden />
-          {pin.label}
-        </span>
-      ))}
-      <span className="absolute right-2 bottom-1 text-tag text-muted">
-        지도 API 출처 표기
-      </span>
-    </div>
+        카카오맵 · 서울숲 예시 위치
+      </figcaption>
+    </figure>
   )
 }
