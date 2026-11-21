@@ -1,6 +1,7 @@
 package com.hackathon.server.ingredient.repository;
 
 import java.util.Collection;
+import java.util.List;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
@@ -15,4 +16,6 @@ public interface IngredientRuleItemRepository extends JpaRepository<IngredientRu
 	int deleteByRuleIds(Collection<Long> ruleIds);
 
 	long countByRuleIdIn(Collection<Long> ruleIds);
+
+	List<IngredientRuleItem> findByIngredientIdIn(Collection<Long> ingredientIds);
 }
