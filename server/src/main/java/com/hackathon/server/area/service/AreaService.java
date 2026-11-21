@@ -15,7 +15,8 @@ public class AreaService {
 
 	private final AreaRepository repository;
 
-	public List<AreaResponse> areas() {
-		return repository.findAll();
+	/** 좌표가 없으면 이름순 */
+	public List<AreaResponse> areas(Double latitude, Double longitude) {
+		return repository.findAll(latitude, longitude);
 	}
 }
