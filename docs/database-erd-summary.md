@@ -217,6 +217,7 @@
 | 작업 ID | id |
 | 수집 작업명 | job_name |
 | 실행 조건. 비밀값 저장 금지 | job_parameters |
+| 기준일. 원자재 가격은 기준일 전날 하루를 받음 | target_date |
 | PENDING / RUNNING / SUCCEEDED / FAILED | status |
 | 현재 재시도 횟수. 최초 실행 0 | retry_times |
 | 생성 / 변경 시각 | created_datetime / updated_datetime |

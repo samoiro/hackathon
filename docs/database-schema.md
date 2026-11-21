@@ -233,11 +233,11 @@ V24 전 연결은 총 740개였습니다. 제철 원자재 31개에 제철 월 1
 
 server의 IngredientPriceBatch가 매일 10시(KST, batch.ingredient-price.cron)에 돕니다.
 
-1. 마지막 조사일 다음 날부터 오늘까지(최대 7일) aT 가격 추이 API를 받아, 대표 규격(거래 구분·품종·등급·단위·단위 크기)이 같은 행만 ingredient_price_history에 upsert하고 직전 관측 가격을 V22와 같은 방식으로 다시 계산합니다.
+1. 기준일(batch_job.target_date, 스케줄은 실행일) 전날 하루의 aT 가격 추이 API를 받아, 대표 규격(거래 구분·품종·등급·단위·단위 크기)이 같은 행만 ingredient_price_history에 upsert하고 직전 관측 가격을 V22와 같은 방식으로 다시 계산합니다.
 2. 가장 최근 조사일에 가격과 4주 전 가격(ww4_bfr_avg_prc)이 모두 있는 원자재만 4주 변동률 = 가격 ÷ 4주 전 가격 − 1을 구하고, ingredient_price_band의 부류 경계로 단계를 정합니다(경계값과 같으면 그 단계, 예: p95 이상이면 상승 심각).
 3. 4주 가격 규칙 6개(PRICE_%FOUR_WEEKS_%)의 ingredient_rule_item 연결을 지우고 판정된 규칙 하나씩만 다시 연결합니다. 안정, 4주 전 가격 없음, 그날 조사되지 않은 원자재는 연결하지 않습니다. 제철·명절 규칙 연결은 건드리지 않습니다.
 
-실행마다 batch_job 1행, 시도마다 batch_job_history 1행을 남깁니다(read = 적재한 가격 행, write = 만든 규칙 연결, skip = 판정 못 한 원자재). 실패하면 batch.max-retry-times만큼 바로 다시 시도하고, 모두 실패하면 이전 연결을 그대로 둡니다.
+실행마다 batch_job 1행, 시도마다 batch_job_history 1행을 남깁니다(read = 적재한 가격 행, write = 만든 규칙 연결, skip = 판정 못 한 원자재). 실패하면 재시도 스케줄(매일 12·15·18시)이 batch.max-retry-times만큼 다시 시도하고, 모두 실패하면 이전 연결을 그대로 둡니다.
 
 ### industry_ingredient — 업종별 추천 원자재
 
@@ -324,6 +324,7 @@ server의 SupportProgramBatch가 매일 6시(KST, batch.support-program.cron)에
 | id | bigint PK, 자동 생성 | 작업 ID |
 | job_name | text, 공백 불가 | 수집 작업명 |
 | job_parameters | jsonb 객체, 기본값 {} | 실행 조건. 비밀값 저장 금지 |
+| target_date | date, 필수 | 기준일. 원자재 가격은 기준일 전날 하루를 받음 |
 | status | text, 기본값 PENDING | PENDING / RUNNING / SUCCEEDED / FAILED |
 | retry_times | integer, 기본값 0, 0 이상 | 현재 재시도 횟수. 최초 실행 0 |
 | created_datetime / updated_datetime | timestamptz(0), 기본값 CURRENT_TIMESTAMP(0) | 생성 / 변경 시각 |

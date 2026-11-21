@@ -4,6 +4,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
 import java.math.BigDecimal;
@@ -89,7 +91,7 @@ class IngredientPriceServiceTest {
 	}
 
 	@Test
-	void fetchesOnlyRowsWithSameRepresentativeSpec() {
+	void fetchesOnlyPreviousDayRowsWithSameRepresentativeSpec() {
 		Ingredient apple = ingredient("사과");
 		String row = """
 				{"item_cd":"%s","se_cd":"%s","vrty_cd":"%s","grd_cd":"%s","unit":"%s","unit_sz":"%s",
@@ -103,7 +105,10 @@ class IngredientPriceServiceTest {
 				? new ListResponse(2, json.readTree("[" + matching + "," + otherGrade + "]"))
 				: new ListResponse(0, json.createArrayNode()));
 
-		List<IngredientPriceHistory> prices = service.fetchPrices(DAY);
+		List<IngredientPriceHistory> prices = service.fetchPrices(DAY.plusDays(1));
+
+		verify(agroPriceClient).priceTrends(eq("20990101"), anyMap(), eq(1), eq(1000));
+		verifyNoMoreInteractions(agroPriceClient);
 
 		assertThat(prices).singleElement().satisfies(p -> {
 			assertThat(p.getIngredientId()).isEqualTo(apple.getId());
