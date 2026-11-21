@@ -32,6 +32,21 @@ function toPolygons(boundary?: unknown): LatLng[][][] {
   )
 }
 
+// 점이 고리 안에 있는지 (반직선 교차 수). 폴리곤은 바깥 고리 안이고 구멍 밖일 때 안이다
+const inRing = ({ lat, lng }: LatLng, ring: LatLng[]) =>
+  ring.reduce((inside, a, index) => {
+    const b = ring[(index + ring.length - 1) % ring.length]
+    return a.lat > lat !== b.lat > lat &&
+      lng < ((b.lng - a.lng) * (lat - a.lat)) / (b.lat - a.lat) + a.lng
+      ? !inside
+      : inside
+  }, false)
+const inPolygons = (point: LatLng, polygons: LatLng[][][]) =>
+  polygons.some(
+    ([outer, ...holes]) =>
+      inRing(point, outer) && !holes.some((hole) => inRing(point, hole)),
+  )
+
 type MapEvent = { title: string; latitude: number; longitude: number }
 type MapProps = {
   address?: Address
@@ -50,6 +65,11 @@ function KakaoAreaMap({
   center: { lat: number; lng: number }
 }) {
   const [loading, error] = useKakaoLoader(options)
+  const polygons = toPolygons(area?.boundary)
+  // 가게 핀 말고는 집계 영역 안의 행사만 핀으로 찍는다
+  const pins = events.filter((event) =>
+    inPolygons({ lat: event.latitude, lng: event.longitude }, polygons),
+  )
   if (error || loading)
     return (
       <p role="status" className={statusClassName}>
@@ -71,7 +91,7 @@ function KakaoAreaMap({
       scrollwheel={false}
       tabIndex={0}
     >
-      {toPolygons(area?.boundary).map((path, index) => (
+      {polygons.map((path, index) => (
         <Polygon
           key={index}
           path={path}
@@ -97,7 +117,7 @@ function KakaoAreaMap({
           </CustomOverlayMap>
         </>
       )}
-      {events.map((event) => (
+      {pins.map((event) => (
         <MapMarker
           key={`${event.title}:${event.latitude}:${event.longitude}`}
           title={event.title}
