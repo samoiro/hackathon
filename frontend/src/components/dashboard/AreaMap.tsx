@@ -1,19 +1,30 @@
-import { Map, MapMarker, useKakaoLoader } from 'react-kakao-maps-sdk'
+import {
+  Map as KakaoMap,
+  MapMarker,
+  useKakaoLoader,
+} from 'react-kakao-maps-sdk'
 import { kakaoOptions } from '@/lib/kakao/maps'
 import type { Address } from '@/types/search'
-import type { EventResponse } from '@/lib/api/generated'
+import type { AreaResponse } from '@/lib/api/generated'
 
 const statusClassName =
   'grid h-40 place-items-center bg-canvas px-4 text-center text-caption text-muted'
 
+type MapEvent = { title: string; latitude: number; longitude: number }
+type MapProps = {
+  address?: Address
+  area?: AreaResponse
+  events: MapEvent[]
+}
+
 function KakaoAreaMap({
   options,
   address,
+  center,
   events,
-}: {
+}: Pick<MapProps, 'address' | 'events'> & {
   options: NonNullable<typeof kakaoOptions>
-  address: Address
-  events: EventResponse[]
+  center: { lat: number; lng: number }
 }) {
   const [loading, error] = useKakaoLoader(options)
   if (error || loading)
@@ -25,10 +36,9 @@ function KakaoAreaMap({
       </p>
     )
 
-  const center = { lat: address.latitude, lng: address.longitude }
   return (
-    <Map
-      aria-label="가게 주변 카카오 지도"
+    <KakaoMap
+      aria-label="지역 현황 카카오 지도"
       center={center}
       className="h-40 w-full"
       keyboardShortcuts
@@ -36,25 +46,32 @@ function KakaoAreaMap({
       scrollwheel={false}
       tabIndex={0}
     >
-      <MapMarker position={center} title="우리 가게" />
+      {address && (
+        <MapMarker
+          position={{ lat: address.latitude, lng: address.longitude }}
+          title="우리 가게"
+        />
+      )}
       {events.map((event) => (
         <MapMarker
-          key={event.evidenceId}
+          key={`${event.title}:${event.latitude}:${event.longitude}`}
           title={event.title}
           position={{ lat: event.latitude, lng: event.longitude }}
         />
       ))}
-    </Map>
+    </KakaoMap>
   )
 }
 
-export default function AreaMap({
-  address,
-  events,
-}: {
-  address: Address
-  events: EventResponse[]
-}) {
+export default function AreaMap({ address, area, events }: MapProps) {
+  const point = area ?? address
+  if (!point) return null
+  const uniqueEvents = new Map(
+    events.map((event) => [
+      `${event.title}:${event.latitude}:${event.longitude}`,
+      event,
+    ]),
+  )
   return (
     <figure
       aria-labelledby="area-map-caption"
@@ -64,7 +81,8 @@ export default function AreaMap({
         <KakaoAreaMap
           options={kakaoOptions}
           address={address}
-          events={events}
+          center={{ lat: point.latitude, lng: point.longitude }}
+          events={[...uniqueEvents.values()]}
         />
       ) : (
         <p className={statusClassName}>지도 설정이 필요해요.</p>
@@ -73,7 +91,7 @@ export default function AreaMap({
         id="area-map-caption"
         className="bg-surface px-3 py-1 text-tag text-muted"
       >
-        카카오맵 · {address.road}
+        카카오맵 · {area?.name ?? address?.road}
       </figcaption>
     </figure>
   )
