@@ -167,8 +167,8 @@ application.yml의 batch.max-retry-times는 3(최초 포함 최대 4회)입니�
 | `PORT` | 8080 | Render가 자동 주입 |
 | `JPA_DDL_AUTO` | validate | 스키마는 Flyway가 만들고 Hibernate는 검증만 |
 | `SEOUL_API_KEY` | (없음) | 서울 열린데이터광장 인증키 |
-| `DATA_GO_KR_API_KEY` | (없음) | 공공데이터포털 인증키 (Decoding) |
-| `KWEATHER_API_KEY` | (없음) | 케이웨더 인증키 (기상특보·주간·단기예보) |
+| `DATA_GO_KR_API_KEY` | (없음) | 공공데이터포털 인증키 (Decoding). 날씨 근거에 쓰는 "기상청_단기예보 조회서비스"도 이 키로 활용 신청해야 함 |
+| `KWEATHER_API_KEY` | (없음) | 케이웨더 인증키. `/api/kweather/*` 확인용 API에만 씀 (월 20회 한도라 분석 날씨는 기상청 단기예보로 바꿈) |
 | `KAKAO_REST_API_KEY` | (없음) | 카카오 REST API 키 (좌표 → 행정동). 서버에만 둡니다 |
 | `AI_SERVER_URL` | `http://localhost:8000` | Python ai-server 주소 |
 | `AI_SERVER_TOKEN` | (없음) | ai-server 내부 호출 토큰, `X-Internal-Token` 헤더로 보냄 |

@@ -145,7 +145,7 @@ class EventEvidenceServiceTest {
 		assertThat(evidence.seasonEvents()).extracting(s -> s.code()).contains("KIMJANG", "WINTER").doesNotContain("CHRISTMAS");
 		assertThat(evidence.seasonEvents().getFirst().evidenceId()).isEqualTo("H1");
 		assertThat(evidence.weather()).isEqualTo(w1);
-		assertThat(evidence.sources()).extracting(s -> s.provider()).contains("서울 열린데이터광장", "케이웨더");
+		assertThat(evidence.sources()).extracting(s -> s.provider()).contains("서울 열린데이터광장", "기상청 (공공데이터포털)");
 	}
 
 	@Test

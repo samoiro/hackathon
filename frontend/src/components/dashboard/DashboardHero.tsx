@@ -83,7 +83,7 @@ export default function DashboardHero({
       href: '#prices',
       title: supply.reason,
       source: briefing.weather
-        ? `케이웨더 주간 예보 · ${md(briefing.weather.checkedAt)} 기준`
+        ? `기상청 단기예보 · ${md(briefing.weather.checkedAt)} 기준`
         : '부자재 준비표',
     })
 

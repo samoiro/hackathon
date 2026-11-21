@@ -189,7 +189,7 @@ export default function AreaStatus({
             </div>
             {weather?.checkedAt && (
               <p className="mt-2 text-caption text-muted">
-                {dayjs(weather.checkedAt).format('M.D HH:mm')} 확인 · 케이웨더
+                {dayjs(weather.checkedAt).format('M.D HH:mm')} 확인 · 기상청
               </p>
             )}
           </>
