@@ -6,7 +6,7 @@ import jakarta.validation.constraints.Pattern;
 
 /**
  * POST /api/analysis/{id}/feedback 요청 → 204. 분석 1건의 카드 1장에 1표, 다시 보내면 표를 바꾼다.
- * 감사 팝업("고마워요! 더 나은 추천에 도움이 돼요")은 프론트가 띄운다.
+ * 감사 토스트는 프론트가 띄운다. 해당 없어요는 강추에도 쓰며, 프론트가 그 카드 키를 excludedKeys에 더하고 할 일에서 뺀다.
  */
 @Schema(description = "추천 카드 피드백")
 public record SuggestionFeedbackRequest(
