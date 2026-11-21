@@ -1,6 +1,6 @@
 # Java ↔ Python API 계약 초안 (설계 전용)
 
-**아직 구현하지 않은 API의 제안 명세입니다.** UI/UX 확정안(`[261118]사모이로_UI-UX`)의 대시보드를 그릴 수 있게 맞췄고, Python 담당자와 합의한 뒤 확정합니다.
+UI/UX 확정안(`[261118]사모이로_UI-UX`)의 대시보드를 그릴 수 있게 맞춘 명세입니다. Python 쪽 `POST /v1/analyze`는 `ai-server/app/`에 구현돼 있고(본선 2026-11-21), Java 쪽은 아직입니다.
 프롬프트 초안은 [`PROMPT_DRAFT.md`](PROMPT_DRAFT.md), Java가 카드 칸을 만드는 규칙은 [`SUGGESTION_TODOS_DRAFT.md`](SUGGESTION_TODOS_DRAFT.md)에 있습니다.
 
 ## 역할 나누기
