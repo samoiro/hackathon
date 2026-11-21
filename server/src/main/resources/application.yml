@@ -17,6 +17,9 @@ spring:
     properties:
       hibernate:
         format_sql: true
+  task:
+    scheduling:
+      thread-name-prefix: batch-
   docker:
     compose:
       lifecycle-management: start-only
