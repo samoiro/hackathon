@@ -31,6 +31,9 @@ spring:
 batch:
   # 최초 실행을 제외한 최대 재시도 횟수 (총 실행 최대 4회)
   max-retry-times: 3
+  retry:
+    # 매일 12·15·18시(KST). 실패한 일배치를 한 번씩 다시 돌려 하루에 최대 3번 재시도한다. "-"면 끈다
+    cron: ${BATCH_RETRY_CRON:0 0 12,15,18 * * *}
   ingredient-price:
     # 매일 10시(KST). aT는 조사일 다음 날 가격을 공개한다. "-"면 끈다
     cron: ${INGREDIENT_PRICE_CRON:0 0 10 * * *}
@@ -89,6 +92,16 @@ server:
   # Render가 주입하는 PORT 사용
   port: ${PORT:8080}
   shutdown: graceful
+
+logging:
+  # 콘솔과 함께 파일에도 남긴다. Render 무료 인스턴스는 재배포·재시작 때 파일이 지워진다
+  file:
+    name: ${LOG_FILE:logs/server.log}
+  logback:
+    rollingpolicy:
+      max-file-size: 10MB
+      max-history: 7
+      total-size-cap: 100MB
 
 management:
   endpoints:

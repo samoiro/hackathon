@@ -48,9 +48,6 @@ services:
     plan: free
     healthCheckPath: /health
     envVars:
-      # Dockerfile의 uvicorn이 8000번에서 뜬다
-      - key: PORT
-        value: "8000"
       - key: AI_SERVER_TOKEN
         generateValue: true
       - key: LLM_API_KEY

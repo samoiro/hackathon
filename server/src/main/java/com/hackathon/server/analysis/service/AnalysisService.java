@@ -190,6 +190,7 @@ public class AnalysisService {
 			steps.put(step, StepStatus.DONE);
 			job.succeed(json(steps(steps)), json(planner.briefing(suggestions)));
 			jobRepository.save(job);
+			log.info("분석 {} 완료: 카드 {}개", id, suggestions.size());
 		}
 		catch (RuntimeException e) {
 			ErrorCode code = e instanceof BusinessException b ? b.getErrorCode() : ErrorCode.INTERNAL_ERROR;

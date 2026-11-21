@@ -1,10 +1,12 @@
 package com.hackathon.server.batch.service;
 
-import java.util.Map;
-import java.util.function.Supplier;
+import java.time.LocalDate;
+import java.util.List;
+import java.util.Optional;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -17,8 +19,9 @@ import com.hackathon.server.batch.entity.BatchStatus;
 import com.hackathon.server.batch.repository.BatchJobHistoryRepository;
 import com.hackathon.server.batch.repository.BatchJobRepository;
 import com.hackathon.server.common.exception.BusinessException;
+import com.hackathon.server.common.exception.ErrorCode;
 
-/** 배치 회차(batch_job)와 시도 이력(batch_job_history)을 남기며 작업을 실행한다. 실패하면 batch.max-retry-times까지 다시 시도한다. */
+/** 배치 회차(batch_job)와 시도 이력(batch_job_history)을 남기며 작업을 실행한다. 실패한 작업은 retryFailed로 batch.max-retry-times까지 다시 시도한다. */
 @Service
 public class BatchJobService {
 
@@ -29,44 +32,77 @@ public class BatchJobService {
 	private final BatchJobHistoryRepository historyRepository;
 	private final TransactionTemplate tx;
 	private final int maxRetryTimes;
+	// BatchTask 구현이 이 서비스를 주입받아서 ObjectProvider로 늦게 꺼낸다(순환 의존)
+	private final ObjectProvider<BatchTask> tasks;
 
 	public BatchJobService(BatchJobRepository jobRepository, BatchJobHistoryRepository historyRepository, TransactionTemplate tx,
-			@Value("${batch.max-retry-times}") int maxRetryTimes) {
+			@Value("${batch.max-retry-times}") int maxRetryTimes, ObjectProvider<BatchTask> tasks) {
 		this.jobRepository = jobRepository;
 		this.historyRepository = historyRepository;
 		this.tx = tx;
 		this.maxRetryTimes = maxRetryTimes;
+		this.tasks = tasks;
 	}
 
-	// shortcut: 실패하면 바로 다시 시도한다. 공공 API 일시 장애가 잦으면 재시도 사이에 대기를 넣는다
-	public BatchJob run(String jobName, Map<String, Object> parameters, Supplier<BatchCounts> task) {
-		BatchJob job = jobRepository.save(new BatchJob(jobName, parameters));
-		for (int retry = 0; ; retry++) {
-			BatchJobHistory history = startAttempt(job, retry);
-			try {
-				BatchCounts counts = task.get();
-				history.succeed(counts);
-				job.finish(BatchStatus.SUCCEEDED);
-				log.info("{} 성공: read {}, write {}, skip {}", jobName, counts.read(), counts.write(), counts.skip());
-				return save(job, history);
-			}
-			catch (RuntimeException e) {
-				history.fail(e instanceof BusinessException b ? b.getErrorCode().name() : e.getClass().getSimpleName(), errorMessage(e));
-				boolean last = retry >= maxRetryTimes;
-				if (last) job.finish(BatchStatus.FAILED);
-				log.warn("{} 실패 (재시도 {}/{})", jobName, retry, maxRetryTimes, e);
-				job = save(job, history);
-				if (last) return job;
-			}
+	/** 스케줄·수동 실행. 한 번만 시도하고, 실패한 작업은 retryFailed가 다시 돌린다. */
+	public BatchJob run(BatchTask task, LocalDate targetDate) {
+		BatchJob job = jobRepository.save(new BatchJob(task.jobName(), targetDate));
+		return attempt(job, task);
+	}
+
+	public BatchJob run(String jobName, LocalDate targetDate) {
+		return run(task(jobName), targetDate);
+	}
+
+	/** 재시도가 남은 FAILED 작업을 모아 한 번씩 다시 돌린다. 하루 3번 BatchRetryScheduler가 부른다. */
+	// shortcut: 서버 한 대 기준 synchronized로 중복 호출만 막는다. 서버를 여러 대 띄우면 DB 락으로 바꾼다
+	public synchronized List<BatchJob> retryFailed() {
+		return jobRepository.findByStatusAndRetryTimesLessThanOrderById(BatchStatus.FAILED, maxRetryTimes).stream()
+				.filter(job -> {
+					// 작업명이 바뀌거나 빠지면 재시도가 영원히 안 돌아서 남긴다
+					boolean known = findTask(job.getJobName()).isPresent();
+					if (!known) log.warn("{} 재시도 건너뜀: 등록된 배치 작업이 없습니다 (batch_job {})", job.getJobName(), job.getId());
+					return known;
+				})
+				.map(this::retry)
+				.toList();
+	}
+
+	private BatchJob retry(BatchJob job) {
+		job.retry(job.getRetryTimes() + 1);
+		return attempt(job, task(job.getJobName()));
+	}
+
+	private BatchJob attempt(BatchJob job, BatchTask task) {
+		log.info("{} 시작 (기준일 {}, 재시도 {}/{})", job.getJobName(), job.getTargetDate(), job.getRetryTimes(), maxRetryTimes);
+		BatchJobHistory history = startAttempt(job);
+		try {
+			BatchCounts counts = task.execute(job.getTargetDate());
+			history.succeed(counts);
+			job.finish(BatchStatus.SUCCEEDED);
+			log.info("{} 성공: read {}, write {}, skip {}", job.getJobName(), counts.read(), counts.write(), counts.skip());
 		}
+		catch (RuntimeException e) {
+			history.fail(e instanceof BusinessException b ? b.getErrorCode().name() : e.getClass().getSimpleName(), errorMessage(e));
+			job.finish(BatchStatus.FAILED);
+			log.warn("{} 실패 (재시도 {}/{})", job.getJobName(), job.getRetryTimes(), maxRetryTimes, e);
+		}
+		return save(job, history);
+	}
+
+	private Optional<BatchTask> findTask(String jobName) {
+		return tasks.stream().filter(t -> t.jobName().equals(jobName)).findFirst();
+	}
+
+	private BatchTask task(String jobName) {
+		return findTask(jobName).orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "없는 배치 작업입니다: " + jobName));
 	}
 
 	/** 부모 재시도 횟수 증가와 시도 이력 생성은 같은 트랜잭션에서 한다(V18 주석). */
-	private BatchJobHistory startAttempt(BatchJob job, int retryTimes) {
+	private BatchJobHistory startAttempt(BatchJob job) {
 		return tx.execute(s -> {
-			job.retry(retryTimes);
 			jobRepository.save(job);
-			return historyRepository.save(new BatchJobHistory(job.getId(), retryTimes));
+			return historyRepository.save(new BatchJobHistory(job.getId(), job.getRetryTimes()));
 		});
 	}
 

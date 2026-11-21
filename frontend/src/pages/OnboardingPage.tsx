@@ -64,15 +64,16 @@ export default function OnboardingPage() {
   const [items, setItems] = useState<InterestItems>(
     draft?.items ?? { raw: [], sub: [] },
   )
-  const [submitted, setSubmitted] = useState(false)
   const catalog = useQuery({
     queryKey: ['industries'],
+    retry: false,
     queryFn: async ({ signal }) =>
       (await industries({ signal, throwOnError: true })).data,
   })
   const recommendations = useQuery({
     queryKey: ['industry-recommendations', industryId],
     enabled: industryId !== undefined,
+    retry: false,
     queryFn: async ({ signal }) => {
       if (industryId === undefined) throw new Error('업종을 골라 주세요.')
       return (
@@ -95,7 +96,6 @@ export default function OnboardingPage() {
   }, [location, industryId, salesType, items])
 
   function submit() {
-    setSubmitted(true)
     if (start.isPending || !location || industryId === undefined) return
     start.mutate(
       {
@@ -366,6 +366,7 @@ export default function OnboardingPage() {
                 className="mt-4"
                 icon={<LuArrowRight aria-hidden />}
                 iconPlacement="end"
+                disabled={!ready}
                 loading={start.isPending}
                 onClick={submit}
               >
@@ -396,14 +397,6 @@ export default function OnboardingPage() {
           </Card>
         </div>
       </div>
-      {submitted && !ready && (
-        <Alert
-          className="mt-4"
-          type="error"
-          showIcon
-          title="가게 이름과 위치, 업종을 입력해 주세요."
-        />
-      )}
       {start.isError && (
         <Alert
           className="mt-4"
@@ -417,12 +410,18 @@ export default function OnboardingPage() {
         />
       )}
       <div className="sticky bottom-0 -mx-4 mt-6 border-t border-divider bg-surface p-4 lg:hidden">
+        {!ready && (
+          <p className="mb-2 text-center text-caption text-muted">
+            가게 이름과 위치, 업종을 입력해 주세요.
+          </p>
+        )}
         <Button
           type="primary"
           size="large"
           block
           icon={<LuArrowRight aria-hidden />}
           iconPlacement="end"
+          disabled={!ready}
           loading={start.isPending}
           onClick={submit}
         >

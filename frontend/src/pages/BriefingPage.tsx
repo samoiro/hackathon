@@ -1,17 +1,18 @@
 import { Alert, Button, Card, Tag } from 'antd'
-import { LuCheck, LuRotateCw, LuX } from 'react-icons/lu'
+import { LuCheck, LuX } from 'react-icons/lu'
 import { useEffect } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
+import { useAnalysis } from '@/lib/api/analysis'
+import type { AnalysisStep } from '@/lib/api/generated'
 import {
-  readExcludedCards,
-  useAnalysis,
-  useStartAnalysis,
-} from '@/lib/api/analysis'
-import type { AnalysisRequest, AnalysisStep } from '@/lib/api/generated'
-import { useNavigate, useSearchParams } from 'react-router'
-import MascotFace from '@/components/common/MascotFace'
+  Navigate,
+  useNavigate,
+  useNavigationType,
+  useSearchParams,
+} from 'react-router'
 import AppLayout from '@/components/layout/AppLayout'
 import StepIndicator from '@/components/layout/StepIndicator'
+import MascotFace from '@/components/common/MascotFace'
 import WaveProgress from '@/components/common/WaveProgress'
 
 type StepState = 'done' | 'active' | 'failed' | 'waiting'
@@ -79,15 +80,23 @@ function StepMarker({ state, index }: { state: StepState; index: number }) {
 
 export default function BriefingPage() {
   const navigate = useNavigate()
+  const navigationType = useNavigationType()
   const [params] = useSearchParams()
   const id = params.get('id') ?? ''
-  const query = useAnalysis(id, true)
+  const reloaded =
+    navigationType === 'POP' &&
+    performance
+      .getEntriesByType('navigation')
+      .some(
+        (entry) =>
+          'type' in entry &&
+          entry.type === 'reload' &&
+          entry.name.split('#')[0] === window.location.href.split('#')[0],
+      )
+  const query = useAnalysis(reloaded ? '' : id, true)
   const analysis = query.data
   const client = useQueryClient()
-  const start = useStartAnalysis()
-  const original = client.getQueryData<AnalysisRequest>(['analysis-input', id])
   const failed =
-    !id ||
     query.isError ||
     analysis?.status === 'FAILED' ||
     (analysis?.status === 'SUCCEEDED' && !analysis.briefing)
@@ -103,27 +112,17 @@ export default function BriefingPage() {
     : []
 
   useEffect(() => {
-    if (analysis?.status === 'SUCCEEDED' && analysis.briefing) {
+    if (!failed && analysis?.status === 'SUCCEEDED' && analysis.briefing) {
       client.setQueryData(['last-briefing'], id)
       navigate(`/dashboard?id=${encodeURIComponent(id)}`, { replace: true })
     }
-  }, [analysis, client, id, navigate])
+  }, [analysis, client, failed, id, navigate])
 
-  function retry() {
-    if (query.isError && id) {
-      void query.refetch()
-    } else if (original) {
-      start.mutate(
-        { ...original, excludedKeys: readExcludedCards() },
-        {
-          onSuccess: ({ analysisId }) =>
-            navigate(`/briefing?id=${encodeURIComponent(analysisId)}`, {
-              replace: true,
-            }),
-        },
-      )
-    } else navigate('/')
-  }
+  if (reloaded || !id) return <Navigate to="/" replace />
+  // 실패해도 바로 보내지 않고 실패 화면(우는 캐릭터·에러색 테두리)을 보여준다. 입력 화면으로 돌아가면 입력값이 그대로 채워진다
+  const failureMessage =
+    analysis?.failure?.message ||
+    '분석을 완료하지 못했어요. 입력 내용을 확인하고 다시 시도해 주세요.'
 
   return (
     <AppLayout
@@ -159,9 +158,8 @@ export default function BriefingPage() {
         <div className="mt-6 lg:mt-8 lg:px-4">
           <div className="flex flex-wrap justify-between gap-x-3 text-caption">
             <span className="font-semibold">
-              {failed
-                ? `${doneCount} / ${STEPS.length} 단계에서 멈췄어요`
-                : `${doneCount} / ${STEPS.length} 단계 완료`}
+              {doneCount} / {STEPS.length} 단계
+              {failed ? '에서 멈췄어요' : ' 완료'}
             </span>
             <span className="text-muted">
               {failed ? '입력한 정보는 그대로예요' : '곧 끝나요'}
@@ -218,38 +216,10 @@ export default function BriefingPage() {
 
           {failed ? (
             <div className="mt-6 mb-4 flex flex-col gap-4">
-              <Alert
-                type="error"
-                showIcon
-                title={
-                  <span className="text-caption text-danger">
-                    {analysis?.failure?.message ??
-                      (id
-                        ? '분석 상태를 불러오지 못했어요. 다시 시도해 주세요.'
-                        : '가게 정보를 입력하고 브리핑을 시작해 주세요.')}
-                  </span>
-                }
-              />
-              {start.isError && (
-                <Alert
-                  type="error"
-                  showIcon
-                  title="새 분석을 시작하지 못했어요."
-                />
-              )}
-              <div className="grid gap-3 lg:grid-cols-2">
-                <Button
-                  type="primary"
-                  icon={<LuRotateCw aria-hidden />}
-                  loading={start.isPending}
-                  onClick={retry}
-                >
-                  다시 시도
-                </Button>
-                <Button onClick={() => navigate('/')}>
-                  입력 화면으로 돌아가기
-                </Button>
-              </div>
+              <Alert type="error" showIcon title={failureMessage} />
+              <Button type="primary" block onClick={() => navigate('/')}>
+                입력 화면으로 돌아가기
+              </Button>
             </div>
           ) : (
             <p className="mt-6 mb-4 text-center text-caption text-muted">
