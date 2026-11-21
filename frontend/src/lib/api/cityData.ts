@@ -86,6 +86,16 @@ export function readCityData(data: unknown) {
         ? [{ ageGroup, percent }]
         : []
     }),
+    // 실시간 성별 인구 비율(%)
+    gender: {
+      male: number(
+        field(data, 'malePercent') ?? field(rawPopulation, 'MALE_PPLTN_RATE'),
+      ),
+      female: number(
+        field(data, 'femalePercent') ??
+          field(rawPopulation, 'FEMALE_PPLTN_RATE'),
+      ),
+    },
     weather: {
       sky: string(
         field(weather, 'sky') ?? field(rawWeatherForecast, 'SKY_STTS'),
