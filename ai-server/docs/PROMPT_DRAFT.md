@@ -85,7 +85,7 @@ EVENT의 STOCK 칸에는 supplies에 있는 물품 이름을 쓰지 않는다.
         "additionalProperties": false,
         "required": ["card_id", "title", "expected_effect", "sub_tasks"],
         "properties": {
-          "card_id": { "type": "string" },
+          "card_id": { "type": "string", "enum": ["요청 cards의 card_id들"] },
           "title": { "type": "string", "maxLength": 24 },
           "expected_effect": { "type": ["string", "null"], "maxLength": 60 },
           "sub_tasks": { "type": "array", "minItems": 2, "maxItems": 3, "items": { "type": "string", "maxLength": 24 } }
