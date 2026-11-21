@@ -32,6 +32,7 @@ export default function LocationSearchModal({
       onClose={onClose}
       title="가게 위치 검색"
       width={560}
+      height="42.3125rem" // 기본 글자 크기에서 검색 결과 두 건이 들어가는 팝업 높이
       footer={
         <>
           <Button className="max-lg:hidden" onClick={onClose}>
@@ -78,14 +79,14 @@ export default function LocationSearchModal({
           <Radio.Group
             value={selected}
             onChange={(event) => setSelected(event.target.value)}
-            className="flex w-full flex-col gap-2"
+            className="flex max-h-[calc(10.25rem+4px)] w-full flex-col gap-2 overflow-y-auto"
             aria-label="검색 결과"
           >
             {results.map((result) => (
               <Radio
                 key={result.road}
                 value={result.road}
-                className="m-0 flex items-center rounded-xl border border-divider p-4 has-[:checked]:border-primary-700 has-[:checked]:bg-primary-50"
+                className="m-0 flex shrink-0 items-center rounded-xl border border-divider p-4 has-[:checked]:border-primary-700 has-[:checked]:bg-primary-50"
               >
                 <span className="block text-body-strong">{result.road}</span>
                 <span className="block text-caption text-muted">
