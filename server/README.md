@@ -30,6 +30,14 @@ export TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE=/var/run/docker.sock
 - OpenAPI JSON: http://localhost:8080/v3/api-docs
 - 헬스체크: http://localhost:8080/actuator/health
 
+## 패키지 구조
+
+도메인 패키지(`ingredient`, `batch`, `analysis`, `publicdata` 등) 안에 계층별 폴더를 따로 둡니다. 생긴 계층만 만듭니다.
+
+- `entity` JPA 엔티티와 엔티티가 쓰는 enum · `repository` Spring Data 리포지토리 · `service` 업무 로직과 트랜잭션
+- `controller` REST API · `dto` 요청·응답 record · `client` 외부 API 호출 · `scheduler` `@Scheduled` 진입점
+- 여러 도메인이 같이 쓰는 것은 `common`(`controller`, `exception`), 설정은 `config`에 둡니다.
+
 ## 공공데이터 API
 
 응답 필드명은 원본 API 그대로입니다. 자세한 파라미터는 Swagger UI 참고.
@@ -117,7 +125,7 @@ V22부터 같은 원자재의 직전 관측일 가격을 SQL LAG로 연결합니
 
 연결된 DB에 V18__batch_job_history.sql을 적용했습니다. batch_job과 batch_job_history는 1:N 관계이며, 최초 실행은 retry_times=0입니다.
 application.yml의 batch.max-retry-times는 3(최초 포함 최대 4회)입니다. running_time은 시작·종료 시각에서 자동 계산한 밀리초입니다.
-재시도 실행·상태 전이·중단 복구 로직은 아직 연결하지 않았습니다.
+`batch/service/BatchJobService`가 회차와 시도 이력을 남기고 실패하면 바로 다시 시도합니다. 첫 사용처는 원자재 가격 일배치(`ingredient/scheduler/IngredientPriceBatch`, 매일 10시 KST, `INGREDIENT_PRICE_CRON`)입니다. 서버가 실행 중에 죽어 RUNNING으로 남은 작업을 복구하는 로직은 아직 없습니다.
 
 ## 배포 (Render + Neon, 무료)
 
