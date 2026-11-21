@@ -11,15 +11,15 @@ API 구현(컨트롤러·서비스)은 본선에서 합니다. Python ai-server�
 | --- | --- | --- | --- | --- |
 | 가게 정보 선택 | `GET /api/industries` | — | `List<IndustryResponse>` | 전체 업종 28개 |
 | 가게 정보 선택 | `GET /api/industries/{industryId}/recommended-items` | — | `RecommendedItemsResponse` | 업종 기본 원자재 최대 3 · 부자재 최대 2 ("한 번에 담기") |
-| 가게 정보 선택 | `GET /api/ingredients?query=` | — | `List<IngredientResponse>` | 원자재 검색, 최대 20개 |
-| 가게 정보 선택 | `GET /api/supplies?query=` | — | `List<SupplyResponse>` | 부자재 검색, 최대 20개 |
+| 가게 정보 선택 | `GET /api/ingredients?query=` | — | `List<IngredientResponse>` | 원자재 검색, 이름순 전부 |
+| 가게 정보 선택 | `GET /api/supplies?query=` | — | `List<SupplyResponse>` | 부자재 검색, 이름순 전부 |
 | 가게 정보 선택 | `POST /api/locations/validate` | `LocationValidateRequest` | `LocationValidateResponse` | 주소 검색은 프론트(카카오 지도). 쓸 수 없는 주소도 200 + `valid=false`, 요청 형식이 틀리면 400 |
 | 분석 중 | `POST /api/analysis` | `AnalysisRequest` | `AnalysisCreatedResponse` (202) | 약 1분 걸려 번호만 바로 돌려줌. 서울 밖 422, 품목 개수 초과 400 |
 | 분석 중 · 대시보드 | `GET /api/analysis/{id}` | — | `AnalysisResponse` | 1~2초마다 다시 물음. `SUCCEEDED`면 `briefing`, `FAILED`면 `failure` |
 | 대시보드 | `POST /api/analysis/{id}/feedback` | `SuggestionFeedbackRequest` | 204 | 카드 1장에 1표, 다시 보내면 표를 바꿈 |
 | 대시보드 | `GET /api/areas` | — | `List<AreaResponse>` | "지금 이 지역은" 장소 목록 |
-| 대시보드 | `GET /api/seoul/city-data/{area}` | — | `CityDataResponse` | 지금은 원본 CITYDATA를 그대로 줌. 이 DTO로 바꿀 예정 |
-| 대시보드 | `GET /api/support-programs` | — | `SupportProgramListResponse` | 마감 임박 지원사업. 원본이 하루 1번 갱신되고 느려서 서버가 모아 두고 내줌 |
+| 대시보드 | `GET /api/seoul/city-data/{area}` | — | `CityDataResponse` | 원본 CITYDATA에서 화면에 쓰는 값만 줌 |
+| 대시보드 | `GET /api/support-programs` | — | `SupportProgramListResponse` | 마감 임박 지원사업. 오늘 이후 마감, 임박 순 최대 5개. 원본이 하루 1번 갱신되고 느려서 서버가 매일 6시에 모아 두고 내줌. 한 번도 모으지 못했으면 503 |
 
 - 오류는 모두 Spring `ProblemDetail`(RFC 9457) 형식입니다.
 - 할 일(오늘 확인할 일)은 로그인이 없어 브라우저 localStorage `todos:{analysisId}`에 둡니다. 서버 API가 없습니다. 강추 카드의 `subTasks`를 처음 열 때 담습니다(항목 `{ id, text, cardKey, done }`, 직접 추가한 할 일은 `cardKey`가 `null`).
@@ -30,7 +30,7 @@ API 구현(컨트롤러·서비스)은 본선에서 합니다. Python ai-server�
 ### 개발용 원본 중계 API
 
 공공데이터 원본을 그대로 돌려주는 확인용 API입니다. 화면에서는 위 API를 씁니다.
-`GET /api/kakao/admin-dong` (`AdminDong`) · `/api/kweather/*` · `/api/seoul/*` · `GET /api/agro/price-trends` · `GET /api/bizinfo/support-programs` (모두 `ListResponse` 또는 원본 JSON)
+`GET /api/kakao/admin-dong` (`AdminDong`) · `/api/kweather/*` · `/api/seoul/*`(city-data 제외) · `GET /api/agro/price-trends` · `GET /api/bizinfo/support-programs` (모두 `ListResponse` 또는 원본 JSON)
 
 ## 가게 정보 선택
 
@@ -187,8 +187,8 @@ GET /api/analysis/{id}. 분석 중에는 steps만, 끝나면 briefing 또는 fai
 | 필드 | 타입 | 값 | 설명 |
 | --- | --- | --- | --- |
 | `events` | `List<EventResponse>` | 필수 | 주변 행사 (순서도 3·4). 0건이면 시즌 행사·날씨로 넘어감 |
-| `seasonEvents` | `List<SeasonEventResponse>` | 필수 | 시즌 행사 (순서도 5). 주변 행사가 없을 때만 채움 |
-| `weather` | `WeatherResponse` | null 가능 | 날씨 (순서도 3-1). 주변 행사·시즌 행사가 모두 없을 때만 채움 |
+| `seasonEvents` | `List<SeasonEventResponse>` | 필수 | 시즌 행사 (순서도 5). 주변 행사가 없을 때, 또는 부자재 카드의 근거일 때 채움 |
+| `weather` | `WeatherResponse` | null 가능 | 날씨 (순서도 3-1). 주변 행사·시즌 행사가 모두 없을 때, 또는 부자재 카드의 근거일 때 채움 |
 | `ingredients` | `List<IngredientPriceResponse>` | 필수 | 고른 원자재 전부의 가격 (가격 자료 없는 품목 포함, 순서도 7) |
 | `supplies` | `List<SupplyTimingResponse>` | 필수 | 고른 부자재 전부의 준비 시점 (부자재 정보 없음 포함, 순서도 9) |
 | `suggestions` | `List<SuggestionResponse>` | 필수 | 추천 카드 (순서도 17~19). 강추가 하나도 없으면 빈 상태 문구 |
@@ -305,7 +305,7 @@ GET /api/analysis/{id}. 분석 중에는 steps만, 끝나면 briefing 또는 fai
 | `itemId` | `long` | 필수 | 부자재 id |
 | `name` | `String` | 필수 | 품목 이름 (예: 포장 용기) |
 | `demand` | `Demand` | null 가능 | 수요 변화 (수요 높음 배지) |
-| `prepareBy` | `LocalDate` | null 가능 | 이날까지 준비 (11.18(화)) |
+| `prepareBy` | `LocalDate` | null 가능 | 이날까지 준비 (11.18(수)) |
 | `leadDays` | `Integer` | null 가능 | 며칠 전 준비 (supply_rule.lead_days_max) (예: 3) |
 | `triggerLabel` | `String` | null 가능 | 준비 이유 (예: 공연) |
 | `triggerEvidenceId` | `String` | null 가능 | 연결된 행사·시즌·날씨 근거 id. 없으면 null (예: E1) |
@@ -379,8 +379,11 @@ GET /api/seoul/city-data/{area}를 화면용으로 줄인 응답 ("지금 이 �
 | `congestion` | `Congestion` | 필수 | 현재 혼잡도 (AREA_CONGEST_LVL) |
 | `populationMin` | `int` | 필수 | 현재 인구 최소 (AREA_PPLTN_MIN) (예: 28000) |
 | `populationMax` | `int` | 필수 | 현재 인구 최대 (AREA_PPLTN_MAX) (예: 30000) |
+| `malePercent` | `Double` | null 가능 | 남성 인구 비율 (MALE_PPLTN_RATE, %) (예: 52.7) |
+| `femalePercent` | `Double` | null 가능 | 여성 인구 비율 (FEMALE_PPLTN_RATE, %) (예: 47.3) |
 | `forecasts` | `List<CityPopulationForecast>` | 필수 | 이후 예상 혼잡도 (FCST_PPLTN, 12시간 뒤까지 시각 순) |
-| `ageRatios` | `List<CityAgeRatio>` | 필수 | 연령대별 인구 비율 (PPLTN_RATE_0~70) |
+| `consumptionRatios` | `List<CityAgeRatio>` | 필수 | 연령대별 소비 비율 (LIVE_CMRCL_STTS의 CMRCL_10~60_RATE). 상권 자료가 없는 장소면 빈 목록 |
+| `events` | `List<CityEvent>` | 필수 | 주변 문화행사 (EVENT_STTS, 좌표 있는 것만). 지도 핀 |
 | `weather` | `CityWeather` | null 가능 | 날씨 (WEATHER_STTS). 자료가 없으면 null |
 
 ### CityPopulationForecast
@@ -396,34 +399,42 @@ GET /api/seoul/city-data/{area}를 화면용으로 줄인 응답 ("지금 이 �
 
 ### CityAgeRatio
 
-연령대별 인구 비율
+연령대별 소비 비율
 
 | 필드 | 타입 | 값 | 설명 |
 | --- | --- | --- | --- |
-| `ageGroup` | `int` | 필수 | 연령대 (0 = 10세 미만, 10 = 10대 … 70 = 70대 이상) (예: 20) |
+| `ageGroup` | `int` | 필수 | 연령대 (10 = 10대 … 60 = 60대 이상) (예: 20) |
 | `percent` | `double` | 필수 | 비율 (%) (예: 31.0) |
+
+### CityEvent
+
+지도 핀 "축제 870m". 거리는 가게 좌표를 아는 프론트가 계산한다.
+
+| 필드 | 타입 | 값 | 설명 |
+| --- | --- | --- | --- |
+| `name` | `String` | 필수 | 행사 이름 (EVENT_NM) (예: 서울숲 재즈 페스티벌) |
+| `latitude` | `double` | 필수 | 위도 (EVENT_Y) (예: 37.5444) |
+| `longitude` | `double` | 필수 | 경도 (EVENT_X) (예: 127.0374) |
 
 ### CityWeather
 
-"맑음 · 8°C · 강수 확률 10% · 미세먼지 보통".
+"맑음 · 8°C · 강수 확률 10%".
 
 | 필드 | 타입 | 값 | 설명 |
 | --- | --- | --- | --- |
-| `sky` | `String` | null 가능 | 하늘 상태 (SKY_STTS) (예: 맑음) |
+| `sky` | `String` | null 가능 | 하늘 상태 (가장 가까운 시각 FCST24HOURS의 SKY_STTS) (예: 맑음) |
 | `temperature` | `Double` | null 가능 | 기온 (TEMP, ℃) (예: 8.0) |
-| `precipitationChance` | `Integer` | null 가능 | 강수 확률 (가장 가까운 시각의 RAIN_CHANCE, %) (예: 10) |
-| `pm10Index` | `String` | null 가능 | 미세먼지 등급 (PM10_INDEX). FINE_DUST 판정에 씀 (예: 보통) |
-| `pm25Index` | `String` | null 가능 | 초미세먼지 등급 (PM25_INDEX) (예: 좋음) |
+| `precipitationChance` | `Integer` | null 가능 | 강수 확률 (가장 가까운 시각 FCST24HOURS의 RAIN_CHANCE, %) (예: 10) |
 
 ## 지원사업
 
 ### SupportProgramListResponse
 
-GET /api/support-programs. 대시보드 "마감 임박 지원사업" 카드. 기업마당 지원사업 공고(공공데이터포털 15157820) 중 서울·전국 소상공인 대상이고 7일 안에 마감되거나 마감일이 따로 없는 공고. 원본은 하루 한 번 갱신되고 한 번 받는 데 몇 초 걸려서 서버가 모아 두고 내준다.
+GET /api/support-programs. 대시보드 "마감 임박 지원사업" 카드. 기업마당 지원사업 공고(공공데이터포털 15157820) 중 서울·전국 소상공인 대상이고 오늘 이후에 마감되는 공고. 원본은 하루 한 번 갱신되고 한 번 받는 데 몇 초 걸려서 서버가 모아 두고 내준다.
 
 | 필드 | 타입 | 값 | 설명 |
 | --- | --- | --- | --- |
-| `items` | `List<SupportProgramResponse>` | 필수 | 공고 (마감일 빠른 순 → 마감일 없는 공고는 최근 등록 순, 최대 3개) |
+| `items` | `List<SupportProgramResponse>` | 필수 | 공고 (마감일 빠른 순, 최대 5개). '예산 소진시까지'처럼 마감일이 없는 공고는 뺀다 |
 | `checkedAt` | `OffsetDateTime` | 필수 | 원본을 확인한 시각 (출처 표시) |
 
 ### SupportProgramResponse
@@ -437,8 +448,8 @@ GET /api/support-programs. 대시보드 "마감 임박 지원사업" 카드. 기
 | `url` | `String` | 필수 | 기업마당 원문 링크 (pblancUrl) |
 | `agency` | `String` | 필수 | 소관기관 (jrsdInsttNm) (예: 중소벤처기업부) |
 | `field` | `String` | null 가능 | 지원 분야 (pldirSportRealmLclasCodeNm). 모르면 null (예: 경영) |
-| `deadline` | `LocalDate` | null 가능 | 마감일. '예산 소진시까지'·'상시 접수'처럼 날짜가 없으면 null (예: 2026-11-25) |
-| `applicationPeriod` | `String` | 필수 | 신청 기간 원문 (reqstBeginEndDe). 마감일이 없을 때 화면에 그대로 보여준다 (예: 예산 소진시까지) |
+| `deadline` | `LocalDate` | 필수 | 마감일 (오늘이거나 그 뒤) (예: 2026-11-25) |
+| `applicationPeriod` | `String` | 필수 | 신청 기간 원문 (reqstBeginEndDe) (예: 2026-11-19 ~ 2026-11-25) |
 
 ## 값 목록 (enum)
 

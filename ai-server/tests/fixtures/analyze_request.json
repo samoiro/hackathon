@@ -1,0 +1,92 @@
+{
+  "request_id": "6f1c2a4e-0d0b-4e7b-9a51-2b1f0c3d9e10",
+  "base_time": "2026-11-17T07:00:00+09:00",
+  "store": {
+    "gu": "성동구",
+    "area_label": "성수동 · 서울숲 인근",
+    "industry_category": "음식점",
+    "industry_name": "한식",
+    "operation_type": "BOTH"
+  },
+  "event_search": { "radius_m": 1500, "days": 7 },
+  "events": [
+    {
+      "evidence_id": "E1",
+      "title": "서울숲 음악회",
+      "category": "공연",
+      "place": "서울숲 야외무대",
+      "date_label": "11.21(토)",
+      "status": "UPCOMING",
+      "distance_m": 650,
+      "walk_minutes": 10,
+      "is_free": true,
+      "trigger": "PERFORMANCE",
+      "time_band": "AFTERNOON",
+      "peak_label": "15~20시"
+    }
+  ],
+  "season_events": [],
+  "weather": null,
+  "raw_materials": [
+    {
+      "evidence_id": "R1",
+      "item_id": 12,
+      "name": "배추",
+      "unit": "1포기",
+      "grade": "상품",
+      "base_date": "2026-11-16",
+      "price": 4380,
+      "change_1w_pct": 4.1,
+      "change_4w_pct": 10.9,
+      "trend": "UP",
+      "consecutive_weeks": 4,
+      "price_stage": "ALERT_HIGH",
+      "signals": [{ "text": "4주 전보다 많이 오름 (상승 경계: 부류 상위 12.5%)", "demand": "STRONG_DOWN" }]
+    },
+    {
+      "evidence_id": "R2",
+      "item_id": 15,
+      "name": "돼지고기",
+      "unit": "100g",
+      "grade": "상품",
+      "base_date": "2026-11-16",
+      "price": 2650,
+      "change_1w_pct": -1.2,
+      "change_4w_pct": -6.3,
+      "trend": "DOWN",
+      "consecutive_weeks": 2,
+      "price_stage": "WATCH_LOW",
+      "signals": [{ "text": "4주 전보다 내림 (하락 주의: 부류 하위 20%)", "demand": "UP" }]
+    },
+    {
+      "evidence_id": "R3",
+      "item_id": 7,
+      "name": "쌀",
+      "unit": "20kg",
+      "grade": "상품",
+      "base_date": "2026-11-16",
+      "price": 54200,
+      "change_1w_pct": 0.0,
+      "change_4w_pct": 0.0,
+      "trend": "FLAT",
+      "consecutive_weeks": 0,
+      "price_stage": "STABLE",
+      "signals": []
+    }
+  ],
+  "supplies": [
+    { "evidence_id": "S1", "item_id": 3, "name": "포장 용기", "kind": "SUPPLY", "demand": "UP",
+      "trigger_label": "공연", "trigger_evidence_id": "E1", "prepare_by_label": "11.18(수)" },
+    { "evidence_id": "S2", "item_id": 5, "name": "일회용 수저", "kind": "SUPPLY", "demand": "UP",
+      "trigger_label": "공연", "trigger_evidence_id": "E1", "prepare_by_label": "11.19(목)" }
+  ],
+  "cards": [
+    { "card_id": "C1", "category": "EVENT", "task_type": "STAFFING", "item_id": null, "evidence_ids": ["E1"] },
+    { "card_id": "C2", "category": "EVENT", "task_type": "STOCK", "item_id": null, "evidence_ids": ["E1"] },
+    { "card_id": "C3", "category": "EVENT", "task_type": "PICKUP", "item_id": null, "evidence_ids": ["E1"] },
+    { "card_id": "C4", "category": "INGREDIENT", "task_type": "PRICE_CHECK", "item_id": 12, "evidence_ids": ["R1"] },
+    { "card_id": "C5", "category": "INGREDIENT", "task_type": "ORDER_PLAN", "item_id": 15, "evidence_ids": ["R2"] },
+    { "card_id": "C6", "category": "SUPPLY", "task_type": "RESTOCK", "item_id": 3, "evidence_ids": ["S1", "E1"] },
+    { "card_id": "C7", "category": "SUPPLY", "task_type": "RESTOCK", "item_id": 5, "evidence_ids": ["S2", "E1"] }
+  ]
+}
