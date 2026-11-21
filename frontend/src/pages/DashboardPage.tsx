@@ -23,6 +23,7 @@ import {
 } from '@/lib/api/analysis'
 import type { AnalysisRequest, SuggestionResponse } from '@/lib/api/generated'
 import { searchAddresses } from '@/lib/kakao/maps'
+import { loadOnboardingDraft } from '@/lib/onboarding/draft'
 import type { InterestItems } from '@/types/search'
 import type { TodoTag } from '@/types/todo'
 
@@ -48,9 +49,17 @@ export default function DashboardPage() {
   const store = analysis?.store
   const original = client.getQueryData<AnalysisRequest>(['analysis-input', id])
   const road = store?.roadAddress ?? ''
+  // 가게 좌표: 분석 응답에 좌표가 없어서, 가게 정보 입력 때 로컬스토리지에 저장한 좌표를 쓴다.
+  // 저장된 주소가 이 분석의 가게 주소와 같을 때만 쓰고, 다르면(다른 가게를 입력한 뒤 예전 브리핑을 연 경우) 카카오 주소 검색으로 찾는다
+  // shortcut: 분석 응답(StoreSummary)에 latitude·longitude가 생기면 그 값만 쓰고 이 저장값·주소 검색은 지운다
+  const [saved] = useState(() => loadOnboardingDraft()?.location?.address)
+  const savedAddress =
+    saved && normalizeRoad(saved.road) === normalizeRoad(road)
+      ? saved
+      : undefined
   const addressLookup = useQuery({
     queryKey: ['search', 'kakao-address', road],
-    enabled: Boolean(briefing && road && !original),
+    enabled: Boolean(briefing && road && !original && !savedAddress),
     queryFn: () => searchAddresses(road),
     retry: false,
   })
@@ -61,9 +70,10 @@ export default function DashboardPage() {
         longitude: original.longitude,
         jibun: '',
       }
-    : addressLookup.data?.find(
+    : (savedAddress ??
+      addressLookup.data?.find(
         (item) => normalizeRoad(item.road) === normalizeRoad(road),
-      )
+      ))
   const start = useStartAnalysis()
   const { notification } = App.useApp()
   const excluded = readExcludedCards()
